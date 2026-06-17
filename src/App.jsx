@@ -1,0 +1,730 @@
+import { useState, useEffect, useCallback, useRef } from "react";
+
+const API = "https://script.google.com/macros/s/AKfycbySGO0LtHtnT7SBEHF22TfsDUmz3kqmz3C2a-tZk6zL3_ZFuEoUF485h4QWvxq4H_S7/exec";
+const SYNC_INTERVAL_MS = 120000; // 2 minutos
+
+const K={bg:"#0c0c0c",card:"#181818",card2:"#222",green:"#4ade80",red:"#f87171",blue:"#60a5fa",yellow:"#fbbf24",purple:"#a78bfa",orange:"#fb923c",border:"#2a2a2a",muted:"#585858",text:"#f0f0f0"};
+const CCAT={"AHORRO":K.blue,"DEUDA - BANCOS":K.red,"GASTO FIJO":K.yellow,"MERCADO":"#34d399","NEGOCIO":K.purple,"PERSONALES":K.orange,"SALIDA / DOMICILIO":"#e879f9"};
+const TIPOS=["VENTA","COMISION","COMPRA CON SALDO","OCASIONALES","RECIBIDO CLIENTE"];
+const CONCS=["NEGOCIO","GASTO FIJO","SALIDA / DOMICILIO","AHORRO","MERCADO","PERSONALES","DEUDA - BANCOS"];
+
+const fmt=n=>"$"+Number(n||0).toLocaleString("es-CO");
+const mKey=d=>{if(!d)return"";try{const dt=new Date(d);if(isNaN(dt))return"";return`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,"0")}`;}catch{return"";}};
+const curM=()=>{const d=new Date();return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;};
+const mLabel=ym=>{if(!ym)return"";const[y,m]=ym.split("-");return["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"][+m-1]+" "+y;};
+const fDate=d=>{try{return new Date(d).toLocaleDateString("es-CO",{day:"2-digit",month:"short"});}catch{return"";}};
+
+// ═══ API CALLS ════════════════════════════════════════════════
+// GET con todo en query string + row en base64. Esto evita problemas de
+// longitud de URL y de caracteres especiales (tildes, comas) en nombres
+// largos de cliente/producto/proveedor.
+async function callApi(params){
+  const qs=new URLSearchParams(params).toString();
+  const res=await fetch(`${API}?${qs}`,{method:"GET",redirect:"follow"});
+  if(!res.ok)throw new Error("HTTP "+res.status);
+  const json=await res.json();
+  if(!json.ok)throw new Error(json.error||"Error de script");
+  return json;
+}
+
+async function fetchSheet(sheetName){
+  const json=await callApi({action:"read",sheet:sheetName});
+  return json.data;
+}
+// Codificamos el row en base64 antes de mandarlo: así nombres con tildes, comas o
+// textos largos (cliente, producto, proveedor) no rompen la query string del GET.
+const b64=str=>btoa(unescape(encodeURIComponent(str)));
+async function appendRow(sheetName,row){
+  const json=await callApi({action:"append",sheet:sheetName,rowB64:b64(JSON.stringify(row))});
+  return json.row; // número de fila real recién creada
+}
+async function updateRow(sheetName,rowNum,row){
+  await callApi({action:"update",sheet:sheetName,rowNum:String(rowNum),rowB64:b64(JSON.stringify(row))});
+}
+async function deleteRow(sheetName,rowNum){
+  await callApi({action:"delete",sheet:sheetName,rowNum:String(rowNum)});
+}
+
+// ═══ PARSERS ══════════════════════════════════════════════════
+// Cada registro guarda _row = número de fila real en Sheets, necesario para editar/borrar.
+function parseIngresos(rows){
+  return rows.map(r=>{
+    const ts=r["Marca temporal"];
+    if(!ts)return null;
+    const fecha=new Date(ts);
+    if(isNaN(fecha))return null;
+    const tipo=String(r["TIPO"]||"").trim();
+    if(!tipo)return null;
+    const costo=Number(r["COSTO"])||0;
+    const pv=Number(r["PRECIO VENTA"])||0;
+    const gan=Number(r["GANANCIA"])||pv-costo;
+    return{
+      id:"i"+r._row, _row:r._row, fecha:fecha.toISOString(), tipo,
+      producto:String(r["PRODUCTO"]||"").trim(),
+      cliente:String(r["CLIENTE"]||"").trim(),
+      proveedor:String(r["PROVEEDOR"]||"").trim(),
+      costo, precioVenta:pv,
+      debe:String(r["DEBE?"]||"NO").toUpperCase().trim(),
+      ganancia:gan,
+      margen:pv>0?Math.round(gan/pv*100)+"%":"0%",
+    };
+  }).filter(r=>r&&r.tipo&&r.producto);
+}
+
+function parseGastos(rows){
+  return rows.map(r=>{
+    const ts=r["Marca temporal"];
+    if(!ts)return null;
+    const fecha=new Date(ts);
+    if(isNaN(fecha))return null;
+    const concepto=String(r["CONCEPTO"]||"").toUpperCase().trim();
+    const costo=Number(r["COSTO"])||0;
+    const ref=String(r["REFERENCIA DE GASTO"]||"").trim();
+    if(!concepto||!costo)return null;
+    return{id:"g"+r._row, _row:r._row, fecha:fecha.toISOString(), concepto, costo, referencia:ref};
+  }).filter(r=>r&&r.concepto);
+}
+
+// Reconstruye el array de columnas en el MISMO orden que espera la hoja, a partir de un registro parseado.
+function ingresoToRow(it){
+  const d=new Date(it.fecha);
+  const ts=`${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,"0")}:00`;
+  return [ts,it.tipo,it.producto,it.cliente,it.proveedor,it.costo,it.precioVenta,it.debe,it.ganancia,it.margen];
+}
+function gastoToRow(it){
+  const d=new Date(it.fecha);
+  const ts=`${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,"0")}:00`;
+  return [ts,it.concepto,it.costo,it.referencia];
+}
+
+// ═══ UI ATOMS ═════════════════════════════════════════════════
+const Card=({ch,s={}})=><div style={{background:K.card,borderRadius:14,padding:14,marginBottom:10,...s}}>{ch}</div>;
+const Pill=({text,color})=><span style={{background:`${color}22`,color,borderRadius:6,padding:"2px 8px",fontSize:10,fontWeight:700}}>{text}</span>;
+const Btn=({label,onClick,col=K.green,dis,outline,sm,loading})=>(
+  <button onClick={onClick} disabled={dis||loading} style={{width:sm?"auto":"100%",padding:sm?"8px 16px":"14px",background:outline?"transparent":(dis||loading)?K.card2:col,color:outline?col:(dis||loading)?K.muted:"#000",border:`1.5px solid ${outline?col:(dis||loading)?K.border:col}`,borderRadius:sm?10:13,fontSize:sm?12:15,fontWeight:700,cursor:(dis||loading)?"not-allowed":"pointer",opacity:(dis||loading)?.6:1}}>
+    {loading?"⏳ Guardando...":label}
+  </button>
+);
+const ChipGroup=({label,options,value,onChange,colorMap={}})=>(
+  <div style={{marginBottom:14}}>
+    {label&&<div style={{fontSize:11,color:K.muted,marginBottom:6,textTransform:"uppercase",letterSpacing:.8}}>{label}</div>}
+    <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+      {options.map(o=>{const col=colorMap[o]||K.green,sel=value===o;return <button key={o} onClick={()=>onChange(o)} style={{background:sel?`${col}22`:"transparent",border:`1.5px solid ${sel?col:K.border}`,color:sel?col:K.muted,borderRadius:8,padding:"5px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>{o}</button>;})}
+    </div>
+  </div>
+);
+const FInput=({label,value,onChange,type="text",placeholder,prefix})=>(
+  <div style={{marginBottom:12}}>
+    {label&&<div style={{fontSize:11,color:K.muted,marginBottom:4,textTransform:"uppercase",letterSpacing:.8}}>{label}</div>}
+    <div style={{display:"flex",alignItems:"center",background:K.card2,border:`1px solid ${K.border}`,borderRadius:10,overflow:"hidden"}}>
+      {prefix&&<span style={{padding:"0 10px",color:K.muted,fontSize:13}}>{prefix}</span>}
+      <input type={type} value={value??""} onChange={e=>onChange(e.target.value)} placeholder={placeholder||""} style={{flex:1,background:"transparent",border:"none",color:K.text,padding:"11px 12px",fontSize:15,outline:"none"}}/>
+    </div>
+  </div>
+);
+
+// Confirmación inline de borrado (sin window.confirm, que no anda bien en el artifact)
+function ConfirmDelete({onConfirm,onCancel}){
+  return(
+    <div style={{display:"flex",gap:6,marginTop:8}}>
+      <button onClick={onConfirm} style={{flex:1,background:`${K.red}22`,border:`1.5px solid ${K.red}`,color:K.red,borderRadius:8,padding:"8px 0",fontSize:12,fontWeight:700,cursor:"pointer"}}>Sí, borrar</button>
+      <button onClick={onCancel} style={{flex:1,background:"transparent",border:`1.5px solid ${K.border}`,color:K.muted,borderRadius:8,padding:"8px 0",fontSize:12,fontWeight:700,cursor:"pointer"}}>Cancelar</button>
+    </div>
+  );
+}
+
+// ═══ HOME ═════════════════════════════════════════════════════
+function Home({db,onRefresh,loading,lastSync}){
+  const m=curM();
+  const ing=db.ingresos.filter(i=>mKey(i.fecha)===m);
+  const gas=db.gastos.filter(g=>mKey(g.fecha)===m);
+  const ventas=ing.reduce((s,i)=>s+i.precioVenta,0);
+  const gan=ing.reduce((s,i)=>s+i.ganancia,0);
+  const gastos=gas.filter(g=>g.concepto!=="AHORRO").reduce((s,g)=>s+g.costo,0);
+  const ahorro=gas.filter(g=>g.concepto==="AHORRO").reduce((s,g)=>s+g.costo,0);
+  const util=gan-gastos;
+  const mrg=ventas>0?(util/ventas*100).toFixed(1):0;
+  const cmap={};
+  ing.filter(i=>i.tipo==="VENTA"&&i.cliente).forEach(i=>{
+    const k=i.cliente.toUpperCase().trim();
+    if(!cmap[k])cmap[k]={g:0,n:0};
+    cmap[k].g+=i.ganancia;cmap[k].n++;
+  });
+  const top5=Object.entries(cmap).sort((a,b)=>b[1].g-a[1].g).slice(0,5);
+  const debenSet=new Set(ing.filter(i=>i.debe==="SI").map(i=>i.cliente?.toUpperCase().trim()).filter(Boolean));
+  const rec=[...ing.map(x=>({...x,t:"i"})),...gas.map(x=>({...x,t:"g"}))].sort((a,b)=>new Date(b.fecha)-new Date(a.fecha)).slice(0,6);
+  const syncTxt=lastSync?lastSync.toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit"}):"—";
+  return(
+    <div style={{padding:"24px 16px 0"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+        <div>
+          <div style={{fontSize:11,color:K.muted,letterSpacing:1,textTransform:"uppercase"}}>Altaclase Bodega</div>
+          <div style={{fontSize:20,fontWeight:800}}>{mLabel(m)}</div>
+        </div>
+        <button onClick={onRefresh} disabled={loading} style={{background:"none",border:`1px solid ${K.border}`,borderRadius:10,padding:"6px 14px",color:loading?K.muted:K.green,fontSize:12,fontWeight:700,cursor:loading?"not-allowed":"pointer"}}>
+          {loading?"⏳":"🔄"} Sync
+        </button>
+      </div>
+
+      <div style={{background:util>=0?"#091d10":"#1d0909",border:`1px solid ${util>=0?"#1a4a2a":"#4a1a1a"}`,borderRadius:16,padding:"18px 16px",marginBottom:10}}>
+        <div style={{fontSize:11,color:K.muted,textTransform:"uppercase",letterSpacing:1,marginBottom:2}}>Utilidad del mes</div>
+        <div style={{fontSize:36,fontWeight:900,color:util>=0?K.green:K.red,letterSpacing:-1}}>{fmt(util)}</div>
+        <div style={{display:"flex",gap:14,marginTop:6,flexWrap:"wrap"}}>
+          <span style={{fontSize:12,color:K.muted}}>Margen <b style={{color:util>=0?K.green:K.red}}>{mrg}%</b></span>
+          {ahorro>0&&<span style={{fontSize:12,color:K.muted}}>Ahorro <b style={{color:K.blue}}>{fmt(ahorro)}</b></span>}
+          {debenSet.size>0&&<span style={{fontSize:12,color:K.red}}>⚠️ {debenSet.size} deben</span>}
+        </div>
+      </div>
+
+      <Card ch={
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr"}}>
+          {[["Ventas",ventas,K.green],["Ganancia",gan,K.blue],["Gastos",gastos,K.red]].map(([l,v,col],i)=>(
+            <div key={l} style={{textAlign:"center",borderRight:i<2?`1px solid ${K.border}`:""}}>
+              <div style={{fontSize:9,color:K.muted,textTransform:"uppercase",marginBottom:2}}>{l}</div>
+              <div style={{fontSize:14,fontWeight:800,color:col}}>{fmt(v)}</div>
+            </div>
+          ))}
+        </div>
+      }/>
+
+      {top5.length>0&&<Card ch={<>
+        <div style={{fontSize:11,color:K.muted,textTransform:"uppercase",letterSpacing:1,marginBottom:12}}>🏆 Top 5 Clientes</div>
+        {top5.map(([nom,st],i)=>(
+          <div key={nom} style={{display:"flex",alignItems:"center",gap:10,marginBottom:i<top5.length-1?10:0}}>
+            <div style={{width:22,height:22,borderRadius:"50%",background:["#ffd700","#c0c0c0","#cd7f32","#444","#444"][i],display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:800,color:i<3?"#000":K.muted,flexShrink:0}}>{i+1}</div>
+            <div style={{flex:1}}><div style={{fontSize:13,fontWeight:700}}>{nom}</div><div style={{fontSize:10,color:K.muted}}>{st.n} venta{st.n!==1?"s":""}</div></div>
+            <div style={{fontWeight:800,fontSize:14,color:K.green}}>{fmt(st.g)}</div>
+          </div>
+        ))}
+      </>}/>}
+
+      {rec.length>0&&<Card ch={<>
+        <div style={{fontSize:11,color:K.muted,textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>Últimos movimientos</div>
+        {rec.map((item,i)=>{
+          const isI=item.t==="i",val=isI?item.ganancia:item.costo,col=isI?(val>=0?K.green:K.muted):CCAT[item.concepto]||K.red;
+          return(<div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingBottom:i<rec.length-1?9:0,marginBottom:i<rec.length-1?9:0,borderBottom:i<rec.length-1?`1px solid ${K.border}`:"none"}}>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:13,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{isI?(item.producto||item.tipo):item.referencia}</div>
+              <div style={{fontSize:10,color:K.muted}}>{isI?`${item.tipo}${item.cliente?" · "+item.cliente:""}`:item.concepto}</div>
+            </div>
+            <div style={{textAlign:"right",marginLeft:8}}>
+              <div style={{fontSize:13,fontWeight:800,color:col}}>{isI?(val>=0?"+":"")+fmt(val):"-"+fmt(val)}</div>
+              <div style={{fontSize:10,color:K.muted}}>{fDate(item.fecha)}</div>
+            </div>
+          </div>);
+        })}
+      </>}/>}
+
+      <div style={{textAlign:"center",fontSize:10,color:K.muted,paddingBottom:8}}>
+        📊 {db.ingresos.length} ingresos · {db.gastos.length} gastos · última sync {syncTxt}
+      </div>
+    </div>
+  );
+}
+
+// ═══ INGRESO FORM ══════════════════════════════════════════════
+function IngresoForm({onSave}){
+  const [f,setF]=useState({tipo:"VENTA",producto:"",cliente:"",proveedor:"",costo:"",pv:"",debe:false});
+  const [saving,setSaving]=useState(false);
+  const [ok,setOk]=useState(false);
+  const [err,setErr]=useState(null);
+  const up=k=>v=>setF(p=>({...p,[k]:v}));
+  const gan=Number(f.pv||0)-Number(f.costo||0);
+  const mrg=Number(f.pv)>0?Math.round(gan/Number(f.pv)*100):0;
+  const go=async()=>{
+    setSaving(true);setErr(null);
+    try{
+      const item={fecha:new Date().toISOString(),tipo:f.tipo,producto:f.producto,cliente:f.cliente,proveedor:f.proveedor,costo:Number(f.costo)||0,precioVenta:Number(f.pv)||0,debe:f.debe?"SI":"NO",ganancia:gan,margen:mrg+"%"};
+      await onSave(ingresoToRow(item));
+      setF({tipo:"VENTA",producto:"",cliente:"",proveedor:"",costo:"",pv:"",debe:false});
+      setOk(true);setTimeout(()=>setOk(false),3000);
+    }catch(e){setErr("Error al guardar: "+e.message);}
+    finally{setSaving(false);}
+  };
+  return(
+    <div style={{padding:"24px 16px 0"}}>
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:18}}>
+        <span style={{fontSize:26}}>⬆️</span>
+        <div><div style={{fontSize:10,color:K.muted}}>NUEVO · SE GUARDA EN SHEETS</div><div style={{fontSize:20,fontWeight:800,color:K.green}}>Ingreso</div></div>
+      </div>
+      <Card ch={<>
+        <ChipGroup label="Tipo" options={TIPOS} value={f.tipo} onChange={up("tipo")}/>
+        <FInput label="Producto" value={f.producto} onChange={up("producto")} placeholder="ej: NIKE TN, SAMBA..."/>
+        <FInput label="Cliente" value={f.cliente} onChange={up("cliente")} placeholder="ej: ALEJANDRA"/>
+        <FInput label="Proveedor" value={f.proveedor} onChange={up("proveedor")} placeholder="ej: LIDER, BOA, FYM..."/>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+          <FInput label="Costo" value={f.costo} onChange={up("costo")} type="number" prefix="$" placeholder="0"/>
+          <FInput label="Precio venta" value={f.pv} onChange={up("pv")} type="number" prefix="$" placeholder="0"/>
+        </div>
+        {(f.costo||f.pv)&&<div style={{background:K.bg,borderRadius:10,padding:"10px 12px",marginBottom:12,display:"flex",justifyContent:"space-between",border:`1px solid ${K.border}`}}>
+          <div><div style={{fontSize:9,color:K.muted,marginBottom:1}}>GANANCIA</div><div style={{fontSize:17,fontWeight:800,color:gan>=0?K.green:K.red}}>{fmt(gan)}</div></div>
+          <div style={{textAlign:"right"}}><div style={{fontSize:9,color:K.muted,marginBottom:1}}>MARGEN</div><div style={{fontSize:17,fontWeight:800,color:gan>=0?K.green:K.red}}>{mrg}%</div></div>
+        </div>}
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+          <span style={{fontSize:13,color:K.muted}}>¿El cliente debe?</span>
+          <button onClick={()=>up("debe")(!f.debe)} style={{background:f.debe?`${K.red}22`:"transparent",border:`1.5px solid ${f.debe?K.red:K.border}`,color:f.debe?K.red:K.muted,borderRadius:20,padding:"6px 18px",fontSize:13,fontWeight:700,cursor:"pointer"}}>{f.debe?"SÍ ✓":"NO"}</button>
+        </div>
+      </>}/>
+      {ok&&<div style={{textAlign:"center",color:K.green,fontWeight:700,marginBottom:8,fontSize:14}}>✅ ¡Guardado en Google Sheets!</div>}
+      {err&&<div style={{textAlign:"center",color:K.red,fontWeight:700,marginBottom:8,fontSize:13}}>{err}</div>}
+      <Btn label="REGISTRAR INGRESO" onClick={go} dis={!f.producto||!f.pv} loading={saving}/>
+    </div>
+  );
+}
+
+// ═══ GASTO FORM ════════════════════════════════════════════════
+function GastoForm({onSave}){
+  const [f,setF]=useState({concepto:"NEGOCIO",costo:"",ref:""});
+  const [saving,setSaving]=useState(false);
+  const [ok,setOk]=useState(false);
+  const [err,setErr]=useState(null);
+  const up=k=>v=>setF(p=>({...p,[k]:v}));
+  const go=async()=>{
+    setSaving(true);setErr(null);
+    try{
+      const item={fecha:new Date().toISOString(),concepto:f.concepto,costo:Number(f.costo)||0,referencia:f.ref};
+      await onSave(gastoToRow(item));
+      setF({concepto:f.concepto,costo:"",ref:""});
+      setOk(true);setTimeout(()=>setOk(false),3000);
+    }catch(e){setErr("Error al guardar: "+e.message);}
+    finally{setSaving(false);}
+  };
+  return(
+    <div style={{padding:"24px 16px 0"}}>
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:18}}>
+        <span style={{fontSize:26}}>⬇️</span>
+        <div><div style={{fontSize:10,color:K.muted}}>NUEVO · SE GUARDA EN SHEETS</div><div style={{fontSize:20,fontWeight:800,color:K.red}}>Gasto</div></div>
+      </div>
+      <Card ch={<>
+        <ChipGroup label="Concepto" options={CONCS} value={f.concepto} onChange={up("concepto")} colorMap={CCAT}/>
+        <div style={{marginBottom:14}}>
+          <div style={{fontSize:11,color:K.muted,marginBottom:5,textTransform:"uppercase",letterSpacing:.8}}>Valor</div>
+          <div style={{display:"flex",alignItems:"center",background:K.card2,border:`1px solid ${K.border}`,borderRadius:10}}>
+            <span style={{padding:"0 14px",color:K.muted,fontSize:14}}>$</span>
+            <input type="number" value={f.costo} onChange={e=>up("costo")(e.target.value)} placeholder="0" style={{flex:1,background:"transparent",border:"none",color:K.text,padding:"12px 8px 12px 0",fontSize:16,outline:"none",fontWeight:700}}/>
+          </div>
+        </div>
+        <FInput label="Referencia" value={f.ref} onChange={up("ref")} placeholder="ej: ARRIENDO, MERCADO..."/>
+      </>}/>
+      {ok&&<div style={{textAlign:"center",color:K.green,fontWeight:700,marginBottom:8,fontSize:14}}>✅ ¡Guardado en Google Sheets!</div>}
+      {err&&<div style={{textAlign:"center",color:K.red,fontWeight:700,marginBottom:8,fontSize:13}}>{err}</div>}
+      <Btn label="REGISTRAR GASTO" onClick={go} col={K.red} dis={!f.costo||!f.ref} loading={saving}/>
+    </div>
+  );
+}
+
+// ═══ EDITAR INGRESO (modal inline) ══════════════════════════════
+function EditIngreso({item,onClose,onSave,onDelete}){
+  const [f,setF]=useState({tipo:item.tipo,producto:item.producto,cliente:item.cliente,proveedor:item.proveedor,costo:String(item.costo),pv:String(item.precioVenta),debe:item.debe==="SI"});
+  const [saving,setSaving]=useState(false);
+  const [confirmDel,setConfirmDel]=useState(false);
+  const [err,setErr]=useState(null);
+  const up=k=>v=>setF(p=>({...p,[k]:v}));
+  const gan=Number(f.pv||0)-Number(f.costo||0);
+  const mrg=Number(f.pv)>0?Math.round(gan/Number(f.pv)*100):0;
+  const guardar=async()=>{
+    setSaving(true);setErr(null);
+    try{
+      const updated={...item,tipo:f.tipo,producto:f.producto,cliente:f.cliente,proveedor:f.proveedor,costo:Number(f.costo)||0,precioVenta:Number(f.pv)||0,debe:f.debe?"SI":"NO",ganancia:gan,margen:mrg+"%"};
+      await onSave(updated);
+      onClose();
+    }catch(e){setErr("Error: "+e.message);setSaving(false);}
+  };
+  const borrar=async()=>{
+    setSaving(true);setErr(null);
+    try{await onDelete(item);onClose();}
+    catch(e){setErr("Error: "+e.message);setSaving(false);}
+  };
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.7)",zIndex:1000,display:"flex",alignItems:"flex-end"}} onClick={onClose}>
+      <div onClick={e=>e.stopPropagation()} style={{background:K.bg,width:"100%",maxWidth:430,margin:"0 auto",borderRadius:"20px 20px 0 0",padding:"18px 16px",maxHeight:"85vh",overflowY:"auto"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+          <div style={{fontSize:17,fontWeight:800}}>Editar ingreso</div>
+          <button onClick={onClose} style={{background:"none",border:"none",color:K.muted,fontSize:22,cursor:"pointer"}}>✕</button>
+        </div>
+        <Card ch={<>
+          <ChipGroup label="Tipo" options={TIPOS} value={f.tipo} onChange={up("tipo")}/>
+          <FInput label="Producto" value={f.producto} onChange={up("producto")}/>
+          <FInput label="Cliente" value={f.cliente} onChange={up("cliente")}/>
+          <FInput label="Proveedor" value={f.proveedor} onChange={up("proveedor")}/>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+            <FInput label="Costo" value={f.costo} onChange={up("costo")} type="number" prefix="$"/>
+            <FInput label="Precio venta" value={f.pv} onChange={up("pv")} type="number" prefix="$"/>
+          </div>
+          <div style={{background:K.bg,borderRadius:10,padding:"10px 12px",marginBottom:12,display:"flex",justifyContent:"space-between",border:`1px solid ${K.border}`}}>
+            <div><div style={{fontSize:9,color:K.muted}}>GANANCIA</div><div style={{fontSize:17,fontWeight:800,color:gan>=0?K.green:K.red}}>{fmt(gan)}</div></div>
+            <div style={{textAlign:"right"}}><div style={{fontSize:9,color:K.muted}}>MARGEN</div><div style={{fontSize:17,fontWeight:800,color:gan>=0?K.green:K.red}}>{mrg}%</div></div>
+          </div>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+            <span style={{fontSize:13,color:K.muted}}>¿El cliente debe?</span>
+            <button onClick={()=>up("debe")(!f.debe)} style={{background:f.debe?`${K.red}22`:"transparent",border:`1.5px solid ${f.debe?K.red:K.border}`,color:f.debe?K.red:K.muted,borderRadius:20,padding:"6px 18px",fontSize:13,fontWeight:700,cursor:"pointer"}}>{f.debe?"SÍ ✓":"NO"}</button>
+          </div>
+        </>}/>
+        {err&&<div style={{textAlign:"center",color:K.red,fontWeight:700,marginBottom:8,fontSize:13}}>{err}</div>}
+        <Btn label="GUARDAR CAMBIOS" onClick={guardar} loading={saving} dis={!f.producto}/>
+        {!confirmDel?
+          <button onClick={()=>setConfirmDel(true)} style={{width:"100%",background:"none",border:"none",color:K.red,fontSize:13,fontWeight:700,padding:"12px 0 4px",cursor:"pointer"}}>🗑️ Borrar este registro</button>
+          :<ConfirmDelete onConfirm={borrar} onCancel={()=>setConfirmDel(false)}/>}
+      </div>
+    </div>
+  );
+}
+
+// ═══ EDITAR GASTO (modal inline) ════════════════════════════════
+function EditGasto({item,onClose,onSave,onDelete}){
+  const [f,setF]=useState({concepto:item.concepto,costo:String(item.costo),ref:item.referencia});
+  const [saving,setSaving]=useState(false);
+  const [confirmDel,setConfirmDel]=useState(false);
+  const [err,setErr]=useState(null);
+  const up=k=>v=>setF(p=>({...p,[k]:v}));
+  const guardar=async()=>{
+    setSaving(true);setErr(null);
+    try{
+      const updated={...item,concepto:f.concepto,costo:Number(f.costo)||0,referencia:f.ref};
+      await onSave(updated);
+      onClose();
+    }catch(e){setErr("Error: "+e.message);setSaving(false);}
+  };
+  const borrar=async()=>{
+    setSaving(true);setErr(null);
+    try{await onDelete(item);onClose();}
+    catch(e){setErr("Error: "+e.message);setSaving(false);}
+  };
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.7)",zIndex:1000,display:"flex",alignItems:"flex-end"}} onClick={onClose}>
+      <div onClick={e=>e.stopPropagation()} style={{background:K.bg,width:"100%",maxWidth:430,margin:"0 auto",borderRadius:"20px 20px 0 0",padding:"18px 16px",maxHeight:"85vh",overflowY:"auto"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+          <div style={{fontSize:17,fontWeight:800}}>Editar gasto</div>
+          <button onClick={onClose} style={{background:"none",border:"none",color:K.muted,fontSize:22,cursor:"pointer"}}>✕</button>
+        </div>
+        <Card ch={<>
+          <ChipGroup label="Concepto" options={CONCS} value={f.concepto} onChange={up("concepto")} colorMap={CCAT}/>
+          <div style={{marginBottom:14}}>
+            <div style={{fontSize:11,color:K.muted,marginBottom:5,textTransform:"uppercase",letterSpacing:.8}}>Valor</div>
+            <div style={{display:"flex",alignItems:"center",background:K.card2,border:`1px solid ${K.border}`,borderRadius:10}}>
+              <span style={{padding:"0 14px",color:K.muted,fontSize:14}}>$</span>
+              <input type="number" value={f.costo} onChange={e=>up("costo")(e.target.value)} style={{flex:1,background:"transparent",border:"none",color:K.text,padding:"12px 8px 12px 0",fontSize:16,outline:"none",fontWeight:700}}/>
+            </div>
+          </div>
+          <FInput label="Referencia" value={f.ref} onChange={up("ref")}/>
+        </>}/>
+        {err&&<div style={{textAlign:"center",color:K.red,fontWeight:700,marginBottom:8,fontSize:13}}>{err}</div>}
+        <Btn label="GUARDAR CAMBIOS" onClick={guardar} col={K.red} loading={saving} dis={!f.ref||!f.costo}/>
+        {!confirmDel?
+          <button onClick={()=>setConfirmDel(true)} style={{width:"100%",background:"none",border:"none",color:K.red,fontSize:13,fontWeight:700,padding:"12px 0 4px",cursor:"pointer"}}>🗑️ Borrar este registro</button>
+          :<ConfirmDelete onConfirm={borrar} onCancel={()=>setConfirmDel(false)}/>}
+      </div>
+    </div>
+  );
+}
+
+// ═══ HISTORIAL ═════════════════════════════════════════════════
+function Historial({db,onEditIngreso,onEditGasto}){
+  const [open,setOpen]=useState(null);
+  const [filter,setFilter]=useState("todo");
+  const months=[...new Set([...db.ingresos.map(i=>mKey(i.fecha)),...db.gastos.map(g=>mKey(g.fecha))].filter(Boolean))].sort().reverse();
+  return(
+    <div style={{padding:"24px 16px 0"}}>
+      <div style={{fontSize:20,fontWeight:800,marginBottom:4}}>📅 Historial</div>
+      <div style={{fontSize:12,color:K.muted,marginBottom:16}}>{months.length} meses registrados · toca un movimiento para editar</div>
+      {months.map(m=>{
+        const ing=db.ingresos.filter(i=>mKey(i.fecha)===m);
+        const gas=db.gastos.filter(g=>mKey(g.fecha)===m);
+        const ventas=ing.reduce((s,i)=>s+i.precioVenta,0);
+        const gan=ing.reduce((s,i)=>s+i.ganancia,0);
+        const gastos=gas.filter(g=>g.concepto!=="AHORRO").reduce((s,g)=>s+g.costo,0);
+        const ahorro=gas.filter(g=>g.concepto==="AHORRO").reduce((s,g)=>s+g.costo,0);
+        const util=gan-gastos;
+        const isOpen=open===m;
+        const allTx=isOpen?[...ing.map(x=>({...x,t:"i"})),...gas.map(x=>({...x,t:"g"}))].sort((a,b)=>new Date(b.fecha)-new Date(a.fecha)):[];
+        const filtered=filter==="ingresos"?allTx.filter(x=>x.t==="i"):filter==="gastos"?allTx.filter(x=>x.t==="g"):allTx;
+        return(
+          <div key={m} style={{marginBottom:8}}>
+            <button onClick={()=>{setOpen(isOpen?null:m);setFilter("todo");}} style={{width:"100%",background:K.card,border:`1px solid ${isOpen?K.green:K.border}`,borderRadius:isOpen?"14px 14px 0 0":14,padding:14,cursor:"pointer",textAlign:"left"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                <div style={{fontWeight:800,fontSize:16,color:K.text}}>{mLabel(m)}</div>
+                <div style={{display:"flex",alignItems:"center",gap:8}}>
+                  <div style={{fontWeight:900,fontSize:18,color:util>=0?K.green:K.red}}>{fmt(util)}</div>
+                  <span style={{color:K.muted}}>{isOpen?"▲":"▼"}</span>
+                </div>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:4}}>
+                {[["Ventas",ventas,K.green],["Gan.",gan,K.blue],["Gastos",gastos,K.red],["Ahorro",ahorro,K.blue]].map(([l,v,col])=>(
+                  <div key={l} style={{background:K.bg,borderRadius:8,padding:"5px 4px",textAlign:"center"}}>
+                    <div style={{fontSize:8,color:K.muted,textTransform:"uppercase"}}>{l}</div>
+                    <div style={{fontSize:11,fontWeight:700,color:col}}>{fmt(v)}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{marginTop:6,fontSize:10,color:K.muted}}>
+                Margen <b style={{color:util>=0?K.green:K.red}}>{ventas>0?(util/ventas*100).toFixed(1):0}%</b>
+                {"  ·  "}{ing.length} ingresos · {gas.length} gastos
+              </div>
+            </button>
+            {isOpen&&(
+              <div style={{background:K.card2,border:`1px solid ${K.green}`,borderTop:"none",borderRadius:"0 0 14px 14px",padding:12}}>
+                <div style={{display:"flex",gap:6,marginBottom:12}}>
+                  {[["todo","Todos","#fff"],["ingresos","Ingresos",K.green],["gastos","Gastos",K.red]].map(([v,l,col])=>(
+                    <button key={v} onClick={()=>setFilter(v)} style={{flex:1,background:filter===v?`${col}22`:"transparent",border:`1px solid ${filter===v?col:K.border}`,color:filter===v?col:K.muted,borderRadius:8,padding:"6px 0",fontSize:11,fontWeight:700,cursor:"pointer"}}>{l}</button>
+                  ))}
+                </div>
+                {filtered.length===0&&<div style={{textAlign:"center",color:K.muted,padding:16,fontSize:13}}>Sin registros</div>}
+                {filtered.map((item,i)=>{
+                  const isI=item.t==="i",val=isI?item.ganancia:item.costo,col=isI?(val>=0?K.green:K.muted):CCAT[item.concepto]||K.red;
+                  return(
+                    <button key={i} onClick={()=>isI?onEditIngreso(item):onEditGasto(item)} style={{width:"100%",background:"none",border:"none",display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:i<filtered.length-1?`1px solid ${K.border}`:"none",cursor:"pointer",textAlign:"left"}}>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div style={{fontSize:12,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",color:K.text}}>{isI?(item.producto||item.tipo):item.referencia}</div>
+                        <div style={{fontSize:10,color:K.muted}}>{isI?`${item.tipo}${item.cliente?" · "+item.cliente:""}`:item.concepto} · {fDate(item.fecha)}</div>
+                      </div>
+                      <div style={{textAlign:"right",marginLeft:8}}>
+                        <div style={{fontSize:13,fontWeight:800,color:col}}>{isI?(val>=0?"+":"")+fmt(val):"-"+fmt(val)}</div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ═══ CLIENTES ══════════════════════════════════════════════════
+function Clientes({db,onEditIngreso}){
+  const [sel,setSel]=useState(null);
+  const [q,setQ]=useState("");
+  const map={};
+  db.ingresos.forEach(i=>{
+    const k=(i.cliente||"").toUpperCase().trim();
+    if(!k)return;
+    if(!map[k])map[k]={ventas:[],gan:0,debe:false};
+    map[k].ventas.push(i);map[k].gan+=i.ganancia;
+    if(i.debe==="SI")map[k].debe=true;
+  });
+  const lista=Object.entries(map).filter(([k])=>!q||k.includes(q.toUpperCase())).sort((a,b)=>b[1].gan-a[1].gan);
+  if(sel){
+    const{ventas,gan}=map[sel]||{ventas:[],gan:0};
+    const tv=ventas.reduce((s,v)=>s+v.precioVenta,0);
+    return(
+      <div>
+        <button onClick={()=>setSel(null)} style={{background:"none",border:"none",color:K.blue,fontSize:15,cursor:"pointer",marginBottom:16,padding:0}}>← Todos</button>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+          <div style={{fontSize:18,fontWeight:800}}>{sel}</div>
+          {map[sel]?.debe&&<Pill text="DEBE" color={K.red}/>}
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
+          <Card s={{marginBottom:0}} ch={<><div style={{fontSize:9,color:K.muted,marginBottom:2}}>TOTAL VENTAS</div><div style={{fontSize:18,fontWeight:800,color:K.green}}>{fmt(tv)}</div></>}/>
+          <Card s={{marginBottom:0}} ch={<><div style={{fontSize:9,color:K.muted,marginBottom:2}}>GANANCIA</div><div style={{fontSize:18,fontWeight:800,color:K.blue}}>{fmt(gan)}</div></>}/>
+        </div>
+        <Card ch={<>
+          <div style={{fontSize:11,color:K.muted,textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>Historial ({ventas.length}) · toca para editar</div>
+          {ventas.sort((a,b)=>new Date(b.fecha)-new Date(a.fecha)).map((v,i,arr)=>(
+            <button key={i} onClick={()=>onEditIngreso(v)} style={{width:"100%",background:"none",border:"none",textAlign:"left",cursor:"pointer",paddingBottom:i<arr.length-1?10:0,marginBottom:i<arr.length-1?10:0,borderBottom:i<arr.length-1?`1px solid ${K.border}`:"none"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div><div style={{fontSize:13,fontWeight:700,color:K.text}}>{v.producto}</div><div style={{fontSize:10,color:K.muted}}>{v.tipo} · {fDate(v.fecha)} · {v.proveedor}</div></div>
+                <div style={{textAlign:"right"}}><div style={{fontSize:13,fontWeight:800,color:K.green}}>+{fmt(v.ganancia)}</div><div style={{fontSize:10,color:K.muted}}>{fmt(v.precioVenta)}</div></div>
+              </div>
+              {v.debe==="SI"&&<Pill text="DEBE" color={K.red}/>}
+            </button>
+          ))}
+        </>}/>
+      </div>
+    );
+  }
+  return(
+    <div>
+      {lista.filter(([,v])=>v.debe).length>0&&(
+        <Card s={{background:"#1a0808",border:`1px solid #4a1a1a`,marginBottom:10}} ch={<>
+          <div style={{fontSize:11,color:K.red,fontWeight:700,marginBottom:6}}>⚠️ DEBEN COBRAR</div>
+          <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+            {lista.filter(([,v])=>v.debe).map(([n])=><button key={n} onClick={()=>setSel(n)} style={{background:`${K.red}18`,border:`1px solid ${K.red}`,color:K.red,borderRadius:8,padding:"4px 10px",fontSize:12,fontWeight:700,cursor:"pointer"}}>{n}</button>)}
+          </div>
+        </>}/>
+      )}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+        <div style={{fontSize:14,fontWeight:700,color:K.muted}}>{lista.length} clientes</div>
+        <div style={{fontSize:12,color:K.muted}}>Gan: <b style={{color:K.green}}>{fmt(lista.reduce((s,[,v])=>s+v.gan,0))}</b></div>
+      </div>
+      <input value={q} onChange={e=>setQ(e.target.value)} placeholder="🔍 Buscar..." style={{width:"100%",background:K.card,border:`1px solid ${K.border}`,borderRadius:12,color:K.text,padding:"10px 14px",fontSize:14,outline:"none",boxSizing:"border-box",marginBottom:10}}/>
+      {lista.map(([nom,st])=>(
+        <button key={nom} onClick={()=>setSel(nom)} style={{width:"100%",background:K.card,border:`1px solid ${K.border}`,borderRadius:14,padding:"12px 14px",marginBottom:8,cursor:"pointer",textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div>
+            <div style={{fontWeight:700,fontSize:14,color:K.text,marginBottom:3}}>
+              {nom}{st.debe&&<span style={{marginLeft:6,fontSize:9,background:`${K.red}22`,color:K.red,borderRadius:5,padding:"2px 6px",fontWeight:700}}>DEBE</span>}
+            </div>
+            <div style={{fontSize:11,color:K.muted}}>{st.ventas.length} compra{st.ventas.length!==1?"s":""}</div>
+          </div>
+          <div style={{textAlign:"right"}}>
+            <div style={{fontSize:16,fontWeight:800,color:K.green}}>{fmt(st.gan)}</div>
+            <div style={{fontSize:10,color:K.muted}}>ganancia</div>
+          </div>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ═══ MÁS ═══════════════════════════════════════════════════════
+function Mas({db,onEditIngreso,onEditGasto}){
+  const [v,setV]=useState("clientes");
+  const tabs=[["clientes","👥","Clientes"],["hist","📅","Historial"]];
+  return(
+    <div style={{padding:"24px 16px 0"}}>
+      <div style={{fontSize:20,fontWeight:800,marginBottom:14}}>Más</div>
+      <div style={{display:"flex",gap:0,marginBottom:16,background:K.card2,borderRadius:12,overflow:"hidden",border:`1px solid ${K.border}`}}>
+        {tabs.map(([id,icon,label])=>(
+          <button key={id} onClick={()=>setV(id)} style={{flex:1,background:v===id?K.card:"transparent",border:"none",color:v===id?K.text:K.muted,padding:"10px 4px",fontSize:10,fontWeight:700,cursor:"pointer",borderRight:id!=="hist"?`1px solid ${K.border}`:"none",display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
+            <span style={{fontSize:18}}>{icon}</span>
+            <span style={{textTransform:"uppercase",letterSpacing:.5}}>{label}</span>
+          </button>
+        ))}
+      </div>
+      {v==="clientes"&&<Clientes db={db} onEditIngreso={onEditIngreso}/>}
+      {v==="hist"&&<Historial db={db} onEditIngreso={onEditIngreso} onEditGasto={onEditGasto}/>}
+    </div>
+  );
+}
+
+// ═══ ROOT ══════════════════════════════════════════════════════
+export default function App(){
+  const [tab,setTab]=useState("home");
+  const [db,setDb]=useState({ingresos:[],gastos:[]});
+  const [loading,setLoading]=useState(false);
+  const [toast,setToast]=useState(null);
+  const [initDone,setInitDone]=useState(false);
+  const [initError,setInitError]=useState(null);
+  const [lastSync,setLastSync]=useState(null);
+  const [editIng,setEditIng]=useState(null);
+  const [editGas,setEditGas]=useState(null);
+  const intervalRef=useRef(null);
+
+  const flash=(msg,col=K.green)=>{setToast({msg,col});setTimeout(()=>setToast(null),2500);};
+
+  const loadData=useCallback(async(silent=false)=>{
+    if(!silent)setLoading(true);
+    try{
+      const [rowsIng,rowsGas]=await Promise.all([
+        fetchSheet("INGRESOS"),
+        fetchSheet("GASTOS")
+      ]);
+      const ingresos=parseIngresos(rowsIng);
+      const gastos=parseGastos(rowsGas);
+      setDb({ingresos,gastos});
+      setLastSync(new Date());
+      setInitError(null);
+      if(!silent)flash(`✓ ${ingresos.length} ingresos · ${gastos.length} gastos`);
+    }catch(e){
+      if(!silent){
+        flash("⚠️ Error conectando con Sheets",K.red);
+        setInitError(e.message);
+      }
+      // si falla un sync silencioso (de fondo), no molestamos con toast, solo lo dejamos pasar y se reintenta en el próximo ciclo
+    }finally{
+      if(!silent)setLoading(false);
+      setInitDone(true);
+    }
+  },[]);
+
+  // Carga inicial
+  useEffect(()=>{loadData(false);},[loadData]);
+
+  // Auto-sync cada 2 minutos en segundo plano, y al volver a la pestaña/app
+  useEffect(()=>{
+    intervalRef.current=setInterval(()=>{loadData(true);},SYNC_INTERVAL_MS);
+    const onVisible=()=>{if(document.visibilityState==="visible")loadData(true);};
+    document.addEventListener("visibilitychange",onVisible);
+    return()=>{clearInterval(intervalRef.current);document.removeEventListener("visibilitychange",onVisible);};
+  },[loadData]);
+
+  const saveIngreso=async(row)=>{
+    await appendRow("INGRESOS",row);
+    await loadData(true);
+  };
+  const saveGasto=async(row)=>{
+    await appendRow("GASTOS",row);
+    await loadData(true);
+  };
+  const updateIngreso=async(item)=>{
+    await updateRow("INGRESOS",item._row,ingresoToRow(item));
+    await loadData(true);
+    flash("✓ Ingreso actualizado");
+  };
+  const updateGasto=async(item)=>{
+    await updateRow("GASTOS",item._row,gastoToRow(item));
+    await loadData(true);
+    flash("✓ Gasto actualizado");
+  };
+  const removeIngreso=async(item)=>{
+    await deleteRow("INGRESOS",item._row);
+    await loadData(true);
+    flash("✓ Ingreso borrado",K.red);
+  };
+  const removeGasto=async(item)=>{
+    await deleteRow("GASTOS",item._row);
+    await loadData(true);
+    flash("✓ Gasto borrado",K.red);
+  };
+
+  const NAV=[
+    {id:"home",icon:"🏠",label:"Inicio"},
+    {id:"ing",icon:"⬆️",label:"Ingreso",col:K.green},
+    {id:"gas",icon:"⬇️",label:"Gasto",col:K.red},
+    {id:"mas",icon:"☰",label:"Más"},
+  ];
+
+  if(!initDone){
+    return(
+      <div style={{background:K.bg,minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:12,color:K.text,fontFamily:"-apple-system,sans-serif"}}>
+        <span style={{fontSize:56}}>👟</span>
+        <div style={{color:K.green,fontWeight:700,fontSize:18}}>Altaclase Bodega</div>
+        <div style={{color:K.muted,fontSize:13}}>Conectando con Google Sheets...</div>
+        <div style={{width:40,height:4,background:K.border,borderRadius:2,overflow:"hidden",marginTop:8}}>
+          <div style={{width:"60%",height:"100%",background:K.green,borderRadius:2}}/>
+        </div>
+      </div>
+    );
+  }
+
+  if(initError&&db.ingresos.length===0&&db.gastos.length===0){
+    return(
+      <div style={{background:K.bg,minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:14,color:K.text,fontFamily:"-apple-system,sans-serif",padding:24,textAlign:"center"}}>
+        <span style={{fontSize:48}}>⚠️</span>
+        <div style={{color:K.red,fontWeight:700,fontSize:17}}>No conectó con Sheets</div>
+        <div style={{color:K.muted,fontSize:13,maxWidth:300}}>{initError}</div>
+        <div style={{maxWidth:280,width:"100%"}}><Btn label="Reintentar" onClick={()=>loadData(false)} loading={loading}/></div>
+      </div>
+    );
+  }
+
+  return(
+    <div style={{background:K.bg,minHeight:"100vh",color:K.text,fontFamily:"-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif",maxWidth:430,margin:"0 auto",paddingBottom:82}}>
+      {toast&&(
+        <div style={{position:"fixed",top:16,left:"50%",transform:"translateX(-50%)",background:toast.col,color:"#000",padding:"8px 20px",borderRadius:20,fontWeight:700,zIndex:9999,fontSize:13,boxShadow:"0 4px 20px rgba(0,0,0,.5)",whiteSpace:"nowrap"}}>
+          {toast.msg}
+        </div>
+      )}
+      <div style={{overflowY:"auto",WebkitOverflowScrolling:"touch"}}>
+        {tab==="home"&&<Home db={db} onRefresh={()=>loadData(false)} loading={loading} lastSync={lastSync}/>}
+        {tab==="ing"&&<IngresoForm onSave={saveIngreso}/>}
+        {tab==="gas"&&<GastoForm onSave={saveGasto}/>}
+        {tab==="mas"&&<Mas db={db} onEditIngreso={setEditIng} onEditGasto={setEditGas}/>}
+      </div>
+      <div style={{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:430,background:"rgba(12,12,12,.97)",backdropFilter:"blur(12px)",WebkitBackdropFilter:"blur(12px)",borderTop:`1px solid ${K.border}`,display:"flex",zIndex:100,paddingBottom:"env(safe-area-inset-bottom,0px)"}}>
+        {NAV.map(({id,icon,label,col})=>{
+          const active=tab===id;
+          return(
+            <button key={id} onClick={()=>setTab(id)} style={{flex:1,background:"none",border:"none",padding:"10px 0 13px",cursor:"pointer",color:active?(col||K.green):K.muted,display:"flex",flexDirection:"column",alignItems:"center",gap:3,borderTop:`2.5px solid ${active?(col||K.green):"transparent"}`,transition:"all .15s"}}>
+              <span style={{fontSize:20}}>{icon}</span>
+              <span style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:.5}}>{label}</span>
+            </button>
+          );
+        })}
+      </div>
+      {editIng&&<EditIngreso item={editIng} onClose={()=>setEditIng(null)} onSave={updateIngreso} onDelete={removeIngreso}/>}
+      {editGas&&<EditGasto item={editGas} onClose={()=>setEditGas(null)} onSave={updateGasto} onDelete={removeGasto}/>}
+    </div>
+  );
+}
