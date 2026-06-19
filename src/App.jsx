@@ -8,6 +8,17 @@ const CCAT={"AHORRO":K.blue,"DEUDA - BANCOS":K.red,"GASTO FIJO":K.yellow,"MERCAD
 const TIPOS=["VENTA","COMISION","COMPRA CON SALDO","OCASIONALES","RECIBIDO CLIENTE"];
 const CONCS=["NEGOCIO","GASTO FIJO","SALIDA / DOMICILIO","AHORRO","MERCADO","PERSONALES","DEUDA - BANCOS"];
 
+// Bayron y Marco son clientes especiales: sus filas en INGRESOS NO deben afectar
+// ningún total general (Home, ranking de clientes, historial agregado) salvo
+// cuando el TIPO sea VENTA o COMISION — esos sí cuentan como ganancia real tuya.
+const CLIENTES_ESPECIALES=["BAYRON","MARCO","MARCOS"];
+const esClienteEspecial=nombre=>CLIENTES_ESPECIALES.includes(String(nombre||"").toUpperCase().trim());
+// Filtro a aplicar en CUALQUIER lista que alimente totales generales del negocio.
+const cuentaParaTotales=ing=>{
+  if(!esClienteEspecial(ing.cliente))return true;
+  return ing.tipo==="VENTA"||ing.tipo==="COMISION";
+};
+
 const fmt=n=>"$"+Number(n||0).toLocaleString("es-CO");
 const mKey=d=>{if(!d)return"";try{const dt=new Date(d);if(isNaN(dt))return"";return`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,"0")}`;}catch{return"";}};
 const curM=()=>{const d=new Date();return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;};
@@ -97,6 +108,74 @@ function gastoToRow(it){
   return [ts,it.concepto,it.costo,it.referencia];
 }
 
+// INVENTARIO: FECHA, PRODUCTO, PROVEEDOR, COSTO — lista simple de compras, sin cantidades.
+function parseInventario(rows){
+  return rows.map(r=>{
+    const fecha=new Date(r["FECHA"]);
+    if(isNaN(fecha))return null;
+    const producto=String(r["PRODUCTO"]||"").trim();
+    if(!producto)return null;
+    return{
+      id:"inv"+r._row, _row:r._row, fecha:fecha.toISOString(),
+      producto, proveedor:String(r["PROVEEDOR"]||"").trim(),
+      costo:Number(r["COSTO"])||0,
+    };
+  }).filter(Boolean);
+}
+
+// CLIENTES: resumen ya armado en Sheets por cliente. Lo usamos como referencia,
+// pero los totales del Home se recalculan en JS sumando INGRESOS reales para que
+// editar/borrar un registro se refleje al instante sin depender de fórmulas.
+function parseClientesResumen(rows){
+  return rows.map(r=>{
+    const cliente=String(r["CLIENTE"]||"").trim();
+    if(!cliente)return null;
+    return{
+      cliente,
+      totalVenta:Number(r["TOTAL VENTA"])||0,
+      totalIngresos:Number(r["TOTAL INGRESOS"])||0,
+      saldo:Number(r["SALDO"])||0,
+      debe:String(r["DEBE?"]||"NO").toUpperCase().trim(),
+      abonos:Number(r["ABONOS"])||0,
+      deudaTotal:Number(r["DEUDA TOTAL"])||0,
+      gananciaSheet:Number(r["GANANCIA X CLIENTE"])||0,
+    };
+  }).filter(Boolean);
+}
+
+// CLIENTES ESPECIALES: Bayron y Marco con su sistema de saldo tipo cuenta corriente.
+function parseClientesEspeciales(rows){
+  return rows.map(r=>{
+    const cliente=String(r["CLIENTE LIMPIO"]||r["CLIENTE"]||"").trim();
+    if(!cliente)return null;
+    return{
+      cliente,
+      saldoInicial:Number(r["SALDO INICIAL"])||0,
+      recargas:Number(r["RECARGAS"])||0,
+      compras:Number(r["COMPRAS"])||0,
+      comisiones:Number(r["COMISIONES"])||0,
+      saldo:Number(r["SALDO"])||0,
+      debe:String(r["DEBE?"]||"NO").toUpperCase().trim(),
+    };
+  }).filter(Boolean);
+}
+
+// DEUDA VALEN: libro personal, FECHA, MOVIMIENTO, PRESTO, PAGO, SALDO. Vive separado del negocio.
+function parseDeudaPersonal(rows){
+  return rows.map(r=>{
+    const mov=String(r["MOVIMIENTO"]||"").trim();
+    if(!mov)return null;
+    return{
+      id:"dp"+r._row, _row:r._row,
+      fecha:r["FECHA"]?String(r["FECHA"]):"",
+      movimiento:mov,
+      presto:Number(r["PRESTO"])||0,
+      pago:Number(r["PAGO"])||0,
+      saldo:Number(r["SALDO"])||0,
+    };
+  }).filter(Boolean);
+}
+
 // ═══ UI ATOMS ═════════════════════════════════════════════════
 const Card=({ch,s={}})=><div style={{background:K.card,borderRadius:14,padding:14,marginBottom:10,...s}}>{ch}</div>;
 const Pill=({text,color})=><span style={{background:`${color}22`,color,borderRadius:6,padding:"2px 8px",fontSize:10,fontWeight:700}}>{text}</span>;
@@ -136,7 +215,9 @@ function ConfirmDelete({onConfirm,onCancel}){
 // ═══ HOME ═════════════════════════════════════════════════════
 function Home({db,onRefresh,loading,lastSync}){
   const m=curM();
-  const ing=db.ingresos.filter(i=>mKey(i.fecha)===m);
+  // cuentaParaTotales aplica la regla: Bayron/Marco solo cuentan si TIPO=VENTA o COMISION.
+  const ingTodos=db.ingresos.filter(i=>mKey(i.fecha)===m);
+  const ing=ingTodos.filter(cuentaParaTotales);
   const gas=db.gastos.filter(g=>mKey(g.fecha)===m);
   const ventas=ing.reduce((s,i)=>s+i.precioVenta,0);
   const gan=ing.reduce((s,i)=>s+i.ganancia,0);
@@ -151,8 +232,12 @@ function Home({db,onRefresh,loading,lastSync}){
     cmap[k].g+=i.ganancia;cmap[k].n++;
   });
   const top5=Object.entries(cmap).sort((a,b)=>b[1].g-a[1].g).slice(0,5);
-  const debenSet=new Set(ing.filter(i=>i.debe==="SI").map(i=>i.cliente?.toUpperCase().trim()).filter(Boolean));
-  const rec=[...ing.map(x=>({...x,t:"i"})),...gas.map(x=>({...x,t:"g"}))].sort((a,b)=>new Date(b.fecha)-new Date(a.fecha)).slice(0,6);
+  // La deuda real viene de la hoja CLIENTES (columna DEBE?), más confiable que
+  // inferirla de DEBE? en filas sueltas de INGRESOS del mes actual.
+  const debenList=(db.clientesResumen||[]).filter(c=>c.debe==="SI"&&!esClienteEspecial(c.cliente));
+  // Últimos movimientos, separados en dos listas como pediste, cada una con su propio top 5.
+  const recIng=[...ing].sort((a,b)=>new Date(b.fecha)-new Date(a.fecha)).slice(0,5);
+  const recGas=[...gas].sort((a,b)=>new Date(b.fecha)-new Date(a.fecha)).slice(0,5);
   const syncTxt=lastSync?lastSync.toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit"}):"—";
   return(
     <div style={{padding:"24px 16px 0"}}>
@@ -172,7 +257,7 @@ function Home({db,onRefresh,loading,lastSync}){
         <div style={{display:"flex",gap:14,marginTop:6,flexWrap:"wrap"}}>
           <span style={{fontSize:12,color:K.muted}}>Margen <b style={{color:util>=0?K.green:K.red}}>{mrg}%</b></span>
           {ahorro>0&&<span style={{fontSize:12,color:K.muted}}>Ahorro <b style={{color:K.blue}}>{fmt(ahorro)}</b></span>}
-          {debenSet.size>0&&<span style={{fontSize:12,color:K.red}}>⚠️ {debenSet.size} deben</span>}
+          {debenList.length>0&&<span style={{fontSize:12,color:K.red}}>⚠️ {debenList.length} deben</span>}
         </div>
       </div>
 
@@ -198,21 +283,43 @@ function Home({db,onRefresh,loading,lastSync}){
         ))}
       </>}/>}
 
-      {rec.length>0&&<Card ch={<>
-        <div style={{fontSize:11,color:K.muted,textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>Últimos movimientos</div>
-        {rec.map((item,i)=>{
-          const isI=item.t==="i",val=isI?item.ganancia:item.costo,col=isI?(val>=0?K.green:K.muted):CCAT[item.concepto]||K.red;
-          return(<div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingBottom:i<rec.length-1?9:0,marginBottom:i<rec.length-1?9:0,borderBottom:i<rec.length-1?`1px solid ${K.border}`:"none"}}>
+      {debenList.length>0&&<Card s={{background:"#1a0808",border:`1px solid #4a1a1a`}} ch={<>
+        <div style={{fontSize:11,color:K.red,fontWeight:700,marginBottom:6,textTransform:"uppercase",letterSpacing:1}}>⚠️ Deben cobrar</div>
+        <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+          {debenList.map(c=><span key={c.cliente} style={{background:`${K.red}18`,border:`1px solid ${K.red}`,color:K.red,borderRadius:8,padding:"4px 10px",fontSize:12,fontWeight:700}}>{c.cliente} · {fmt(c.saldo)}</span>)}
+        </div>
+      </>}/>}
+
+      {recIng.length>0&&<Card ch={<>
+        <div style={{fontSize:11,color:K.green,textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>⬆️ Últimos ingresos</div>
+        {recIng.map((item,i)=>(
+          <div key={item.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingBottom:i<recIng.length-1?9:0,marginBottom:i<recIng.length-1?9:0,borderBottom:i<recIng.length-1?`1px solid ${K.border}`:"none"}}>
             <div style={{flex:1,minWidth:0}}>
-              <div style={{fontSize:13,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{isI?(item.producto||item.tipo):item.referencia}</div>
-              <div style={{fontSize:10,color:K.muted}}>{isI?`${item.tipo}${item.cliente?" · "+item.cliente:""}`:item.concepto}</div>
+              <div style={{fontSize:13,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{item.producto||item.tipo}</div>
+              <div style={{fontSize:10,color:K.muted}}>{item.tipo}{item.cliente?" · "+item.cliente:""}</div>
             </div>
             <div style={{textAlign:"right",marginLeft:8}}>
-              <div style={{fontSize:13,fontWeight:800,color:col}}>{isI?(val>=0?"+":"")+fmt(val):"-"+fmt(val)}</div>
+              <div style={{fontSize:13,fontWeight:800,color:item.ganancia>=0?K.green:K.muted}}>{item.ganancia>=0?"+":""}{fmt(item.ganancia)}</div>
               <div style={{fontSize:10,color:K.muted}}>{fDate(item.fecha)}</div>
             </div>
-          </div>);
-        })}
+          </div>
+        ))}
+      </>}/>}
+
+      {recGas.length>0&&<Card ch={<>
+        <div style={{fontSize:11,color:K.red,textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>⬇️ Últimos gastos</div>
+        {recGas.map((item,i)=>(
+          <div key={item.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingBottom:i<recGas.length-1?9:0,marginBottom:i<recGas.length-1?9:0,borderBottom:i<recGas.length-1?`1px solid ${K.border}`:"none"}}>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:13,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{item.referencia}</div>
+              <div style={{fontSize:10,color:K.muted}}>{item.concepto}</div>
+            </div>
+            <div style={{textAlign:"right",marginLeft:8}}>
+              <div style={{fontSize:13,fontWeight:800,color:CCAT[item.concepto]||K.red}}>-{fmt(item.costo)}</div>
+              <div style={{fontSize:10,color:K.muted}}>{fDate(item.fecha)}</div>
+            </div>
+          </div>
+        ))}
       </>}/>}
 
       <div style={{textAlign:"center",fontSize:10,color:K.muted,paddingBottom:8}}>
@@ -223,6 +330,20 @@ function Home({db,onRefresh,loading,lastSync}){
 }
 
 // ═══ INGRESO FORM ══════════════════════════════════════════════
+// ═══ NUEVO MOVIMIENTO (un solo botón, selector interno) ═════════
+function NuevoMovimiento({onSaveIngreso,onSaveGasto}){
+  const [modo,setModo]=useState("ingreso");
+  return(
+    <div style={{padding:"24px 16px 0"}}>
+      <div style={{display:"flex",gap:8,marginBottom:18}}>
+        <button onClick={()=>setModo("ingreso")} style={{flex:1,background:modo==="ingreso"?`${K.green}22`:K.card,border:`1.5px solid ${modo==="ingreso"?K.green:K.border}`,color:modo==="ingreso"?K.green:K.muted,borderRadius:12,padding:"12px 0",fontSize:14,fontWeight:800,cursor:"pointer"}}>⬆️ Ingreso</button>
+        <button onClick={()=>setModo("gasto")} style={{flex:1,background:modo==="gasto"?`${K.red}22`:K.card,border:`1.5px solid ${modo==="gasto"?K.red:K.border}`,color:modo==="gasto"?K.red:K.muted,borderRadius:12,padding:"12px 0",fontSize:14,fontWeight:800,cursor:"pointer"}}>⬇️ Gasto</button>
+      </div>
+      {modo==="ingreso"?<IngresoForm onSave={onSaveIngreso}/>:<GastoForm onSave={onSaveGasto}/>}
+    </div>
+  );
+}
+
 function IngresoForm({onSave}){
   const [f,setF]=useState({tipo:"VENTA",producto:"",cliente:"",proveedor:"",costo:"",pv:"",debe:false});
   const [saving,setSaving]=useState(false);
@@ -242,7 +363,7 @@ function IngresoForm({onSave}){
     finally{setSaving(false);}
   };
   return(
-    <div style={{padding:"24px 16px 0"}}>
+    <div>
       <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:18}}>
         <span style={{fontSize:26}}>⬆️</span>
         <div><div style={{fontSize:10,color:K.muted}}>NUEVO · SE GUARDA EN SHEETS</div><div style={{fontSize:20,fontWeight:800,color:K.green}}>Ingreso</div></div>
@@ -290,7 +411,7 @@ function GastoForm({onSave}){
     finally{setSaving(false);}
   };
   return(
-    <div style={{padding:"24px 16px 0"}}>
+    <div>
       <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:18}}>
         <span style={{fontSize:26}}>⬇️</span>
         <div><div style={{fontSize:10,color:K.muted}}>NUEVO · SE GUARDA EN SHEETS</div><div style={{fontSize:20,fontWeight:800,color:K.red}}>Gasto</div></div>
@@ -420,15 +541,17 @@ function EditGasto({item,onClose,onSave,onDelete}){
 
 // ═══ HISTORIAL ═════════════════════════════════════════════════
 function Historial({db,onEditIngreso,onEditGasto}){
-  const [open,setOpen]=useState(null);
+  const [open,setOpen]=useState(curM()); // abre el mes actual por defecto, más fácil de leer al entrar
   const [filter,setFilter]=useState("todo");
+  const [buscar,setBuscar]=useState("");
   const months=[...new Set([...db.ingresos.map(i=>mKey(i.fecha)),...db.gastos.map(g=>mKey(g.fecha))].filter(Boolean))].sort().reverse();
   return(
     <div style={{padding:"24px 16px 0"}}>
       <div style={{fontSize:20,fontWeight:800,marginBottom:4}}>📅 Historial</div>
       <div style={{fontSize:12,color:K.muted,marginBottom:16}}>{months.length} meses registrados · toca un movimiento para editar</div>
       {months.map(m=>{
-        const ing=db.ingresos.filter(i=>mKey(i.fecha)===m);
+        // Bayron/Marco filtrados de los totales del mes (regla cuentaParaTotales), igual que en Home.
+        const ing=db.ingresos.filter(i=>mKey(i.fecha)===m&&cuentaParaTotales(i));
         const gas=db.gastos.filter(g=>mKey(g.fecha)===m);
         const ventas=ing.reduce((s,i)=>s+i.precioVenta,0);
         const gan=ing.reduce((s,i)=>s+i.ganancia,0);
@@ -437,10 +560,16 @@ function Historial({db,onEditIngreso,onEditGasto}){
         const util=gan-gastos;
         const isOpen=open===m;
         const allTx=isOpen?[...ing.map(x=>({...x,t:"i"})),...gas.map(x=>({...x,t:"g"}))].sort((a,b)=>new Date(b.fecha)-new Date(a.fecha)):[];
-        const filtered=filter==="ingresos"?allTx.filter(x=>x.t==="i"):filter==="gastos"?allTx.filter(x=>x.t==="g"):allTx;
+        let filtered=filter==="ingresos"?allTx.filter(x=>x.t==="i"):filter==="gastos"?allTx.filter(x=>x.t==="g"):allTx;
+        if(buscar.trim()){
+          const q=buscar.toUpperCase().trim();
+          filtered=filtered.filter(x=>x.t==="i"
+            ?(x.producto||"").toUpperCase().includes(q)||(x.cliente||"").toUpperCase().includes(q)||(x.proveedor||"").toUpperCase().includes(q)
+            :(x.referencia||"").toUpperCase().includes(q)||(x.concepto||"").toUpperCase().includes(q));
+        }
         return(
           <div key={m} style={{marginBottom:8}}>
-            <button onClick={()=>{setOpen(isOpen?null:m);setFilter("todo");}} style={{width:"100%",background:K.card,border:`1px solid ${isOpen?K.green:K.border}`,borderRadius:isOpen?"14px 14px 0 0":14,padding:14,cursor:"pointer",textAlign:"left"}}>
+            <button onClick={()=>{setOpen(isOpen?null:m);setFilter("todo");setBuscar("");}} style={{width:"100%",background:K.card,border:`1px solid ${isOpen?K.green:K.border}`,borderRadius:isOpen?"14px 14px 0 0":14,padding:14,cursor:"pointer",textAlign:"left"}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
                 <div style={{fontWeight:800,fontSize:16,color:K.text}}>{mLabel(m)}</div>
                 <div style={{display:"flex",alignItems:"center",gap:8}}>
@@ -463,6 +592,7 @@ function Historial({db,onEditIngreso,onEditGasto}){
             </button>
             {isOpen&&(
               <div style={{background:K.card2,border:`1px solid ${K.green}`,borderTop:"none",borderRadius:"0 0 14px 14px",padding:12}}>
+                <input value={buscar} onChange={e=>setBuscar(e.target.value)} placeholder="🔍 Buscar producto, cliente, concepto..." style={{width:"100%",background:K.bg,border:`1px solid ${K.border}`,borderRadius:10,color:K.text,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box",marginBottom:10}}/>
                 <div style={{display:"flex",gap:6,marginBottom:12}}>
                   {[["todo","Todos","#fff"],["ingresos","Ingresos",K.green],["gastos","Gastos",K.red]].map(([v,l,col])=>(
                     <button key={v} onClick={()=>setFilter(v)} style={{flex:1,background:filter===v?`${col}22`:"transparent",border:`1px solid ${filter===v?col:K.border}`,color:filter===v?col:K.muted,borderRadius:8,padding:"6px 0",fontSize:11,fontWeight:700,cursor:"pointer"}}>{l}</button>
@@ -496,38 +626,56 @@ function Historial({db,onEditIngreso,onEditGasto}){
 function Clientes({db,onEditIngreso}){
   const [sel,setSel]=useState(null);
   const [q,setQ]=useState("");
+  const [mesSel,setMesSel]=useState("todos"); // filtro de mes dentro del detalle de un cliente
   const map={};
-  db.ingresos.forEach(i=>{
+  // Bayron/Marco se excluyen de la lista general salvo en filas VENTA/COMISION (cuentaParaTotales).
+  db.ingresos.filter(cuentaParaTotales).forEach(i=>{
     const k=(i.cliente||"").toUpperCase().trim();
     if(!k)return;
     if(!map[k])map[k]={ventas:[],gan:0,debe:false};
     map[k].ventas.push(i);map[k].gan+=i.ganancia;
-    if(i.debe==="SI")map[k].debe=true;
   });
+  // El estado real de "debe" viene de la hoja CLIENTES (más confiable que inferirlo fila por fila).
+  const deudaPorCliente={};
+  (db.clientesResumen||[]).forEach(c=>{deudaPorCliente[c.cliente.toUpperCase().trim()]={debe:c.debe==="SI",saldo:c.saldo};});
+  Object.keys(map).forEach(k=>{map[k].debe=deudaPorCliente[k]?.debe||false; map[k].saldo=deudaPorCliente[k]?.saldo||0;});
+
   const lista=Object.entries(map).filter(([k])=>!q||k.includes(q.toUpperCase())).sort((a,b)=>b[1].gan-a[1].gan);
+
   if(sel){
     const{ventas,gan}=map[sel]||{ventas:[],gan:0};
-    const tv=ventas.reduce((s,v)=>s+v.precioVenta,0);
+    const meses=[...new Set(ventas.map(v=>mKey(v.fecha)))].sort().reverse();
+    const ventasFiltradas=mesSel==="todos"?ventas:ventas.filter(v=>mKey(v.fecha)===mesSel);
+    const tv=ventasFiltradas.reduce((s,v)=>s+v.precioVenta,0);
+    const ganF=ventasFiltradas.reduce((s,v)=>s+v.ganancia,0);
     return(
       <div>
-        <button onClick={()=>setSel(null)} style={{background:"none",border:"none",color:K.blue,fontSize:15,cursor:"pointer",marginBottom:16,padding:0}}>← Todos</button>
+        <button onClick={()=>{setSel(null);setMesSel("todos");}} style={{background:"none",border:"none",color:K.blue,fontSize:15,cursor:"pointer",marginBottom:16,padding:0}}>← Todos</button>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
           <div style={{fontSize:18,fontWeight:800}}>{sel}</div>
-          {map[sel]?.debe&&<Pill text="DEBE" color={K.red}/>}
+          {map[sel]?.debe&&<Pill text={`DEBE ${fmt(map[sel].saldo)}`} color={K.red}/>}
         </div>
+        {meses.length>1&&(
+          <div style={{display:"flex",gap:6,marginBottom:12,overflowX:"auto",paddingBottom:2}}>
+            <button onClick={()=>setMesSel("todos")} style={{flexShrink:0,background:mesSel==="todos"?`${K.green}22`:"transparent",border:`1.5px solid ${mesSel==="todos"?K.green:K.border}`,color:mesSel==="todos"?K.green:K.muted,borderRadius:8,padding:"5px 12px",fontSize:11,fontWeight:700,cursor:"pointer"}}>Todos</button>
+            {meses.map(mk=>(
+              <button key={mk} onClick={()=>setMesSel(mk)} style={{flexShrink:0,background:mesSel===mk?`${K.green}22`:"transparent",border:`1.5px solid ${mesSel===mk?K.green:K.border}`,color:mesSel===mk?K.green:K.muted,borderRadius:8,padding:"5px 12px",fontSize:11,fontWeight:700,cursor:"pointer"}}>{mLabel(mk)}</button>
+            ))}
+          </div>
+        )}
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
           <Card s={{marginBottom:0}} ch={<><div style={{fontSize:9,color:K.muted,marginBottom:2}}>TOTAL VENTAS</div><div style={{fontSize:18,fontWeight:800,color:K.green}}>{fmt(tv)}</div></>}/>
-          <Card s={{marginBottom:0}} ch={<><div style={{fontSize:9,color:K.muted,marginBottom:2}}>GANANCIA</div><div style={{fontSize:18,fontWeight:800,color:K.blue}}>{fmt(gan)}</div></>}/>
+          <Card s={{marginBottom:0}} ch={<><div style={{fontSize:9,color:K.muted,marginBottom:2}}>GANANCIA</div><div style={{fontSize:18,fontWeight:800,color:K.blue}}>{fmt(ganF)}</div></>}/>
         </div>
         <Card ch={<>
-          <div style={{fontSize:11,color:K.muted,textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>Historial ({ventas.length}) · toca para editar</div>
-          {ventas.sort((a,b)=>new Date(b.fecha)-new Date(a.fecha)).map((v,i,arr)=>(
+          <div style={{fontSize:11,color:K.muted,textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>Historial ({ventasFiltradas.length}) · toca para editar</div>
+          {ventasFiltradas.length===0&&<div style={{textAlign:"center",color:K.muted,padding:16,fontSize:13}}>Sin compras este mes</div>}
+          {ventasFiltradas.sort((a,b)=>new Date(b.fecha)-new Date(a.fecha)).map((v,i,arr)=>(
             <button key={i} onClick={()=>onEditIngreso(v)} style={{width:"100%",background:"none",border:"none",textAlign:"left",cursor:"pointer",paddingBottom:i<arr.length-1?10:0,marginBottom:i<arr.length-1?10:0,borderBottom:i<arr.length-1?`1px solid ${K.border}`:"none"}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                 <div><div style={{fontSize:13,fontWeight:700,color:K.text}}>{v.producto}</div><div style={{fontSize:10,color:K.muted}}>{v.tipo} · {fDate(v.fecha)} · {v.proveedor}</div></div>
                 <div style={{textAlign:"right"}}><div style={{fontSize:13,fontWeight:800,color:K.green}}>+{fmt(v.ganancia)}</div><div style={{fontSize:10,color:K.muted}}>{fmt(v.precioVenta)}</div></div>
               </div>
-              {v.debe==="SI"&&<Pill text="DEBE" color={K.red}/>}
             </button>
           ))}
         </>}/>
@@ -567,23 +715,79 @@ function Clientes({db,onEditIngreso}){
   );
 }
 
+// ═══ INVENTARIO ════════════════════════════════════════════════
+// Lista simple de compras a proveedor, tal cual la hoja: sin cruzar con ventas.
+function Inventario({db}){
+  const items=[...(db.inventario||[])].sort((a,b)=>new Date(b.fecha)-new Date(a.fecha));
+  const total=items.reduce((s,i)=>s+i.costo,0);
+  return(
+    <div>
+      <Card ch={<>
+        <div style={{fontSize:11,color:K.muted,textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Total invertido</div>
+        <div style={{fontSize:24,fontWeight:900,color:K.purple}}>{fmt(total)}</div>
+        <div style={{fontSize:11,color:K.muted,marginTop:2}}>{items.length} compra{items.length!==1?"s":""} registradas</div>
+      </>}/>
+      {items.length===0&&<div style={{textAlign:"center",color:K.muted,padding:24,fontSize:13}}>Sin compras registradas en Inventario</div>}
+      <Card ch={<>
+        {items.map((it,i,arr)=>(
+          <div key={it.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingBottom:i<arr.length-1?10:0,marginBottom:i<arr.length-1?10:0,borderBottom:i<arr.length-1?`1px solid ${K.border}`:"none"}}>
+            <div><div style={{fontSize:13,fontWeight:700,color:K.text}}>{it.producto}</div><div style={{fontSize:10,color:K.muted}}>{it.proveedor} · {fDate(it.fecha)}</div></div>
+            <div style={{fontSize:13,fontWeight:800,color:K.purple}}>{fmt(it.costo)}</div>
+          </div>
+        ))}
+      </>}/>
+    </div>
+  );
+}
+
+// ═══ PERSONAL (Deuda Valen) ══════════════════════════════════════
+// Libro personal, separado del negocio a propósito.
+function Personal({db}){
+  const items=[...(db.deudaPersonal||[])];
+  const saldoActual=items.length>0?items[items.length-1].saldo:0;
+  return(
+    <div>
+      <Card s={{background:"#1d0909",border:"1px solid #4a1a1a"}} ch={<>
+        <div style={{fontSize:11,color:K.muted,textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Saldo actual</div>
+        <div style={{fontSize:24,fontWeight:900,color:K.red}}>{fmt(saldoActual)}</div>
+        <div style={{fontSize:11,color:K.muted,marginTop:2}}>Libro personal · no afecta las métricas del negocio</div>
+      </>}/>
+      {items.length===0&&<div style={{textAlign:"center",color:K.muted,padding:24,fontSize:13}}>Sin movimientos registrados</div>}
+      <Card ch={<>
+        {[...items].reverse().map((it,i,arr)=>(
+          <div key={it.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingBottom:i<arr.length-1?10:0,marginBottom:i<arr.length-1?10:0,borderBottom:i<arr.length-1?`1px solid ${K.border}`:"none"}}>
+            <div><div style={{fontSize:13,fontWeight:700,color:K.text}}>{it.movimiento}</div><div style={{fontSize:10,color:K.muted}}>{it.fecha||"—"}</div></div>
+            <div style={{textAlign:"right"}}>
+              {it.pago>0&&<div style={{fontSize:13,fontWeight:800,color:K.green}}>-{fmt(it.pago)}</div>}
+              {it.presto>0&&<div style={{fontSize:13,fontWeight:800,color:K.red}}>+{fmt(it.presto)}</div>}
+              <div style={{fontSize:10,color:K.muted}}>saldo {fmt(it.saldo)}</div>
+            </div>
+          </div>
+        ))}
+      </>}/>
+    </div>
+  );
+}
+
 // ═══ MÁS ═══════════════════════════════════════════════════════
 function Mas({db,onEditIngreso,onEditGasto}){
   const [v,setV]=useState("clientes");
-  const tabs=[["clientes","👥","Clientes"],["hist","📅","Historial"]];
+  const tabs=[["clientes","👥","Clientes"],["hist","📅","Historial"],["inv","📦","Inventario"],["personal","📓","Personal"]];
   return(
     <div style={{padding:"24px 16px 0"}}>
       <div style={{fontSize:20,fontWeight:800,marginBottom:14}}>Más</div>
       <div style={{display:"flex",gap:0,marginBottom:16,background:K.card2,borderRadius:12,overflow:"hidden",border:`1px solid ${K.border}`}}>
-        {tabs.map(([id,icon,label])=>(
-          <button key={id} onClick={()=>setV(id)} style={{flex:1,background:v===id?K.card:"transparent",border:"none",color:v===id?K.text:K.muted,padding:"10px 4px",fontSize:10,fontWeight:700,cursor:"pointer",borderRight:id!=="hist"?`1px solid ${K.border}`:"none",display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
+        {tabs.map(([id,icon,label],i)=>(
+          <button key={id} onClick={()=>setV(id)} style={{flex:1,background:v===id?K.card:"transparent",border:"none",color:v===id?K.text:K.muted,padding:"10px 4px",fontSize:10,fontWeight:700,cursor:"pointer",borderRight:i<tabs.length-1?`1px solid ${K.border}`:"none",display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
             <span style={{fontSize:18}}>{icon}</span>
-            <span style={{textTransform:"uppercase",letterSpacing:.5}}>{label}</span>
+            <span style={{textTransform:"uppercase",letterSpacing:.5,fontSize:9}}>{label}</span>
           </button>
         ))}
       </div>
       {v==="clientes"&&<Clientes db={db} onEditIngreso={onEditIngreso}/>}
       {v==="hist"&&<Historial db={db} onEditIngreso={onEditIngreso} onEditGasto={onEditGasto}/>}
+      {v==="inv"&&<Inventario db={db}/>}
+      {v==="personal"&&<Personal db={db}/>}
     </div>
   );
 }
@@ -591,7 +795,7 @@ function Mas({db,onEditIngreso,onEditGasto}){
 // ═══ ROOT ══════════════════════════════════════════════════════
 export default function App(){
   const [tab,setTab]=useState("home");
-  const [db,setDb]=useState({ingresos:[],gastos:[]});
+  const [db,setDb]=useState({ingresos:[],gastos:[],inventario:[],clientesResumen:[],clientesEspeciales:[],deudaPersonal:[]});
   const [loading,setLoading]=useState(false);
   const [toast,setToast]=useState(null);
   const [initDone,setInitDone]=useState(false);
@@ -606,13 +810,23 @@ export default function App(){
   const loadData=useCallback(async(silent=false)=>{
     if(!silent)setLoading(true);
     try{
-      const [rowsIng,rowsGas]=await Promise.all([
-        fetchSheet("INGRESOS"),
-        fetchSheet("GASTOS")
-      ]);
-      const ingresos=parseIngresos(rowsIng);
-      const gastos=parseGastos(rowsGas);
-      setDb({ingresos,gastos});
+      // allSettled: si una hoja nueva falla (nombre de columna distinto, etc.) las demás
+      // siguen cargando — INGRESOS y GASTOS son las únicas que de verdad no pueden fallar.
+      const sheets=["INGRESOS","GASTOS","INVENTARIO","CLIENTES","CLIENTES ESPECIALES","DEUDA VALEN"];
+      const results=await Promise.allSettled(sheets.map(fetchSheet));
+      const [rIng,rGas,rInv,rCli,rCliEsp,rDeuda]=results;
+
+      if(rIng.status==="rejected")throw rIng.reason; // INGRESOS es crítico, si falla, falla todo
+      if(rGas.status==="rejected")throw rGas.reason; // GASTOS también
+
+      const ingresos=parseIngresos(rIng.value);
+      const gastos=parseGastos(rGas.value);
+      const inventario=rInv.status==="fulfilled"?parseInventario(rInv.value):[];
+      const clientesResumen=rCli.status==="fulfilled"?parseClientesResumen(rCli.value):[];
+      const clientesEspeciales=rCliEsp.status==="fulfilled"?parseClientesEspeciales(rCliEsp.value):[];
+      const deudaPersonal=rDeuda.status==="fulfilled"?parseDeudaPersonal(rDeuda.value):[];
+
+      setDb({ingresos,gastos,inventario,clientesResumen,clientesEspeciales,deudaPersonal});
       setLastSync(new Date());
       setInitError(null);
       if(!silent)flash(`✓ ${ingresos.length} ingresos · ${gastos.length} gastos`);
@@ -670,8 +884,7 @@ export default function App(){
 
   const NAV=[
     {id:"home",icon:"🏠",label:"Inicio"},
-    {id:"ing",icon:"⬆️",label:"Ingreso",col:K.green},
-    {id:"gas",icon:"⬇️",label:"Gasto",col:K.red},
+    {id:"nuevo",icon:"➕",label:"Nuevo",col:K.green},
     {id:"mas",icon:"☰",label:"Más"},
   ];
 
@@ -708,8 +921,7 @@ export default function App(){
       )}
       <div style={{overflowY:"auto",WebkitOverflowScrolling:"touch"}}>
         {tab==="home"&&<Home db={db} onRefresh={()=>loadData(false)} loading={loading} lastSync={lastSync}/>}
-        {tab==="ing"&&<IngresoForm onSave={saveIngreso}/>}
-        {tab==="gas"&&<GastoForm onSave={saveGasto}/>}
+        {tab==="nuevo"&&<NuevoMovimiento onSaveIngreso={saveIngreso} onSaveGasto={saveGasto}/>}
         {tab==="mas"&&<Mas db={db} onEditIngreso={setEditIng} onEditGasto={setEditGas}/>}
       </div>
       <div style={{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:430,background:"rgba(12,12,12,.97)",backdropFilter:"blur(12px)",WebkitBackdropFilter:"blur(12px)",borderTop:`1px solid ${K.border}`,display:"flex",zIndex:100,paddingBottom:"env(safe-area-inset-bottom,0px)"}}>
