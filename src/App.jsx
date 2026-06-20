@@ -13,8 +13,26 @@ const CONCS=["NEGOCIO","GASTO FIJO","SALIDA / DOMICILIO","AHORRO","MERCADO","PER
 // cuando el TIPO sea VENTA o COMISION — esos sí cuentan como ganancia real tuya.
 const CLIENTES_ESPECIALES=["BAYRON","MARCO","MARCOS"];
 const esClienteEspecial=nombre=>CLIENTES_ESPECIALES.includes(String(nombre||"").toUpperCase().trim());
-// Filtro a aplicar en CUALQUIER lista que alimente totales generales del negocio.
+
+// Estos nombres NO son clientes reales (son movimientos internos: parqueadero,
+// préstamos a Pipe, capital propio, etc.) — exactamente la misma exclusión que usa
+// la fórmula UNIQUE/FILTER de la hoja CLIENTES en tu Excel real.
+const NO_SON_CLIENTES=["BAYRON","PARQUEADERO","PIPE","PRESTAMO","CLIENTE","CRIS","PRIMOS"];
+const noEsClienteReal=nombre=>NO_SON_CLIENTES.includes(String(nombre||"").toUpperCase().trim());
+
+// Filtro para TOTALES DEL NEGOCIO (Home, Utilidad del mes, Historial agregado).
+// Solo aplica la regla de Bayron/Marco. CRIS, PRESTAMO, etc. SÍ cuentan aquí porque
+// ese dinero entró y sí afecta tu ganancia real — solo no deben listarse como "clientes".
 const cuentaParaTotales=ing=>{
+  if(!esClienteEspecial(ing.cliente))return true;
+  return ing.tipo==="VENTA"||ing.tipo==="COMISION";
+};
+
+// Filtro para la LISTA DE CLIENTES (pantalla Clientes). Aquí sí se excluyen los
+// movimientos internos (CRIS, PRESTAMO, etc.) además de la regla Bayron/Marco,
+// porque esos nombres no son revendedores reales.
+const cuentaParaListaClientes=ing=>{
+  if(noEsClienteReal(ing.cliente)&&!esClienteEspecial(ing.cliente))return false;
   if(!esClienteEspecial(ing.cliente))return true;
   return ing.tipo==="VENTA"||ing.tipo==="COMISION";
 };
@@ -106,6 +124,16 @@ function gastoToRow(it){
   const d=new Date(it.fecha);
   const ts=`${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,"0")}:00`;
   return [ts,it.concepto,it.costo,it.referencia];
+}
+// INVENTARIO: FECHA, PRODUCTO, PROVEEDOR, COSTO
+function inventarioToRow(it){
+  const d=new Date(it.fecha);
+  const fechaStr=`${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()}`;
+  return [fechaStr,it.producto,it.proveedor,it.costo];
+}
+// DEUDA VALEN: FECHA, MOVIMIENTO, PRESTO, PAGO, SALDO
+function deudaPersonalToRow(it){
+  return [it.fecha,it.movimiento,it.presto||"",it.pago||"",it.saldo];
 }
 
 // INVENTARIO: FECHA, PRODUCTO, PROVEEDOR, COSTO — lista simple de compras, sin cantidades.
@@ -221,8 +249,10 @@ function Home({db,onRefresh,loading,lastSync}){
   const gas=db.gastos.filter(g=>mKey(g.fecha)===m);
   const ventas=ing.reduce((s,i)=>s+i.precioVenta,0);
   const gan=ing.reduce((s,i)=>s+i.ganancia,0);
-  const gastos=gas.filter(g=>g.concepto!=="AHORRO").reduce((s,g)=>s+g.costo,0);
-  const ahorro=gas.filter(g=>g.concepto==="AHORRO").reduce((s,g)=>s+g.costo,0);
+  // Gastos incluye TODOS los conceptos, incluyendo AHORRO — así calcula tu Excel real
+  // la Utilidad del mes (SUMIFS de GASTOS!C:C sin excluir ningún concepto).
+  const gastos=gas.reduce((s,g)=>s+g.costo,0);
+  const ahorro=gas.filter(g=>g.concepto==="AHORRO").reduce((s,g)=>s+g.costo,0); // solo informativo
   const util=gan-gastos;
   const mrg=ventas>0?(util/ventas*100).toFixed(1):0;
   const cmap={};
@@ -232,12 +262,34 @@ function Home({db,onRefresh,loading,lastSync}){
     cmap[k].g+=i.ganancia;cmap[k].n++;
   });
   const top5=Object.entries(cmap).sort((a,b)=>b[1].g-a[1].g).slice(0,5);
-  // La deuda real viene de la hoja CLIENTES (columna DEBE?), más confiable que
-  // inferirla de DEBE? en filas sueltas de INGRESOS del mes actual.
-  const debenList=(db.clientesResumen||[]).filter(c=>c.debe==="SI"&&!esClienteEspecial(c.cliente));
+  // La deuda real viene de la hoja CLIENTES (columna DEBE?). Se combinan duplicados
+  // por espacios extra en el nombre (ej. "ALEJANDRA" vs "ALEJANDRA ") para no
+  // mostrar al mismo cliente dos veces ni perder su deuda real.
+  const debenMap={};
+  (db.clientesResumen||[]).forEach(c=>{
+    if(esClienteEspecial(c.cliente))return;
+    const k=c.cliente.toUpperCase().trim();
+    if(!debenMap[k])debenMap[k]={cliente:k,saldo:0,debe:false};
+    debenMap[k].saldo+=c.saldo;
+    debenMap[k].debe=debenMap[k].debe||c.debe==="SI";
+  });
+  const debenList=Object.values(debenMap).filter(c=>c.debe);
   // Últimos movimientos, separados en dos listas como pediste, cada una con su propio top 5.
-  const recIng=[...ing].sort((a,b)=>new Date(b.fecha)-new Date(a.fecha)).slice(0,5);
-  const recGas=[...gas].sort((a,b)=>new Date(b.fecha)-new Date(a.fecha)).slice(0,5);
+  // Últimos 5 días con movimiento, agrupados por día (total + cantidad de ventas).
+  // Usa TODOS los ingresos/gastos (no solo el mes actual) para que funcione bien
+  // incluso los primeros días del mes, cuando el mes en curso aún no tiene 5 días de datos.
+  const agruparPorDia=(lista,campoMonto)=>{
+    const dias={};
+    lista.forEach(item=>{
+      const dk=new Date(item.fecha).toDateString();
+      if(!dias[dk])dias[dk]={fecha:item.fecha,total:0,n:0};
+      dias[dk].total+=item[campoMonto];
+      dias[dk].n++;
+    });
+    return Object.values(dias).sort((a,b)=>new Date(b.fecha)-new Date(a.fecha)).slice(0,5);
+  };
+  const diasIng=agruparPorDia(db.ingresos.filter(cuentaParaTotales),"precioVenta");
+  const diasGas=agruparPorDia(db.gastos,"costo");
   const syncTxt=lastSync?lastSync.toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit"}):"—";
   return(
     <div style={{padding:"24px 16px 0"}}>
@@ -290,33 +342,31 @@ function Home({db,onRefresh,loading,lastSync}){
         </div>
       </>}/>}
 
-      {recIng.length>0&&<Card ch={<>
-        <div style={{fontSize:11,color:K.green,textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>⬆️ Últimos ingresos</div>
-        {recIng.map((item,i)=>(
-          <div key={item.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingBottom:i<recIng.length-1?9:0,marginBottom:i<recIng.length-1?9:0,borderBottom:i<recIng.length-1?`1px solid ${K.border}`:"none"}}>
+      {diasIng.length>0&&<Card ch={<>
+        <div style={{fontSize:11,color:K.green,textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>⬆️ Últimos ingresos · por día</div>
+        {diasIng.map((d,i)=>(
+          <div key={d.fecha} style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingBottom:i<diasIng.length-1?9:0,marginBottom:i<diasIng.length-1?9:0,borderBottom:i<diasIng.length-1?`1px solid ${K.border}`:"none"}}>
             <div style={{flex:1,minWidth:0}}>
-              <div style={{fontSize:13,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{item.producto||item.tipo}</div>
-              <div style={{fontSize:10,color:K.muted}}>{item.tipo}{item.cliente?" · "+item.cliente:""}</div>
+              <div style={{fontSize:13,fontWeight:600}}>{fDate(d.fecha)}</div>
+              <div style={{fontSize:10,color:K.muted}}>{d.n} venta{d.n!==1?"s":""}</div>
             </div>
             <div style={{textAlign:"right",marginLeft:8}}>
-              <div style={{fontSize:13,fontWeight:800,color:item.ganancia>=0?K.green:K.muted}}>{item.ganancia>=0?"+":""}{fmt(item.ganancia)}</div>
-              <div style={{fontSize:10,color:K.muted}}>{fDate(item.fecha)}</div>
+              <div style={{fontSize:14,fontWeight:800,color:K.green}}>{fmt(d.total)}</div>
             </div>
           </div>
         ))}
       </>}/>}
 
-      {recGas.length>0&&<Card ch={<>
-        <div style={{fontSize:11,color:K.red,textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>⬇️ Últimos gastos</div>
-        {recGas.map((item,i)=>(
-          <div key={item.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingBottom:i<recGas.length-1?9:0,marginBottom:i<recGas.length-1?9:0,borderBottom:i<recGas.length-1?`1px solid ${K.border}`:"none"}}>
+      {diasGas.length>0&&<Card ch={<>
+        <div style={{fontSize:11,color:K.red,textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>⬇️ Últimos gastos · por día</div>
+        {diasGas.map((d,i)=>(
+          <div key={d.fecha} style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingBottom:i<diasGas.length-1?9:0,marginBottom:i<diasGas.length-1?9:0,borderBottom:i<diasGas.length-1?`1px solid ${K.border}`:"none"}}>
             <div style={{flex:1,minWidth:0}}>
-              <div style={{fontSize:13,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{item.referencia}</div>
-              <div style={{fontSize:10,color:K.muted}}>{item.concepto}</div>
+              <div style={{fontSize:13,fontWeight:600}}>{fDate(d.fecha)}</div>
+              <div style={{fontSize:10,color:K.muted}}>{d.n} gasto{d.n!==1?"s":""}</div>
             </div>
             <div style={{textAlign:"right",marginLeft:8}}>
-              <div style={{fontSize:13,fontWeight:800,color:CCAT[item.concepto]||K.red}}>-{fmt(item.costo)}</div>
-              <div style={{fontSize:10,color:K.muted}}>{fDate(item.fecha)}</div>
+              <div style={{fontSize:14,fontWeight:800,color:K.red}}>-{fmt(d.total)}</div>
             </div>
           </div>
         ))}
@@ -542,7 +592,7 @@ function EditGasto({item,onClose,onSave,onDelete}){
 // ═══ HISTORIAL ═════════════════════════════════════════════════
 function Historial({db,onEditIngreso,onEditGasto}){
   const [open,setOpen]=useState(curM()); // abre el mes actual por defecto, más fácil de leer al entrar
-  const [filter,setFilter]=useState("todo");
+  const [filter,setFilter]=useState("ingresos");
   const [buscar,setBuscar]=useState("");
   const months=[...new Set([...db.ingresos.map(i=>mKey(i.fecha)),...db.gastos.map(g=>mKey(g.fecha))].filter(Boolean))].sort().reverse();
   return(
@@ -555,12 +605,13 @@ function Historial({db,onEditIngreso,onEditGasto}){
         const gas=db.gastos.filter(g=>mKey(g.fecha)===m);
         const ventas=ing.reduce((s,i)=>s+i.precioVenta,0);
         const gan=ing.reduce((s,i)=>s+i.ganancia,0);
-        const gastos=gas.filter(g=>g.concepto!=="AHORRO").reduce((s,g)=>s+g.costo,0);
-        const ahorro=gas.filter(g=>g.concepto==="AHORRO").reduce((s,g)=>s+g.costo,0);
+        // Gastos incluye AHORRO, igual que el cálculo real de Utilidad en tu Excel.
+        const gastos=gas.reduce((s,g)=>s+g.costo,0);
+        const ahorro=gas.filter(g=>g.concepto==="AHORRO").reduce((s,g)=>s+g.costo,0); // solo informativo
         const util=gan-gastos;
         const isOpen=open===m;
         const allTx=isOpen?[...ing.map(x=>({...x,t:"i"})),...gas.map(x=>({...x,t:"g"}))].sort((a,b)=>new Date(b.fecha)-new Date(a.fecha)):[];
-        let filtered=filter==="ingresos"?allTx.filter(x=>x.t==="i"):filter==="gastos"?allTx.filter(x=>x.t==="g"):allTx;
+        let filtered=filter==="ingresos"?allTx.filter(x=>x.t==="i"):allTx.filter(x=>x.t==="g");
         if(buscar.trim()){
           const q=buscar.toUpperCase().trim();
           filtered=filtered.filter(x=>x.t==="i"
@@ -569,7 +620,7 @@ function Historial({db,onEditIngreso,onEditGasto}){
         }
         return(
           <div key={m} style={{marginBottom:8}}>
-            <button onClick={()=>{setOpen(isOpen?null:m);setFilter("todo");setBuscar("");}} style={{width:"100%",background:K.card,border:`1px solid ${isOpen?K.green:K.border}`,borderRadius:isOpen?"14px 14px 0 0":14,padding:14,cursor:"pointer",textAlign:"left"}}>
+            <button onClick={()=>{setOpen(isOpen?null:m);setFilter("ingresos");setBuscar("");}} style={{width:"100%",background:K.card,border:`1px solid ${isOpen?K.green:K.border}`,borderRadius:isOpen?"14px 14px 0 0":14,padding:14,cursor:"pointer",textAlign:"left"}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
                 <div style={{fontWeight:800,fontSize:16,color:K.text}}>{mLabel(m)}</div>
                 <div style={{display:"flex",alignItems:"center",gap:8}}>
@@ -594,7 +645,7 @@ function Historial({db,onEditIngreso,onEditGasto}){
               <div style={{background:K.card2,border:`1px solid ${K.green}`,borderTop:"none",borderRadius:"0 0 14px 14px",padding:12}}>
                 <input value={buscar} onChange={e=>setBuscar(e.target.value)} placeholder="🔍 Buscar producto, cliente, concepto..." style={{width:"100%",background:K.bg,border:`1px solid ${K.border}`,borderRadius:10,color:K.text,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box",marginBottom:10}}/>
                 <div style={{display:"flex",gap:6,marginBottom:12}}>
-                  {[["todo","Todos","#fff"],["ingresos","Ingresos",K.green],["gastos","Gastos",K.red]].map(([v,l,col])=>(
+                  {[["ingresos","Ingresos",K.green],["gastos","Gastos",K.red]].map(([v,l,col])=>(
                     <button key={v} onClick={()=>setFilter(v)} style={{flex:1,background:filter===v?`${col}22`:"transparent",border:`1px solid ${filter===v?col:K.border}`,color:filter===v?col:K.muted,borderRadius:8,padding:"6px 0",fontSize:11,fontWeight:700,cursor:"pointer"}}>{l}</button>
                   ))}
                 </div>
@@ -623,24 +674,83 @@ function Historial({db,onEditIngreso,onEditGasto}){
 }
 
 // ═══ CLIENTES ══════════════════════════════════════════════════
-function Clientes({db,onEditIngreso}){
+// ═══ MARCAR PAGADO ═══════════════════════════════════════════════
+// Actualiza DEBE?=NO en CADA fila de INGRESOS de ese cliente que tenga deuda.
+// Esto es lo único que persiste de verdad: la hoja CLIENTES se recalcula sola con
+// fórmulas, así que escribirle ahí se perdería en el próximo recálculo.
+function MarcarPagadoBtn({cliente,ventas,onMarcarPagado}){
+  const [confirmar,setConfirmar]=useState(false);
+  const [cargando,setCargando]=useState(false);
+  const [error,setError]=useState(null);
+  const pendientes=ventas.filter(v=>v.debe==="SI");
+  if(pendientes.length===0)return null;
+  const confirmarPago=async()=>{
+    setCargando(true);setError(null);
+    try{
+      await onMarcarPagado(pendientes);
+      setConfirmar(false);
+    }catch(e){
+      setError("Error al actualizar: "+e.message);
+    }finally{
+      setCargando(false);
+    }
+  };
+  return(
+    <div style={{marginBottom:14}}>
+      {!confirmar?(
+        <button onClick={()=>setConfirmar(true)} style={{width:"100%",background:`${K.green}18`,border:`1.5px solid ${K.green}`,color:K.green,borderRadius:12,padding:"11px 0",fontSize:14,fontWeight:800,cursor:"pointer"}}>
+          ✓ YA PAGÓ ({pendientes.length} pendiente{pendientes.length!==1?"s":""})
+        </button>
+      ):(
+        <div style={{background:K.card,border:`1.5px solid ${K.green}`,borderRadius:12,padding:12}}>
+          <div style={{fontSize:13,color:K.text,marginBottom:10,textAlign:"center"}}>¿Confirmar que {cliente} ya pagó las {pendientes.length} compra{pendientes.length!==1?"s":""} pendientes?</div>
+          {error&&<div style={{color:K.red,fontSize:12,textAlign:"center",marginBottom:8}}>{error}</div>}
+          <div style={{display:"flex",gap:6}}>
+            <button onClick={confirmarPago} disabled={cargando} style={{flex:1,background:K.green,border:"none",color:"#000",borderRadius:8,padding:"9px 0",fontSize:12,fontWeight:800,cursor:cargando?"not-allowed":"pointer",opacity:cargando?.6:1}}>{cargando?"⏳ Guardando...":"Sí, ya pagó"}</button>
+            <button onClick={()=>setConfirmar(false)} disabled={cargando} style={{flex:1,background:"transparent",border:`1.5px solid ${K.border}`,color:K.muted,borderRadius:8,padding:"9px 0",fontSize:12,fontWeight:700,cursor:"pointer"}}>Cancelar</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Clientes({db,onEditIngreso,onMarcarPagado}){
   const [sel,setSel]=useState(null);
   const [q,setQ]=useState("");
   const [mesSel,setMesSel]=useState("todos"); // filtro de mes dentro del detalle de un cliente
+  const [pagina,setPagina]=useState(1);
+  const PORPAGINA=15;
   const map={};
-  // Bayron/Marco se excluyen de la lista general salvo en filas VENTA/COMISION (cuentaParaTotales).
-  db.ingresos.filter(cuentaParaTotales).forEach(i=>{
+  // CRIS, PRESTAMO y demás movimientos internos se excluyen AQUÍ (lista de clientes),
+  // pero siguen sumando en la Ganancia/Utilidad general del Home, porque ese dinero sí
+  // entró al negocio — solo no deben listarse como si fueran un revendedor real.
+  db.ingresos.filter(cuentaParaListaClientes).forEach(i=>{
     const k=(i.cliente||"").toUpperCase().trim();
     if(!k)return;
     if(!map[k])map[k]={ventas:[],gan:0,debe:false};
     map[k].ventas.push(i);map[k].gan+=i.ganancia;
   });
   // El estado real de "debe" viene de la hoja CLIENTES (más confiable que inferirlo fila por fila).
+  // BUGFIX: en tu Sheet real hay nombres duplicados por espacios extra (ej. "ALEJANDRA"
+  // y "ALEJANDRA " son dos filas distintas). Antes esto sobreescribía una fila con la
+  // otra y se perdía la deuda. Ahora se combinan: si CUALQUIERA de las filas duplicadas
+  // debe, el cliente combinado queda marcado como que debe, y el saldo se suma.
   const deudaPorCliente={};
-  (db.clientesResumen||[]).forEach(c=>{deudaPorCliente[c.cliente.toUpperCase().trim()]={debe:c.debe==="SI",saldo:c.saldo};});
+  (db.clientesResumen||[]).forEach(c=>{
+    const k=c.cliente.toUpperCase().trim();
+    const prev=deudaPorCliente[k];
+    deudaPorCliente[k]={
+      debe:(prev?.debe||false)||c.debe==="SI",
+      saldo:(prev?.saldo||0)+c.saldo,
+    };
+  });
   Object.keys(map).forEach(k=>{map[k].debe=deudaPorCliente[k]?.debe||false; map[k].saldo=deudaPorCliente[k]?.saldo||0;});
 
   const lista=Object.entries(map).filter(([k])=>!q||k.includes(q.toUpperCase())).sort((a,b)=>b[1].gan-a[1].gan);
+  const totalPaginas=Math.max(1,Math.ceil(lista.length/PORPAGINA));
+  const paginaSegura=Math.min(pagina,totalPaginas);
+  const listaPagina=lista.slice((paginaSegura-1)*PORPAGINA,paginaSegura*PORPAGINA);
 
   if(sel){
     const{ventas,gan}=map[sel]||{ventas:[],gan:0};
@@ -655,6 +765,7 @@ function Clientes({db,onEditIngreso}){
           <div style={{fontSize:18,fontWeight:800}}>{sel}</div>
           {map[sel]?.debe&&<Pill text={`DEBE ${fmt(map[sel].saldo)}`} color={K.red}/>}
         </div>
+        {map[sel]?.debe&&<MarcarPagadoBtn cliente={sel} ventas={ventas} onMarcarPagado={onMarcarPagado}/>}
         {meses.length>1&&(
           <div style={{display:"flex",gap:6,marginBottom:12,overflowX:"auto",paddingBottom:2}}>
             <button onClick={()=>setMesSel("todos")} style={{flexShrink:0,background:mesSel==="todos"?`${K.green}22`:"transparent",border:`1.5px solid ${mesSel==="todos"?K.green:K.border}`,color:mesSel==="todos"?K.green:K.muted,borderRadius:8,padding:"5px 12px",fontSize:11,fontWeight:700,cursor:"pointer"}}>Todos</button>
@@ -670,14 +781,17 @@ function Clientes({db,onEditIngreso}){
         <Card ch={<>
           <div style={{fontSize:11,color:K.muted,textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>Historial ({ventasFiltradas.length}) · toca para editar</div>
           {ventasFiltradas.length===0&&<div style={{textAlign:"center",color:K.muted,padding:16,fontSize:13}}>Sin compras este mes</div>}
-          {ventasFiltradas.sort((a,b)=>new Date(b.fecha)-new Date(a.fecha)).map((v,i,arr)=>(
-            <button key={i} onClick={()=>onEditIngreso(v)} style={{width:"100%",background:"none",border:"none",textAlign:"left",cursor:"pointer",paddingBottom:i<arr.length-1?10:0,marginBottom:i<arr.length-1?10:0,borderBottom:i<arr.length-1?`1px solid ${K.border}`:"none"}}>
+          {ventasFiltradas.sort((a,b)=>new Date(b.fecha)-new Date(a.fecha)).map((v,i,arr)=>{
+            const debe=v.debe==="SI";
+            return(
+            <button key={i} onClick={()=>onEditIngreso(v)} style={{width:"100%",background:debe?"#2a0f0f":"none",border:debe?`1px solid ${K.red}`:"none",borderRadius:debe?10:0,padding:debe?"8px 10px":"0",textAlign:"left",cursor:"pointer",paddingBottom:i<arr.length-1?10:(debe?8:0),marginBottom:i<arr.length-1?10:0,borderBottom:!debe&&i<arr.length-1?`1px solid ${K.border}`:(debe?`1px solid ${K.red}`:"none")}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                <div><div style={{fontSize:13,fontWeight:700,color:K.text}}>{v.producto}</div><div style={{fontSize:10,color:K.muted}}>{v.tipo} · {fDate(v.fecha)} · {v.proveedor}</div></div>
-                <div style={{textAlign:"right"}}><div style={{fontSize:13,fontWeight:800,color:K.green}}>+{fmt(v.ganancia)}</div><div style={{fontSize:10,color:K.muted}}>{fmt(v.precioVenta)}</div></div>
+                <div><div style={{fontSize:13,fontWeight:700,color:K.text}}>{v.producto}{debe&&<span style={{marginLeft:6,fontSize:9,background:`${K.red}33`,color:K.red,borderRadius:5,padding:"2px 6px",fontWeight:700}}>DEBE</span>}</div><div style={{fontSize:10,color:K.muted}}>{v.tipo} · {fDate(v.fecha)} · {v.proveedor}</div></div>
+                <div style={{textAlign:"right"}}><div style={{fontSize:13,fontWeight:800,color:K.green}}>+{fmt(v.ganancia)}</div><div style={{fontSize:10,color:debe?K.red:K.muted,fontWeight:debe?700:400}}>{fmt(v.precioVenta)}</div></div>
               </div>
             </button>
-          ))}
+            );
+          })}
         </>}/>
       </div>
     );
@@ -694,10 +808,9 @@ function Clientes({db,onEditIngreso}){
       )}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
         <div style={{fontSize:14,fontWeight:700,color:K.muted}}>{lista.length} clientes</div>
-        <div style={{fontSize:12,color:K.muted}}>Gan: <b style={{color:K.green}}>{fmt(lista.reduce((s,[,v])=>s+v.gan,0))}</b></div>
       </div>
-      <input value={q} onChange={e=>setQ(e.target.value)} placeholder="🔍 Buscar..." style={{width:"100%",background:K.card,border:`1px solid ${K.border}`,borderRadius:12,color:K.text,padding:"10px 14px",fontSize:14,outline:"none",boxSizing:"border-box",marginBottom:10}}/>
-      {lista.map(([nom,st])=>(
+      <input value={q} onChange={e=>{setQ(e.target.value);setPagina(1);}} placeholder="🔍 Buscar..." style={{width:"100%",background:K.card,border:`1px solid ${K.border}`,borderRadius:12,color:K.text,padding:"10px 14px",fontSize:14,outline:"none",boxSizing:"border-box",marginBottom:10}}/>
+      {listaPagina.map(([nom,st])=>(
         <button key={nom} onClick={()=>setSel(nom)} style={{width:"100%",background:K.card,border:`1px solid ${K.border}`,borderRadius:14,padding:"12px 14px",marginBottom:8,cursor:"pointer",textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <div>
             <div style={{fontWeight:700,fontSize:14,color:K.text,marginBottom:3}}>
@@ -711,15 +824,24 @@ function Clientes({db,onEditIngreso}){
           </div>
         </button>
       ))}
+      {totalPaginas>1&&(
+        <div style={{display:"flex",justifyContent:"center",alignItems:"center",gap:12,marginTop:8,marginBottom:8}}>
+          <button onClick={()=>setPagina(p=>Math.max(1,p-1))} disabled={paginaSegura===1} style={{background:"none",border:`1px solid ${K.border}`,color:paginaSegura===1?K.muted:K.text,borderRadius:8,padding:"7px 14px",fontSize:13,fontWeight:700,cursor:paginaSegura===1?"not-allowed":"pointer",opacity:paginaSegura===1?.4:1}}>← Atrás</button>
+          <span style={{fontSize:12,color:K.muted}}>Página {paginaSegura} de {totalPaginas}</span>
+          <button onClick={()=>setPagina(p=>Math.min(totalPaginas,p+1))} disabled={paginaSegura===totalPaginas} style={{background:"none",border:`1px solid ${K.border}`,color:paginaSegura===totalPaginas?K.muted:K.text,borderRadius:8,padding:"7px 14px",fontSize:13,fontWeight:700,cursor:paginaSegura===totalPaginas?"not-allowed":"pointer",opacity:paginaSegura===totalPaginas?.4:1}}>Siguiente →</button>
+        </div>
+      )}
     </div>
   );
 }
 
 // ═══ INVENTARIO ════════════════════════════════════════════════
 // Lista simple de compras a proveedor, tal cual la hoja: sin cruzar con ventas.
-function Inventario({db}){
+function Inventario({db,onAdd,onEdit,onDelete}){
   const items=[...(db.inventario||[])].sort((a,b)=>new Date(b.fecha)-new Date(a.fecha));
   const total=items.reduce((s,i)=>s+i.costo,0);
+  const [agregar,setAgregar]=useState(false);
+  const [editar,setEditar]=useState(null);
   return(
     <div>
       <Card ch={<>
@@ -727,24 +849,72 @@ function Inventario({db}){
         <div style={{fontSize:24,fontWeight:900,color:K.purple}}>{fmt(total)}</div>
         <div style={{fontSize:11,color:K.muted,marginTop:2}}>{items.length} compra{items.length!==1?"s":""} registradas</div>
       </>}/>
+      <Btn label="+ AGREGAR AL INVENTARIO" onClick={()=>setAgregar(true)} col={K.purple}/>
+      <div style={{height:10}}/>
       {items.length===0&&<div style={{textAlign:"center",color:K.muted,padding:24,fontSize:13}}>Sin compras registradas en Inventario</div>}
-      <Card ch={<>
+      {items.length>0&&<Card ch={<>
+        <div style={{fontSize:11,color:K.muted,textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>Toca para editar o borrar</div>
         {items.map((it,i,arr)=>(
-          <div key={it.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingBottom:i<arr.length-1?10:0,marginBottom:i<arr.length-1?10:0,borderBottom:i<arr.length-1?`1px solid ${K.border}`:"none"}}>
+          <button key={it.id} onClick={()=>setEditar(it)} style={{width:"100%",background:"none",border:"none",textAlign:"left",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",paddingBottom:i<arr.length-1?10:0,marginBottom:i<arr.length-1?10:0,borderBottom:i<arr.length-1?`1px solid ${K.border}`:"none"}}>
             <div><div style={{fontSize:13,fontWeight:700,color:K.text}}>{it.producto}</div><div style={{fontSize:10,color:K.muted}}>{it.proveedor} · {fDate(it.fecha)}</div></div>
             <div style={{fontSize:13,fontWeight:800,color:K.purple}}>{fmt(it.costo)}</div>
-          </div>
+          </button>
         ))}
-      </>}/>
+      </>}/>}
+      {agregar&&<InventarioForm onClose={()=>setAgregar(false)} onSave={onAdd}/>}
+      {editar&&<InventarioForm item={editar} onClose={()=>setEditar(null)} onSave={async(data)=>{await onEdit({...editar,...data});}} onDelete={async()=>{await onDelete(editar);}}/>}
+    </div>
+  );
+}
+
+// Modal compartido para agregar/editar un item de Inventario.
+function InventarioForm({item,onClose,onSave,onDelete}){
+  const [f,setF]=useState({producto:item?.producto||"",proveedor:item?.proveedor||"",costo:String(item?.costo||"")});
+  const [saving,setSaving]=useState(false);
+  const [confirmDel,setConfirmDel]=useState(false);
+  const [err,setErr]=useState(null);
+  const up=k=>v=>setF(p=>({...p,[k]:v}));
+  const guardar=async()=>{
+    setSaving(true);setErr(null);
+    try{
+      await onSave({producto:f.producto,proveedor:f.proveedor,costo:Number(f.costo)||0,fecha:item?.fecha||new Date().toISOString()});
+      onClose();
+    }catch(e){setErr("Error: "+e.message);setSaving(false);}
+  };
+  const borrar=async()=>{
+    setSaving(true);setErr(null);
+    try{await onDelete();onClose();}
+    catch(e){setErr("Error: "+e.message);setSaving(false);}
+  };
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.7)",zIndex:1000,display:"flex",alignItems:"flex-end"}} onClick={onClose}>
+      <div onClick={e=>e.stopPropagation()} style={{background:K.bg,width:"100%",maxWidth:430,margin:"0 auto",borderRadius:"20px 20px 0 0",padding:"18px 16px",maxHeight:"85vh",overflowY:"auto"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+          <div style={{fontSize:17,fontWeight:800}}>{item?"Editar inventario":"Agregar al inventario"}</div>
+          <button onClick={onClose} style={{background:"none",border:"none",color:K.muted,fontSize:22,cursor:"pointer"}}>✕</button>
+        </div>
+        <Card ch={<>
+          <FInput label="Producto" value={f.producto} onChange={up("producto")} placeholder="ej: NIKE TN"/>
+          <FInput label="Proveedor" value={f.proveedor} onChange={up("proveedor")} placeholder="ej: LIDER, BOA..."/>
+          <FInput label="Costo" value={f.costo} onChange={up("costo")} type="number" prefix="$"/>
+        </>}/>
+        {err&&<div style={{textAlign:"center",color:K.red,fontWeight:700,marginBottom:8,fontSize:13}}>{err}</div>}
+        <Btn label={item?"GUARDAR CAMBIOS":"AGREGAR"} onClick={guardar} col={K.purple} loading={saving} dis={!f.producto||!f.costo}/>
+        {item&&onDelete&&(!confirmDel?
+          <button onClick={()=>setConfirmDel(true)} style={{width:"100%",background:"none",border:"none",color:K.red,fontSize:13,fontWeight:700,padding:"12px 0 4px",cursor:"pointer"}}>🗑️ Borrar este registro</button>
+          :<ConfirmDelete onConfirm={borrar} onCancel={()=>setConfirmDel(false)}/>)}
+      </div>
     </div>
   );
 }
 
 // ═══ PERSONAL (Deuda Valen) ══════════════════════════════════════
 // Libro personal, separado del negocio a propósito.
-function Personal({db}){
+function Personal({db,onAdd,onEdit,onDelete}){
   const items=[...(db.deudaPersonal||[])];
   const saldoActual=items.length>0?items[items.length-1].saldo:0;
+  const [agregar,setAgregar]=useState(false);
+  const [editar,setEditar]=useState(null);
   return(
     <div>
       <Card s={{background:"#1d0909",border:"1px solid #4a1a1a"}} ch={<>
@@ -752,25 +922,80 @@ function Personal({db}){
         <div style={{fontSize:24,fontWeight:900,color:K.red}}>{fmt(saldoActual)}</div>
         <div style={{fontSize:11,color:K.muted,marginTop:2}}>Libro personal · no afecta las métricas del negocio</div>
       </>}/>
+      <Btn label="+ AGREGAR MOVIMIENTO" onClick={()=>setAgregar(true)} col={K.red}/>
+      <div style={{height:10}}/>
       {items.length===0&&<div style={{textAlign:"center",color:K.muted,padding:24,fontSize:13}}>Sin movimientos registrados</div>}
-      <Card ch={<>
+      {items.length>0&&<Card ch={<>
+        <div style={{fontSize:11,color:K.muted,textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>Toca para editar o borrar</div>
         {[...items].reverse().map((it,i,arr)=>(
-          <div key={it.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingBottom:i<arr.length-1?10:0,marginBottom:i<arr.length-1?10:0,borderBottom:i<arr.length-1?`1px solid ${K.border}`:"none"}}>
+          <button key={it.id} onClick={()=>setEditar(it)} style={{width:"100%",background:"none",border:"none",textAlign:"left",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",paddingBottom:i<arr.length-1?10:0,marginBottom:i<arr.length-1?10:0,borderBottom:i<arr.length-1?`1px solid ${K.border}`:"none"}}>
             <div><div style={{fontSize:13,fontWeight:700,color:K.text}}>{it.movimiento}</div><div style={{fontSize:10,color:K.muted}}>{it.fecha||"—"}</div></div>
             <div style={{textAlign:"right"}}>
               {it.pago>0&&<div style={{fontSize:13,fontWeight:800,color:K.green}}>-{fmt(it.pago)}</div>}
               {it.presto>0&&<div style={{fontSize:13,fontWeight:800,color:K.red}}>+{fmt(it.presto)}</div>}
               <div style={{fontSize:10,color:K.muted}}>saldo {fmt(it.saldo)}</div>
             </div>
-          </div>
+          </button>
         ))}
-      </>}/>
+      </>}/>}
+      {agregar&&<DeudaPersonalForm saldoBase={saldoActual} onClose={()=>setAgregar(false)} onSave={onAdd}/>}
+      {editar&&<DeudaPersonalForm item={editar} onClose={()=>setEditar(null)} onSave={async(data)=>{await onEdit({...editar,...data});}} onDelete={async()=>{await onDelete(editar);}}/>}
+    </div>
+  );
+}
+
+// Modal compartido para agregar/editar un movimiento de Deuda Valen.
+// El saldo se recalcula automáticamente: saldoBase + presto - pago.
+function DeudaPersonalForm({item,saldoBase=0,onClose,onSave,onDelete}){
+  const base=item?(item.saldo-(item.presto||0)+(item.pago||0)):saldoBase; // saldo previo a este movimiento
+  const [f,setF]=useState({movimiento:item?.movimiento||"",presto:String(item?.presto||""),pago:String(item?.pago||""),fecha:item?.fecha||""});
+  const [saving,setSaving]=useState(false);
+  const [confirmDel,setConfirmDel]=useState(false);
+  const [err,setErr]=useState(null);
+  const up=k=>v=>setF(p=>({...p,[k]:v}));
+  const nuevoSaldo=base+(Number(f.presto)||0)-(Number(f.pago)||0);
+  const guardar=async()=>{
+    setSaving(true);setErr(null);
+    try{
+      await onSave({movimiento:f.movimiento,presto:Number(f.presto)||0,pago:Number(f.pago)||0,saldo:nuevoSaldo,fecha:f.fecha||new Date().toLocaleDateString("es-CO")});
+      onClose();
+    }catch(e){setErr("Error: "+e.message);setSaving(false);}
+  };
+  const borrar=async()=>{
+    setSaving(true);setErr(null);
+    try{await onDelete();onClose();}
+    catch(e){setErr("Error: "+e.message);setSaving(false);}
+  };
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.7)",zIndex:1000,display:"flex",alignItems:"flex-end"}} onClick={onClose}>
+      <div onClick={e=>e.stopPropagation()} style={{background:K.bg,width:"100%",maxWidth:430,margin:"0 auto",borderRadius:"20px 20px 0 0",padding:"18px 16px",maxHeight:"85vh",overflowY:"auto"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+          <div style={{fontSize:17,fontWeight:800}}>{item?"Editar movimiento":"Agregar movimiento"}</div>
+          <button onClick={onClose} style={{background:"none",border:"none",color:K.muted,fontSize:22,cursor:"pointer"}}>✕</button>
+        </div>
+        <Card ch={<>
+          <FInput label="Descripción" value={f.movimiento} onChange={up("movimiento")} placeholder="ej: Cadena, Mercado..."/>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            <FInput label="Presto (suma deuda)" value={f.presto} onChange={up("presto")} type="number" prefix="$"/>
+            <FInput label="Pago (resta deuda)" value={f.pago} onChange={up("pago")} type="number" prefix="$"/>
+          </div>
+          <div style={{background:K.bg,borderRadius:10,padding:"10px 12px",marginTop:4,marginBottom:12,border:`1px solid ${K.border}`}}>
+            <div style={{fontSize:9,color:K.muted}}>NUEVO SALDO</div>
+            <div style={{fontSize:17,fontWeight:800,color:K.red}}>{fmt(nuevoSaldo)}</div>
+          </div>
+        </>}/>
+        {err&&<div style={{textAlign:"center",color:K.red,fontWeight:700,marginBottom:8,fontSize:13}}>{err}</div>}
+        <Btn label={item?"GUARDAR CAMBIOS":"AGREGAR"} onClick={guardar} col={K.red} loading={saving} dis={!f.movimiento}/>
+        {item&&onDelete&&(!confirmDel?
+          <button onClick={()=>setConfirmDel(true)} style={{width:"100%",background:"none",border:"none",color:K.red,fontSize:13,fontWeight:700,padding:"12px 0 4px",cursor:"pointer"}}>🗑️ Borrar este registro</button>
+          :<ConfirmDelete onConfirm={borrar} onCancel={()=>setConfirmDel(false)}/>)}
+      </div>
     </div>
   );
 }
 
 // ═══ MÁS ═══════════════════════════════════════════════════════
-function Mas({db,onEditIngreso,onEditGasto}){
+function Mas({db,onEditIngreso,onEditGasto,onMarcarPagado,onAddInv,onEditInv,onDeleteInv,onAddDeuda,onEditDeuda,onDeleteDeuda}){
   const [v,setV]=useState("clientes");
   const tabs=[["clientes","👥","Clientes"],["hist","📅","Historial"],["inv","📦","Inventario"],["personal","📓","Personal"]];
   return(
@@ -784,10 +1009,10 @@ function Mas({db,onEditIngreso,onEditGasto}){
           </button>
         ))}
       </div>
-      {v==="clientes"&&<Clientes db={db} onEditIngreso={onEditIngreso}/>}
+      {v==="clientes"&&<Clientes db={db} onEditIngreso={onEditIngreso} onMarcarPagado={onMarcarPagado}/>}
       {v==="hist"&&<Historial db={db} onEditIngreso={onEditIngreso} onEditGasto={onEditGasto}/>}
-      {v==="inv"&&<Inventario db={db}/>}
-      {v==="personal"&&<Personal db={db}/>}
+      {v==="inv"&&<Inventario db={db} onAdd={onAddInv} onEdit={onEditInv} onDelete={onDeleteInv}/>}
+      {v==="personal"&&<Personal db={db} onAdd={onAddDeuda} onEdit={onEditDeuda} onDelete={onDeleteDeuda}/>}
     </div>
   );
 }
@@ -882,6 +1107,51 @@ export default function App(){
     flash("✓ Gasto borrado",K.red);
   };
 
+  // ── Inventario ──
+  const addInventario=async(it)=>{
+    await appendRow("INVENTARIO",inventarioToRow(it));
+    await loadData(true);
+    flash("✓ Agregado al inventario",K.purple);
+  };
+  const editInventario=async(it)=>{
+    await updateRow("INVENTARIO",it._row,inventarioToRow(it));
+    await loadData(true);
+    flash("✓ Inventario actualizado",K.purple);
+  };
+  const removeInventario=async(it)=>{
+    await deleteRow("INVENTARIO",it._row);
+    await loadData(true);
+    flash("✓ Borrado del inventario",K.red);
+  };
+
+  // ── Personal (Deuda Valen) ──
+  const addDeuda=async(it)=>{
+    await appendRow("DEUDA VALEN",deudaPersonalToRow(it));
+    await loadData(true);
+    flash("✓ Movimiento agregado");
+  };
+  const editDeuda=async(it)=>{
+    await updateRow("DEUDA VALEN",it._row,deudaPersonalToRow(it));
+    await loadData(true);
+    flash("✓ Movimiento actualizado");
+  };
+  const removeDeuda=async(it)=>{
+    await deleteRow("DEUDA VALEN",it._row);
+    await loadData(true);
+    flash("✓ Movimiento borrado",K.red);
+  };
+
+  // ── Marcar pagado: actualiza DEBE?=NO en CADA fila pendiente de ese cliente.
+  // Secuencial (no Promise.all) para evitar escrituras concurrentes a la misma hoja.
+  const marcarPagado=async(pendientes)=>{
+    for(const v of pendientes){
+      const actualizado={...v,debe:"NO"};
+      await updateRow("INGRESOS",v._row,ingresoToRow(actualizado));
+    }
+    await loadData(true);
+    flash(`✓ ${pendientes.length} pago${pendientes.length!==1?"s":""} registrado${pendientes.length!==1?"s":""}`);
+  };
+
   const NAV=[
     {id:"home",icon:"🏠",label:"Inicio"},
     {id:"nuevo",icon:"➕",label:"Nuevo",col:K.green},
@@ -922,7 +1192,7 @@ export default function App(){
       <div style={{overflowY:"auto",WebkitOverflowScrolling:"touch"}}>
         {tab==="home"&&<Home db={db} onRefresh={()=>loadData(false)} loading={loading} lastSync={lastSync}/>}
         {tab==="nuevo"&&<NuevoMovimiento onSaveIngreso={saveIngreso} onSaveGasto={saveGasto}/>}
-        {tab==="mas"&&<Mas db={db} onEditIngreso={setEditIng} onEditGasto={setEditGas}/>}
+        {tab==="mas"&&<Mas db={db} onEditIngreso={setEditIng} onEditGasto={setEditGas} onMarcarPagado={marcarPagado} onAddInv={addInventario} onEditInv={editInventario} onDeleteInv={removeInventario} onAddDeuda={addDeuda} onEditDeuda={editDeuda} onDeleteDeuda={removeDeuda}/>}
       </div>
       <div style={{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:430,background:"rgba(12,12,12,.97)",backdropFilter:"blur(12px)",WebkitBackdropFilter:"blur(12px)",borderTop:`1px solid ${K.border}`,display:"flex",zIndex:100,paddingBottom:"env(safe-area-inset-bottom,0px)"}}>
         {NAV.map(({id,icon,label,col})=>{
