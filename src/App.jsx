@@ -3,6 +3,12 @@ import { useState, useEffect, useCallback, useRef } from "react";
 const API = "https://script.google.com/macros/s/AKfycbySGO0LtHtnT7SBEHF22TfsDUmz3kqmz3C2a-tZk6zL3_ZFuEoUF485h4QWvxq4H_S7/exec";
 const SYNC_INTERVAL_MS = 120000; // 2 minutos
 
+// Clave de acceso simple: bloquea curiosos casuales con el link, no es seguridad
+// criptográfica real (vive en el código del navegador). Suficiente para un solo
+// operador; si la app crece a multi-usuario, esto debe pasar a un backend real.
+const CLAVE_ACCESO = "ClaudeAlta";
+const LS_AUTH_KEY = "altaclase_auth_ok";
+
 const K={bg:"#0c0c0c",card:"#181818",card2:"#222",green:"#4ade80",red:"#f87171",blue:"#60a5fa",yellow:"#fbbf24",purple:"#a78bfa",orange:"#fb923c",border:"#2a2a2a",muted:"#585858",text:"#f0f0f0"};
 const CCAT={"AHORRO":K.blue,"DEUDA - BANCOS":K.red,"GASTO FIJO":K.yellow,"MERCADO":"#34d399","NEGOCIO":K.purple,"PERSONALES":K.orange,"SALIDA / DOMICILIO":"#e879f9"};
 const TIPOS=["VENTA","COMISION","COMPRA CON SALDO","OCASIONALES","RECIBIDO CLIENTE"];
@@ -221,11 +227,11 @@ const ChipGroup=({label,options,value,onChange,colorMap={}})=>(
   </div>
 );
 const FInput=({label,value,onChange,type="text",placeholder,prefix})=>(
-  <div style={{marginBottom:12}}>
+  <div style={{marginBottom:12,minWidth:0}}>
     {label&&<div style={{fontSize:11,color:K.muted,marginBottom:4,textTransform:"uppercase",letterSpacing:.8}}>{label}</div>}
-    <div style={{display:"flex",alignItems:"center",background:K.card2,border:`1px solid ${K.border}`,borderRadius:10,overflow:"hidden"}}>
-      {prefix&&<span style={{padding:"0 10px",color:K.muted,fontSize:13}}>{prefix}</span>}
-      <input type={type} value={value??""} onChange={e=>onChange(e.target.value)} placeholder={placeholder||""} style={{flex:1,background:"transparent",border:"none",color:K.text,padding:"11px 12px",fontSize:15,outline:"none"}}/>
+    <div style={{display:"flex",alignItems:"center",background:K.card2,border:`1px solid ${K.border}`,borderRadius:10,overflow:"hidden",minWidth:0}}>
+      {prefix&&<span style={{padding:"0 10px",color:K.muted,fontSize:13,flexShrink:0}}>{prefix}</span>}
+      <input type={type} value={value??""} onChange={e=>onChange(e.target.value)} placeholder={placeholder||""} style={{flex:1,minWidth:0,width:"100%",background:"transparent",border:"none",color:K.text,padding:"11px 12px",fontSize:15,outline:"none",boxSizing:"border-box"}}/>
     </div>
   </div>
 );
@@ -274,6 +280,9 @@ function Home({db,onRefresh,loading,lastSync}){
     debenMap[k].debe=debenMap[k].debe||c.debe==="SI";
   });
   const debenList=Object.values(debenMap).filter(c=>c.debe);
+  // Mapa nombre -> saldo que debe, para marcar con ⚠️ en el Top Clientes si debe más de $1.000.000.
+  const deudaPorNombre={};
+  Object.values(debenMap).forEach(c=>{deudaPorNombre[c.cliente]=c.saldo;});
   // Últimos movimientos, separados en dos listas como pediste, cada una con su propio top 5.
   // Últimos 5 días con movimiento, agrupados por día (total + cantidad de ventas).
   // Usa TODOS los ingresos/gastos (no solo el mes actual) para que funcione bien
@@ -288,15 +297,16 @@ function Home({db,onRefresh,loading,lastSync}){
     });
     return Object.values(dias).sort((a,b)=>new Date(b.fecha)-new Date(a.fecha)).slice(0,5);
   };
-  const diasIng=agruparPorDia(db.ingresos.filter(cuentaParaTotales),"precioVenta");
-  const diasGas=agruparPorDia(db.gastos,"costo");
+  const diasIng=agruparPorDia(db.ingresos.filter(cuentaParaTotales),"ganancia");
+  // Últimos gastos: movimientos individuales (no agrupados), últimos 5.
+  const ultimosGastos=[...db.gastos].sort((a,b)=>new Date(b.fecha)-new Date(a.fecha)).slice(0,5);
   const syncTxt=lastSync?lastSync.toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit"}):"—";
   return(
     <div style={{padding:"24px 16px 0"}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
         <div>
           <div style={{fontSize:11,color:K.muted,letterSpacing:1,textTransform:"uppercase"}}>Altaclase Bodega</div>
-          <div style={{fontSize:20,fontWeight:800}}>{mLabel(m)}</div>
+          <div style={{fontSize:30,fontWeight:900,letterSpacing:-0.5}}>{mLabel(m)}</div>
         </div>
         <button onClick={onRefresh} disabled={loading} style={{background:"none",border:`1px solid ${K.border}`,borderRadius:10,padding:"6px 14px",color:loading?K.muted:K.green,fontSize:12,fontWeight:700,cursor:loading?"not-allowed":"pointer"}}>
           {loading?"⏳":"🔄"} Sync
@@ -324,16 +334,29 @@ function Home({db,onRefresh,loading,lastSync}){
         </div>
       }/>
 
-      {top5.length>0&&<Card ch={<>
-        <div style={{fontSize:11,color:K.muted,textTransform:"uppercase",letterSpacing:1,marginBottom:12}}>🏆 Top 5 Clientes</div>
-        {top5.map(([nom,st],i)=>(
-          <div key={nom} style={{display:"flex",alignItems:"center",gap:10,marginBottom:i<top5.length-1?10:0}}>
-            <div style={{width:22,height:22,borderRadius:"50%",background:["#ffd700","#c0c0c0","#cd7f32","#444","#444"][i],display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:800,color:i<3?"#000":K.muted,flexShrink:0}}>{i+1}</div>
-            <div style={{flex:1}}><div style={{fontSize:13,fontWeight:700}}>{nom}</div><div style={{fontSize:10,color:K.muted}}>{st.n} venta{st.n!==1?"s":""}</div></div>
-            <div style={{fontWeight:800,fontSize:14,color:K.green}}>{fmt(st.g)}</div>
+      {top5.length>0&&(
+        <div style={{marginBottom:10}}>
+          <div style={{fontSize:11,color:K.muted,textTransform:"uppercase",letterSpacing:1,marginBottom:10,paddingLeft:2}}>🏆 Top Clientes del Mes</div>
+          <div style={{display:"flex",gap:10,overflowX:"auto",paddingBottom:4,scrollSnapType:"x mandatory"}}>
+            {top5.map(([nom,st],i)=>{
+              const debeMucho=(deudaPorNombre[nom]||0)>1000000;
+              return(
+                <div key={nom} style={{flexShrink:0,scrollSnapAlign:"start",width:108,height:108,background:K.card,border:`1.5px solid ${i===0?"#ffd700":K.border}`,borderRadius:14,padding:10,display:"flex",flexDirection:"column",justifyContent:"space-between"}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+                    <div style={{width:20,height:20,borderRadius:"50%",background:["#ffd700","#c0c0c0","#cd7f32","#444","#444"][i],display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:800,color:i<3?"#000":K.muted}}>{i+1}</div>
+                    {debeMucho&&<span style={{fontSize:14}}>⚠️</span>}
+                  </div>
+                  <div>
+                    <div style={{fontSize:12,fontWeight:700,color:K.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{nom}</div>
+                    <div style={{fontSize:13,fontWeight:800,color:K.green}}>{fmt(st.g)}</div>
+                    <div style={{fontSize:9,color:K.muted}}>{st.n} venta{st.n!==1?"s":""}</div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
-        ))}
-      </>}/>}
+        </div>
+      )}
 
       {debenList.length>0&&<Card s={{background:"#1a0808",border:`1px solid #4a1a1a`}} ch={<>
         <div style={{fontSize:11,color:K.red,fontWeight:700,marginBottom:6,textTransform:"uppercase",letterSpacing:1}}>⚠️ Deben cobrar</div>
@@ -357,16 +380,16 @@ function Home({db,onRefresh,loading,lastSync}){
         ))}
       </>}/>}
 
-      {diasGas.length>0&&<Card ch={<>
-        <div style={{fontSize:11,color:K.red,textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>⬇️ Últimos gastos · por día</div>
-        {diasGas.map((d,i)=>(
-          <div key={d.fecha} style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingBottom:i<diasGas.length-1?9:0,marginBottom:i<diasGas.length-1?9:0,borderBottom:i<diasGas.length-1?`1px solid ${K.border}`:"none"}}>
+      {ultimosGastos.length>0&&<Card ch={<>
+        <div style={{fontSize:11,color:K.red,textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>⬇️ Últimos gastos</div>
+        {ultimosGastos.map((g,i)=>(
+          <div key={g.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingBottom:i<ultimosGastos.length-1?9:0,marginBottom:i<ultimosGastos.length-1?9:0,borderBottom:i<ultimosGastos.length-1?`1px solid ${K.border}`:"none"}}>
             <div style={{flex:1,minWidth:0}}>
-              <div style={{fontSize:13,fontWeight:600}}>{fDate(d.fecha)}</div>
-              <div style={{fontSize:10,color:K.muted}}>{d.n} gasto{d.n!==1?"s":""}</div>
+              <div style={{fontSize:13,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{g.referencia}</div>
+              <div style={{fontSize:10,color:K.muted}}>{g.concepto} · {fDate(g.fecha)}</div>
             </div>
             <div style={{textAlign:"right",marginLeft:8}}>
-              <div style={{fontSize:14,fontWeight:800,color:K.red}}>-{fmt(d.total)}</div>
+              <div style={{fontSize:14,fontWeight:800,color:CCAT[g.concepto]||K.red}}>-{fmt(g.costo)}</div>
             </div>
           </div>
         ))}
@@ -811,10 +834,10 @@ function Clientes({db,onEditIngreso,onMarcarPagado}){
       </div>
       <input value={q} onChange={e=>{setQ(e.target.value);setPagina(1);}} placeholder="🔍 Buscar..." style={{width:"100%",background:K.card,border:`1px solid ${K.border}`,borderRadius:12,color:K.text,padding:"10px 14px",fontSize:14,outline:"none",boxSizing:"border-box",marginBottom:10}}/>
       {listaPagina.map(([nom,st])=>(
-        <button key={nom} onClick={()=>setSel(nom)} style={{width:"100%",background:K.card,border:`1px solid ${K.border}`,borderRadius:14,padding:"12px 14px",marginBottom:8,cursor:"pointer",textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <button key={nom} onClick={()=>setSel(nom)} style={{width:"100%",background:st.debe?"#2a0f0f":K.card,border:`1px solid ${st.debe?K.red:K.border}`,borderRadius:14,padding:"12px 14px",marginBottom:8,cursor:"pointer",textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <div>
             <div style={{fontWeight:700,fontSize:14,color:K.text,marginBottom:3}}>
-              {nom}{st.debe&&<span style={{marginLeft:6,fontSize:9,background:`${K.red}22`,color:K.red,borderRadius:5,padding:"2px 6px",fontWeight:700}}>DEBE</span>}
+              {nom}{st.debe&&<span style={{marginLeft:6,fontSize:9,background:`${K.red}33`,color:K.red,borderRadius:5,padding:"2px 6px",fontWeight:700}}>DEBE</span>}
             </div>
             <div style={{fontSize:11,color:K.muted}}>{st.ventas.length} compra{st.ventas.length!==1?"s":""}</div>
           </div>
@@ -1018,7 +1041,44 @@ function Mas({db,onEditIngreso,onEditGasto,onMarcarPagado,onAddInv,onEditInv,onD
 }
 
 // ═══ ROOT ══════════════════════════════════════════════════════
+// ═══ LOGIN ════════════════════════════════════════════════════
+function LoginScreen({onSuccess}){
+  const [clave,setClave]=useState("");
+  const [error,setError]=useState(false);
+  const intentar=()=>{
+    if(clave===CLAVE_ACCESO){
+      localStorage.setItem(LS_AUTH_KEY,"1");
+      onSuccess();
+    }else{
+      setError(true);
+      setClave("");
+    }
+  };
+  return(
+    <div style={{background:K.bg,minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:18,color:K.text,fontFamily:"-apple-system,sans-serif",padding:24}}>
+      <span style={{fontSize:56}}>👟</span>
+      <div style={{color:K.green,fontWeight:800,fontSize:20}}>Altaclase Bodega</div>
+      <div style={{maxWidth:280,width:"100%"}}>
+        <input
+          type="password"
+          value={clave}
+          onChange={e=>{setClave(e.target.value);setError(false);}}
+          onKeyDown={e=>e.key==="Enter"&&intentar()}
+          placeholder="Clave de acceso"
+          autoFocus
+          style={{width:"100%",background:K.card,border:`1.5px solid ${error?K.red:K.border}`,borderRadius:12,color:K.text,padding:"13px 16px",fontSize:16,outline:"none",boxSizing:"border-box",textAlign:"center"}}
+        />
+        {error&&<div style={{color:K.red,fontSize:12,textAlign:"center",marginTop:8}}>Clave incorrecta</div>}
+        <div style={{marginTop:14}}>
+          <Btn label="Entrar" onClick={intentar} dis={!clave}/>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function App(){
+  const [autenticado,setAutenticado]=useState(()=>localStorage.getItem(LS_AUTH_KEY)==="1");
   const [tab,setTab]=useState("home");
   const [db,setDb]=useState({ingresos:[],gastos:[],inventario:[],clientesResumen:[],clientesEspeciales:[],deudaPersonal:[]});
   const [loading,setLoading]=useState(false);
@@ -1068,15 +1128,16 @@ export default function App(){
   },[]);
 
   // Carga inicial
-  useEffect(()=>{loadData(false);},[loadData]);
+  useEffect(()=>{if(autenticado)loadData(false);},[loadData,autenticado]);
 
   // Auto-sync cada 2 minutos en segundo plano, y al volver a la pestaña/app
   useEffect(()=>{
+    if(!autenticado)return;
     intervalRef.current=setInterval(()=>{loadData(true);},SYNC_INTERVAL_MS);
     const onVisible=()=>{if(document.visibilityState==="visible")loadData(true);};
     document.addEventListener("visibilitychange",onVisible);
     return()=>{clearInterval(intervalRef.current);document.removeEventListener("visibilitychange",onVisible);};
-  },[loadData]);
+  },[loadData,autenticado]);
 
   const saveIngreso=async(row)=>{
     await appendRow("INGRESOS",row);
@@ -1157,6 +1218,10 @@ export default function App(){
     {id:"nuevo",icon:"➕",label:"Nuevo",col:K.green},
     {id:"mas",icon:"☰",label:"Más"},
   ];
+
+  if(!autenticado){
+    return <LoginScreen onSuccess={()=>setAutenticado(true)}/>;
+  }
 
   if(!initDone){
     return(
