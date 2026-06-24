@@ -9,8 +9,28 @@ const SYNC_INTERVAL_MS = 120000; // 2 minutos
 const CLAVE_ACCESO = "ClaudeAlta";
 const LS_AUTH_KEY = "altaclase_auth_ok";
 
-const K={bg:"#0c0c0c",card:"#181818",card2:"#222",green:"#4ade80",red:"#f87171",blue:"#60a5fa",yellow:"#fbbf24",purple:"#a78bfa",orange:"#fb923c",border:"#2a2a2a",muted:"#585858",text:"#f0f0f0"};
-const CCAT={"AHORRO":K.blue,"DEUDA - BANCOS":K.red,"GASTO FIJO":K.yellow,"MERCADO":"#34d399","NEGOCIO":K.purple,"PERSONALES":K.orange,"SALIDA / DOMICILIO":"#e879f9"};
+// ─── Paleta Altaclase Bodega ────────────────────────────────────
+// Negro / Dorado / Beige — marca premium B2B colombiana.
+// El dorado es el único accent: positivo, activo, seleccionado.
+// El beige reemplaza el blanco frío como texto principal.
+const K={
+  bg:"#0A0A0A",        // negro profundo — fondo
+  card:"#141414",      // negro tarjeta
+  card2:"#1C1C1C",     // negro tarjeta secundaria
+  gold:"#C9A84C",      // dorado — accent único, reemplaza verde genérico
+  goldDim:"#8A6F32",   // dorado apagado para estados secundarios
+  green:"#4CAF7D",     // solo para ganancia positiva real
+  red:"#E05252",       // rojo cálido — deuda y alertas
+  blue:"#7EB8C9",      // azul frío — información neutral
+  yellow:"#C9A84C",    // dorado (alias para categorías que usaban yellow)
+  purple:"#9B8AC4",    // púrpura suave
+  orange:"#C98A4C",    // naranja cálido
+  border:"#2A2A2A",    // borde sutil
+  muted:"#8A7D6A",     // beige apagado — texto secundario
+  text:"#E8DCC8",      // beige cálido — texto principal
+  white:"#FFFFFF",     // blanco puro para contraste máximo
+};
+const CCAT={"AHORRO":K.blue,"DEUDA - BANCOS":K.red,"GASTO FIJO":K.yellow,"MERCADO":"#4CAF7D","NEGOCIO":K.purple,"PERSONALES":K.orange,"SALIDA / DOMICILIO":"#C47EB8"};
 const TIPOS=["VENTA","COMISION","COMPRA CON SALDO","OCASIONALES","RECIBIDO CLIENTE"];
 const CONCS=["NEGOCIO","GASTO FIJO","SALIDA / DOMICILIO","AHORRO","MERCADO","PERSONALES","DEUDA - BANCOS"];
 
@@ -211,42 +231,93 @@ function parseDeudaPersonal(rows){
 }
 
 // ═══ UI ATOMS ═════════════════════════════════════════════════
-const Card=({ch,s={}})=><div style={{background:K.card,borderRadius:14,padding:14,marginBottom:10,...s}}>{ch}</div>;
-const Pill=({text,color})=><span style={{background:`${color}22`,color,borderRadius:6,padding:"2px 8px",fontSize:10,fontWeight:700}}>{text}</span>;
-const Btn=({label,onClick,col=K.green,dis,outline,sm,loading})=>(
-  <button onClick={onClick} disabled={dis||loading} style={{width:sm?"auto":"100%",padding:sm?"8px 16px":"14px",background:outline?"transparent":(dis||loading)?K.card2:col,color:outline?col:(dis||loading)?K.muted:"#000",border:`1.5px solid ${outline?col:(dis||loading)?K.border:col}`,borderRadius:sm?10:13,fontSize:sm?12:15,fontWeight:700,cursor:(dis||loading)?"not-allowed":"pointer",opacity:(dis||loading)?.6:1}}>
-    {loading?"⏳ Guardando...":label}
+const Card=({ch,s={}})=><div style={{background:K.card,borderRadius:10,padding:"14px 16px",marginBottom:10,border:`1px solid ${K.border}`,...s}}>{ch}</div>;
+const Divider=()=><div style={{height:1,background:K.border,margin:"10px 0"}}/>;
+const ConfirmDelete=({onConfirm,onCancel})=>(
+  <div style={{display:"flex",gap:6,marginTop:10}}>
+    <button onClick={onConfirm} style={{flex:1,background:`${K.red}18`,border:`1.5px solid ${K.red}`,color:K.red,borderRadius:6,padding:"8px 0",fontSize:12,fontWeight:800,cursor:"pointer",letterSpacing:.3}}>Sí, borrar</button>
+    <button onClick={onCancel} style={{flex:1,background:"transparent",border:`1.5px solid ${K.border}`,color:K.muted,borderRadius:6,padding:"8px 0",fontSize:12,fontWeight:700,cursor:"pointer"}}>Cancelar</button>
+  </div>
+);
+const Pill=({text,color})=><span style={{background:`${color}18`,color,borderRadius:4,padding:"2px 8px",fontSize:9,fontWeight:800,letterSpacing:.6,textTransform:"uppercase"}}>{text}</span>;
+const Btn=({label,onClick,col=K.gold,dis,outline,sm,loading})=>(
+  <button onClick={onClick} disabled={dis||loading} style={{width:sm?"auto":"100%",padding:sm?"8px 16px":"14px",background:outline?"transparent":(dis||loading)?K.card2:col,color:outline?col:(dis||loading)?K.muted:"#0A0A0A",border:`1.5px solid ${outline?col:(dis||loading)?K.border:col}`,borderRadius:sm?8:10,fontSize:sm?12:14,fontWeight:800,cursor:(dis||loading)?"not-allowed":"pointer",opacity:(dis||loading)?.5:1,letterSpacing:.3}}>
+    {loading?"Guardando...":label}
   </button>
 );
 const ChipGroup=({label,options,value,onChange,colorMap={}})=>(
   <div style={{marginBottom:14}}>
-    {label&&<div style={{fontSize:11,color:K.muted,marginBottom:6,textTransform:"uppercase",letterSpacing:.8}}>{label}</div>}
+    {label&&<div style={{fontSize:10,color:K.muted,marginBottom:6,textTransform:"uppercase",letterSpacing:1}}>{label}</div>}
     <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-      {options.map(o=>{const col=colorMap[o]||K.green,sel=value===o;return <button key={o} onClick={()=>onChange(o)} style={{background:sel?`${col}22`:"transparent",border:`1.5px solid ${sel?col:K.border}`,color:sel?col:K.muted,borderRadius:8,padding:"5px 10px",fontSize:11,fontWeight:700,cursor:"pointer"}}>{o}</button>;})}
+      {options.map(o=>{const col=colorMap[o]||K.gold,sel=value===o;return <button key={o} onClick={()=>onChange(o)} style={{background:sel?col:"transparent",border:`1.5px solid ${sel?col:K.border}`,color:sel?"#0A0A0A":K.muted,borderRadius:6,padding:"5px 10px",fontSize:11,fontWeight:sel?800:600,cursor:"pointer",letterSpacing:.3}}>{o}</button>;})}
     </div>
   </div>
 );
 const FInput=({label,value,onChange,type="text",placeholder,prefix})=>(
   <div style={{marginBottom:12,minWidth:0}}>
-    {label&&<div style={{fontSize:11,color:K.muted,marginBottom:4,textTransform:"uppercase",letterSpacing:.8}}>{label}</div>}
-    <div style={{display:"flex",alignItems:"center",background:K.card2,border:`1px solid ${K.border}`,borderRadius:10,overflow:"hidden",minWidth:0}}>
-      {prefix&&<span style={{padding:"0 10px",color:K.muted,fontSize:13,flexShrink:0}}>{prefix}</span>}
-      <input type={type} value={value??""} onChange={e=>onChange(e.target.value)} placeholder={placeholder||""} style={{flex:1,minWidth:0,width:"100%",background:"transparent",border:"none",color:K.text,padding:"11px 12px",fontSize:15,outline:"none",boxSizing:"border-box"}}/>
+    {label&&<div style={{fontSize:10,color:K.muted,marginBottom:5,textTransform:"uppercase",letterSpacing:1}}>{label}</div>}
+    <div style={{display:"flex",alignItems:"center",background:K.card2,border:`1px solid ${value?K.gold:K.border}`,borderRadius:8,overflow:"hidden",minWidth:0,transition:"border-color .15s"}}>
+      {prefix&&<span style={{padding:"0 12px",color:K.gold,fontSize:13,fontWeight:700,flexShrink:0}}>{prefix}</span>}
+      <input type={type} value={value??""} onChange={e=>onChange(e.target.value)} placeholder={placeholder||""} style={{flex:1,minWidth:0,width:"100%",background:"transparent",border:"none",color:K.text,padding:"12px 12px",fontSize:15,outline:"none",boxSizing:"border-box"}}/>
     </div>
   </div>
 );
 
 // Confirmación inline de borrado (sin window.confirm, que no anda bien en el artifact)
-function ConfirmDelete({onConfirm,onCancel}){
+
+
+
+// ═══ HOME ═════════════════════════════════════════════════════
+// ═══ REPORTE BTN ══════════════════════════════════════════════
+// Genera un resumen del mes en texto plano, listo para copiar o compartir
+// por WhatsApp sin abrir otra app ni formatear nada a mano.
+function ReporteBtn({mes,ventas,gan,gastos,util,mrg,debenList,top5,ganSem,ventasSem}){
+  const [copiado,setCopiado]=useState(false);
+  const generar=()=>{
+    const fmt2=n=>"$"+Number(n||0).toLocaleString("es-CO");
+    const lineas=[
+      `📊 *REPORTE ALTACLASE BODEGA — ${mes.toUpperCase()}*`,
+      ``,
+      `💰 Utilidad: ${fmt2(util)} (Margen ${mrg}%)`,
+      `📈 Ventas: ${fmt2(ventas)}`,
+      `✅ Ganancia: ${fmt2(gan)}`,
+      `📉 Gastos: ${fmt2(gastos)}`,
+      ``,
+      `📅 *ESTA SEMANA*`,
+      `   Ganancia: ${fmt2(ganSem)} · ${ventasSem} venta${ventasSem!==1?"s":""}`,
+    ];
+    if(top5.length>0){
+      lineas.push(``);
+      lineas.push(`🏆 *TOP CLIENTES*`);
+      top5.forEach(([nom,st],i)=>lineas.push(`   ${i+1}. ${nom} — ${fmt2(st.g)}`));
+    }
+    if(debenList.length>0){
+      lineas.push(``);
+      lineas.push(`⚠️ *COBROS PENDIENTES*`);
+      debenList.forEach(c=>lineas.push(`   • ${c.cliente} — ${fmt2(c.saldo)}`));
+    }
+    lineas.push(``);
+    lineas.push(`_Altaclase Bodega_`);
+    const texto=lineas.join("\n");
+    if(navigator.clipboard?.writeText){
+      navigator.clipboard.writeText(texto).then(()=>{setCopiado(true);setTimeout(()=>setCopiado(false),2500);});
+    }else{
+      // fallback para Safari que a veces bloquea clipboard API
+      const el=document.createElement("textarea");
+      el.value=texto; el.style.position="fixed"; el.style.opacity="0";
+      document.body.appendChild(el); el.select();
+      document.execCommand("copy"); document.body.removeChild(el);
+      setCopiado(true); setTimeout(()=>setCopiado(false),2500);
+    }
+  };
   return(
-    <div style={{display:"flex",gap:6,marginTop:8}}>
-      <button onClick={onConfirm} style={{flex:1,background:`${K.red}22`,border:`1.5px solid ${K.red}`,color:K.red,borderRadius:8,padding:"8px 0",fontSize:12,fontWeight:700,cursor:"pointer"}}>Sí, borrar</button>
-      <button onClick={onCancel} style={{flex:1,background:"transparent",border:`1.5px solid ${K.border}`,color:K.muted,borderRadius:8,padding:"8px 0",fontSize:12,fontWeight:700,cursor:"pointer"}}>Cancelar</button>
-    </div>
+    <button onClick={generar} style={{width:"100%",background:copiado?`${K.gold}22`:K.card2,border:`1px solid ${copiado?K.gold:K.border}`,borderRadius:8,padding:"11px 14px",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10,transition:"all .2s"}}>
+      <span style={{fontSize:12,fontWeight:800,color:copiado?K.gold:K.muted,letterSpacing:.5,textTransform:"uppercase"}}>{copiado?"✓ Reporte copiado":"📋 Generar reporte del mes"}</span>
+      <span style={{fontSize:10,color:K.muted}}>Copiar para WhatsApp</span>
+    </button>
   );
 }
 
-// ═══ HOME ═════════════════════════════════════════════════════
 function Home({db,onRefresh,loading,lastSync}){
   const m=curM();
   // cuentaParaTotales aplica la regla: Bayron/Marco solo cuentan si TIPO=VENTA o COMISION.
@@ -255,12 +326,22 @@ function Home({db,onRefresh,loading,lastSync}){
   const gas=db.gastos.filter(g=>mKey(g.fecha)===m);
   const ventas=ing.reduce((s,i)=>s+i.precioVenta,0);
   const gan=ing.reduce((s,i)=>s+i.ganancia,0);
-  // Gastos incluye TODOS los conceptos, incluyendo AHORRO — así calcula tu Excel real
-  // la Utilidad del mes (SUMIFS de GASTOS!C:C sin excluir ningún concepto).
   const gastos=gas.reduce((s,g)=>s+g.costo,0);
-  const ahorro=gas.filter(g=>g.concepto==="AHORRO").reduce((s,g)=>s+g.costo,0); // solo informativo
+  const ahorro=gas.filter(g=>g.concepto==="AHORRO").reduce((s,g)=>s+g.costo,0);
   const util=gan-gastos;
   const mrg=ventas>0?(util/ventas*100).toFixed(1):0;
+  // ── Resumen semanal ──────────────────────────────────────────
+  const hoy=new Date();
+  const dow=hoy.getDay(); // 0=dom
+  const inicioSem=new Date(hoy); inicioSem.setDate(hoy.getDate()-dow); inicioSem.setHours(0,0,0,0);
+  const inicioSemAnt=new Date(inicioSem); inicioSemAnt.setDate(inicioSem.getDate()-7);
+  const semActual=db.ingresos.filter(i=>cuentaParaTotales(i)&&new Date(i.fecha)>=inicioSem);
+  const semAnt=db.ingresos.filter(i=>cuentaParaTotales(i)&&new Date(i.fecha)>=inicioSemAnt&&new Date(i.fecha)<inicioSem);
+  const ganSem=semActual.reduce((s,i)=>s+i.ganancia,0);
+  const ganSemAnt=semAnt.reduce((s,i)=>s+i.ganancia,0);
+  const tendSem=ganSemAnt>0?Math.round((ganSem-ganSemAnt)/ganSemAnt*100):null;
+  const ventasSem=semActual.length;
+  const gasSem=db.gastos.filter(g=>new Date(g.fecha)>=inicioSem).reduce((s,g)=>s+g.costo,0);
   const cmap={};
   ing.filter(i=>i.tipo==="VENTA"&&i.cliente).forEach(i=>{
     const k=i.cliente.toUpperCase().trim();
@@ -297,127 +378,192 @@ function Home({db,onRefresh,loading,lastSync}){
     });
     return Object.values(dias).sort((a,b)=>new Date(b.fecha)-new Date(a.fecha)).slice(0,5);
   };
+  const [debenAbierto,setDebenAbierto]=useState(false);
   const diasIng=agruparPorDia(db.ingresos.filter(cuentaParaTotales),"ganancia");
-  // Últimos gastos: movimientos individuales (no agrupados), últimos 5.
   const ultimosGastos=[...db.gastos].sort((a,b)=>new Date(b.fecha)-new Date(a.fecha)).slice(0,5);
   const syncTxt=lastSync?lastSync.toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit"}):"—";
   return(
-    <div style={{padding:"24px 16px 0"}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
-        <div>
-          <div style={{fontSize:11,color:K.muted,letterSpacing:1,textTransform:"uppercase"}}>Altaclase Bodega</div>
-          <div style={{fontSize:30,fontWeight:900,letterSpacing:-0.5}}>{mLabel(m)}</div>
-        </div>
-        <button onClick={onRefresh} disabled={loading} style={{background:"none",border:`1px solid ${K.border}`,borderRadius:10,padding:"6px 14px",color:loading?K.muted:K.green,fontSize:12,fontWeight:700,cursor:loading?"not-allowed":"pointer"}}>
-          {loading?"⏳":"🔄"} Sync
-        </button>
-      </div>
-
-      <div style={{background:util>=0?"#091d10":"#1d0909",border:`1px solid ${util>=0?"#1a4a2a":"#4a1a1a"}`,borderRadius:16,padding:"18px 16px",marginBottom:10}}>
-        <div style={{fontSize:11,color:K.muted,textTransform:"uppercase",letterSpacing:1,marginBottom:2}}>Utilidad del mes</div>
-        <div style={{fontSize:36,fontWeight:900,color:util>=0?K.green:K.red,letterSpacing:-1}}>{fmt(util)}</div>
-        <div style={{display:"flex",gap:14,marginTop:6,flexWrap:"wrap"}}>
-          <span style={{fontSize:12,color:K.muted}}>Margen <b style={{color:util>=0?K.green:K.red}}>{mrg}%</b></span>
-          {ahorro>0&&<span style={{fontSize:12,color:K.muted}}>Ahorro <b style={{color:K.blue}}>{fmt(ahorro)}</b></span>}
-          {debenList.length>0&&<span style={{fontSize:12,color:K.red}}>⚠️ {debenList.length} deben</span>}
+    <div style={{padding:"0"}}>
+      <div style={{padding:"32px 16px 16px",background:"#141414",borderBottom:`1px solid ${K.border}`}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+          <div>
+            <div style={{fontSize:10,color:K.gold,letterSpacing:2,textTransform:"uppercase",fontWeight:700,marginBottom:4}}>Altaclase Bodega</div>
+            <div style={{fontSize:34,fontWeight:900,color:K.white,letterSpacing:-1,lineHeight:1}}>{mLabel(m)}</div>
+            <div style={{fontSize:10,color:K.muted,marginTop:4}}>Sync {syncTxt}</div>
+          </div>
+          <button onClick={onRefresh} disabled={loading} style={{background:K.card2,border:`1px solid ${K.border}`,borderRadius:6,padding:"8px 12px",color:loading?K.muted:K.gold,fontSize:10,fontWeight:800,cursor:loading?"not-allowed":"pointer",letterSpacing:.8,textTransform:"uppercase"}}>
+            {loading?"Sync...":"↻ Sync"}
+          </button>
         </div>
       </div>
-
-      <Card ch={
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr"}}>
-          {[["Ventas",ventas,K.green],["Ganancia",gan,K.blue],["Gastos",gastos,K.red]].map(([l,v,col],i)=>(
-            <div key={l} style={{textAlign:"center",borderRight:i<2?`1px solid ${K.border}`:""}}>
-              <div style={{fontSize:9,color:K.muted,textTransform:"uppercase",marginBottom:2}}>{l}</div>
-              <div style={{fontSize:14,fontWeight:800,color:col}}>{fmt(v)}</div>
+      <div style={{padding:"14px 16px 0"}}>
+        <div style={{background:K.card,border:`1px solid ${util>=0?K.gold+"55":K.red+"55"}`,borderRadius:10,padding:"18px 16px",marginBottom:10}}>
+          <div style={{fontSize:9,color:K.muted,textTransform:"uppercase",letterSpacing:1.5,marginBottom:4}}>Utilidad del mes</div>
+          <div style={{fontSize:40,fontWeight:900,color:util>=0?K.gold:K.red,letterSpacing:-2,lineHeight:1}}>{fmt(util)}</div>
+          <div style={{display:"flex",gap:14,marginTop:8,flexWrap:"wrap"}}>
+            <span style={{fontSize:11,color:K.muted}}>Margen <b style={{color:util>=0?K.gold:K.red}}>{mrg}%</b></span>
+            {ahorro>0&&<span style={{fontSize:11,color:K.muted}}>Ahorro <b style={{color:K.blue}}>{fmt(ahorro)}</b></span>}
+            {debenList.length>0&&<span style={{fontSize:11,color:K.red,fontWeight:700}}>⚠ {debenList.length} cobrar</span>}
+          </div>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:10}}>
+          {[["Ventas",ventas,K.gold],["Ganancia",gan,K.green],["Gastos",gastos,K.red]].map(([l,v,col])=>(
+            <div key={l} style={{background:K.card,border:`1px solid ${K.border}`,borderRadius:8,padding:"10px 8px",textAlign:"center"}}>
+              <div style={{fontSize:9,color:K.muted,textTransform:"uppercase",letterSpacing:.8,marginBottom:4}}>{l}</div>
+              <div style={{fontSize:13,fontWeight:800,color:col}}>{fmt(v)}</div>
             </div>
           ))}
         </div>
-      }/>
+        {/* Resumen semanal */}
+        <div style={{background:K.card,border:`1px solid ${K.border}`,borderRadius:10,padding:"14px 16px",marginBottom:10}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
+            <div style={{fontSize:10,color:K.gold,textTransform:"uppercase",letterSpacing:1.5,fontWeight:700}}>Esta semana</div>
+            {tendSem!==null&&(
+              <span style={{fontSize:11,fontWeight:800,color:tendSem>=0?K.green:K.red}}>
+                {tendSem>=0?"↑":"↓"} {Math.abs(tendSem)}% vs sem. ant.
+              </span>
+            )}
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6}}>
+            <div style={{textAlign:"center"}}>
+              <div style={{fontSize:9,color:K.muted,textTransform:"uppercase",letterSpacing:.8,marginBottom:3}}>Ganancia</div>
+              <div style={{fontSize:14,fontWeight:900,color:K.gold}}>{fmt(ganSem)}</div>
+            </div>
+            <div style={{textAlign:"center",borderLeft:`1px solid ${K.border}`,borderRight:`1px solid ${K.border}`}}>
+              <div style={{fontSize:9,color:K.muted,textTransform:"uppercase",letterSpacing:.8,marginBottom:3}}>Ventas</div>
+              <div style={{fontSize:14,fontWeight:900,color:K.text}}>{ventasSem}</div>
+            </div>
+            <div style={{textAlign:"center"}}>
+              <div style={{fontSize:9,color:K.muted,textTransform:"uppercase",letterSpacing:.8,marginBottom:3}}>Gastos</div>
+              <div style={{fontSize:14,fontWeight:900,color:K.red}}>{fmt(gasSem)}</div>
+            </div>
+          </div>
+        </div>
+        {/* Botón de reporte — genera texto listo para WhatsApp */}
+        <ReporteBtn mes={mLabel(m)} ventas={ventas} gan={gan} gastos={gastos} util={util} mrg={mrg} debenList={debenList} top5={top5} ganSem={ganSem} ventasSem={ventasSem}/>
 
-      {top5.length>0&&(
-        <div style={{marginBottom:10}}>
-          <div style={{fontSize:11,color:K.muted,textTransform:"uppercase",letterSpacing:1,marginBottom:10,paddingLeft:2}}>🏆 Top Clientes del Mes</div>
-          <div style={{display:"flex",gap:10,overflowX:"auto",paddingBottom:4,scrollSnapType:"x mandatory"}}>
-            {top5.map(([nom,st],i)=>{
-              const debeMucho=(deudaPorNombre[nom]||0)>1000000;
-              return(
-                <div key={nom} style={{flexShrink:0,scrollSnapAlign:"start",width:108,height:108,background:K.card,border:`1.5px solid ${i===0?"#ffd700":K.border}`,borderRadius:14,padding:10,display:"flex",flexDirection:"column",justifyContent:"space-between"}}>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
-                    <div style={{width:20,height:20,borderRadius:"50%",background:["#ffd700","#c0c0c0","#cd7f32","#444","#444"][i],display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:800,color:i<3?"#000":K.muted}}>{i+1}</div>
-                    {debeMucho&&<span style={{fontSize:14}}>⚠️</span>}
+        {top5.length>0&&(
+          <div style={{marginBottom:10}}>
+            <div style={{fontSize:10,color:K.gold,textTransform:"uppercase",letterSpacing:1.5,marginBottom:10,fontWeight:700}}>Top Clientes del Mes</div>
+            <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:6,scrollSnapType:"x mandatory",WebkitOverflowScrolling:"touch"}}>
+              {top5.map(([nom,st],i)=>{
+                const debeMucho=(deudaPorNombre[nom]||0)>1000000;
+                const medals=["#C9A84C","#A8A8A8","#8B6914","#2A2A2A","#2A2A2A"];
+                return(
+                  <div key={nom} style={{flexShrink:0,scrollSnapAlign:"start",width:112,background:K.card,border:`1.5px solid ${i===0?K.gold:K.border}`,borderRadius:10,padding:12,display:"flex",flexDirection:"column",justifyContent:"space-between",minHeight:110}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                      <div style={{width:20,height:20,borderRadius:"50%",background:medals[i],display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:900,color:i<3?"#0A0A0A":K.muted}}>{i+1}</div>
+                      {debeMucho&&<span style={{fontSize:12}}>⚠️</span>}
+                    </div>
+                    <div>
+                      <div style={{fontSize:11,fontWeight:700,color:K.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",marginBottom:2}}>{nom}</div>
+                      <div style={{fontSize:14,fontWeight:900,color:i===0?K.gold:K.green}}>{fmt(st.g)}</div>
+                      <div style={{fontSize:9,color:K.muted}}>{st.n} venta{st.n!==1?"s":""}</div>
+                    </div>
                   </div>
-                  <div>
-                    <div style={{fontSize:12,fontWeight:700,color:K.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{nom}</div>
-                    <div style={{fontSize:13,fontWeight:800,color:K.green}}>{fmt(st.g)}</div>
-                    <div style={{fontSize:9,color:K.muted}}>{st.n} venta{st.n!==1?"s":""}</div>
-                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+        {debenList.length>0&&(
+          <div style={{marginBottom:10}}>
+            <button onClick={()=>setDebenAbierto(v=>!v)} style={{width:"100%",background:"#1C0808",border:`1px solid ${K.red}55`,borderRadius:debenAbierto?"8px 8px 0 0":8,padding:"10px 14px",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <span style={{fontSize:10,color:K.red,fontWeight:800,textTransform:"uppercase",letterSpacing:1}}>⚠ Deben cobrar · {debenList.length}</span>
+              <span style={{color:K.red,fontSize:12,fontWeight:700}}>{debenAbierto?"▲":"▼"}</span>
+            </button>
+            {debenAbierto&&(
+              <div style={{background:"#160606",border:`1px solid ${K.red}55`,borderTop:"none",borderRadius:"0 0 8px 8px",padding:"10px 14px",display:"flex",flexWrap:"wrap",gap:6}}>
+                {debenList.map(c=>(
+                  <span key={c.cliente} style={{background:`${K.red}14`,border:`1px solid ${K.red}44`,color:K.red,borderRadius:5,padding:"4px 10px",fontSize:11,fontWeight:700}}>{c.cliente} · {fmt(c.saldo)}</span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+        {diasIng.length>0&&(
+          <Card s={{marginBottom:10}} ch={<>
+            <div style={{fontSize:10,color:K.gold,textTransform:"uppercase",letterSpacing:1.5,marginBottom:10,fontWeight:700}}>Ganancia por día</div>
+            {diasIng.map((d,i)=>(
+              <div key={d.fecha} style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingBottom:i<diasIng.length-1?9:0,marginBottom:i<diasIng.length-1?9:0,borderBottom:i<diasIng.length-1?`1px solid ${K.border}`:"none"}}>
+                <div>
+                  <div style={{fontSize:13,fontWeight:600,color:K.text}}>{fDate(d.fecha)}</div>
+                  <div style={{fontSize:10,color:K.muted}}>{d.n} venta{d.n!==1?"s":""}</div>
                 </div>
-              );
-            })}
-          </div>
+                <div style={{fontSize:15,fontWeight:900,color:K.gold}}>+{fmt(d.total)}</div>
+              </div>
+            ))}
+          </>}/>
+        )}
+        {ultimosGastos.length>0&&(
+          <Card s={{marginBottom:10}} ch={<>
+            <div style={{fontSize:10,color:K.muted,textTransform:"uppercase",letterSpacing:1.5,marginBottom:10,fontWeight:700}}>Últimos gastos</div>
+            {ultimosGastos.map((g,i)=>(
+              <div key={g.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingBottom:i<ultimosGastos.length-1?9:0,marginBottom:i<ultimosGastos.length-1?9:0,borderBottom:i<ultimosGastos.length-1?`1px solid ${K.border}`:"none"}}>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:13,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",color:K.text}}>{g.referencia}</div>
+                  <div style={{fontSize:10,color:K.muted}}>{g.concepto} · {fDate(g.fecha)}</div>
+                </div>
+                <div style={{fontSize:14,fontWeight:800,color:CCAT[g.concepto]||K.red,marginLeft:8}}>-{fmt(g.costo)}</div>
+              </div>
+            ))}
+          </>}/>
+        )}
+        <div style={{textAlign:"center",fontSize:10,color:K.muted,paddingBottom:8,marginTop:4}}>
+          {db.ingresos.length} ingresos · {db.gastos.length} gastos
         </div>
-      )}
-
-      {debenList.length>0&&<Card s={{background:"#1a0808",border:`1px solid #4a1a1a`}} ch={<>
-        <div style={{fontSize:11,color:K.red,fontWeight:700,marginBottom:6,textTransform:"uppercase",letterSpacing:1}}>⚠️ Deben cobrar</div>
-        <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-          {debenList.map(c=><span key={c.cliente} style={{background:`${K.red}18`,border:`1px solid ${K.red}`,color:K.red,borderRadius:8,padding:"4px 10px",fontSize:12,fontWeight:700}}>{c.cliente} · {fmt(c.saldo)}</span>)}
-        </div>
-      </>}/>}
-
-      {diasIng.length>0&&<Card ch={<>
-        <div style={{fontSize:11,color:K.green,textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>⬆️ Últimos ingresos · por día</div>
-        {diasIng.map((d,i)=>(
-          <div key={d.fecha} style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingBottom:i<diasIng.length-1?9:0,marginBottom:i<diasIng.length-1?9:0,borderBottom:i<diasIng.length-1?`1px solid ${K.border}`:"none"}}>
-            <div style={{flex:1,minWidth:0}}>
-              <div style={{fontSize:13,fontWeight:600}}>{fDate(d.fecha)}</div>
-              <div style={{fontSize:10,color:K.muted}}>{d.n} venta{d.n!==1?"s":""}</div>
-            </div>
-            <div style={{textAlign:"right",marginLeft:8}}>
-              <div style={{fontSize:14,fontWeight:800,color:K.green}}>{fmt(d.total)}</div>
-            </div>
-          </div>
-        ))}
-      </>}/>}
-
-      {ultimosGastos.length>0&&<Card ch={<>
-        <div style={{fontSize:11,color:K.red,textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>⬇️ Últimos gastos</div>
-        {ultimosGastos.map((g,i)=>(
-          <div key={g.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingBottom:i<ultimosGastos.length-1?9:0,marginBottom:i<ultimosGastos.length-1?9:0,borderBottom:i<ultimosGastos.length-1?`1px solid ${K.border}`:"none"}}>
-            <div style={{flex:1,minWidth:0}}>
-              <div style={{fontSize:13,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{g.referencia}</div>
-              <div style={{fontSize:10,color:K.muted}}>{g.concepto} · {fDate(g.fecha)}</div>
-            </div>
-            <div style={{textAlign:"right",marginLeft:8}}>
-              <div style={{fontSize:14,fontWeight:800,color:CCAT[g.concepto]||K.red}}>-{fmt(g.costo)}</div>
-            </div>
-          </div>
-        ))}
-      </>}/>}
-
-      <div style={{textAlign:"center",fontSize:10,color:K.muted,paddingBottom:8}}>
-        📊 {db.ingresos.length} ingresos · {db.gastos.length} gastos · última sync {syncTxt}
       </div>
     </div>
   );
 }
 
-// ═══ INGRESO FORM ══════════════════════════════════════════════
-// ═══ NUEVO MOVIMIENTO (un solo botón, selector interno) ═════════
-function NuevoMovimiento({onSaveIngreso,onSaveGasto}){
+// ═══ AUTOCOMPLETE INPUT ══════════════════════════════════════════
+function AutocompleteInput({label,value,onChange,sugerencias=[],placeholder}){
+  const [abiertas,setAbiertas]=useState(false);
+  const filtradas=sugerencias.filter(s=>s.toUpperCase().includes((value||"").toUpperCase())&&s.toUpperCase()!==(value||"").toUpperCase()).slice(0,6);
+  return(
+    <div style={{marginBottom:12,minWidth:0,position:"relative"}}>
+      {label&&<div style={{fontSize:10,color:K.muted,marginBottom:5,textTransform:"uppercase",letterSpacing:1}}>{label}</div>}
+      <div style={{display:"flex",alignItems:"center",background:K.card2,border:`1px solid ${value?K.gold:K.border}`,borderRadius:8,overflow:"hidden",minWidth:0}}>
+        <input
+          value={value||""}
+          onChange={e=>{onChange(e.target.value);setAbiertas(true);}}
+          onFocus={()=>setAbiertas(true)}
+          onBlur={()=>setTimeout(()=>setAbiertas(false),150)}
+          placeholder={placeholder||""}
+          autoCapitalize="characters"
+          style={{flex:1,minWidth:0,width:"100%",background:"transparent",border:"none",color:K.text,padding:"12px 12px",fontSize:15,outline:"none",boxSizing:"border-box"}}
+        />
+        {value&&<button onMouseDown={()=>onChange("")} style={{background:"none",border:"none",color:K.muted,padding:"0 10px",cursor:"pointer",fontSize:18,lineHeight:1}}>×</button>}
+      </div>
+      {abiertas&&filtradas.length>0&&(
+        <div style={{position:"absolute",top:"100%",left:0,right:0,background:K.card,border:`1px solid ${K.gold}44`,borderRadius:"0 0 8px 8px",zIndex:500,overflow:"hidden",boxShadow:"0 8px 24px rgba(0,0,0,.6)"}}>
+          {filtradas.map(s=>(
+            <button key={s} onMouseDown={()=>{onChange(s);setAbiertas(false);}} style={{width:"100%",background:"none",border:"none",borderBottom:`1px solid ${K.border}`,color:K.text,padding:"10px 14px",textAlign:"left",cursor:"pointer",fontSize:13,fontWeight:600}}>
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══ NUEVO MOVIMIENTO ════════════════════════════════════════════
+function NuevoMovimiento({onSaveIngreso,onSaveGasto,clientes}){
   const [modo,setModo]=useState("ingreso");
   return(
     <div style={{padding:"24px 16px 0"}}>
       <div style={{display:"flex",gap:8,marginBottom:18}}>
-        <button onClick={()=>setModo("ingreso")} style={{flex:1,background:modo==="ingreso"?`${K.green}22`:K.card,border:`1.5px solid ${modo==="ingreso"?K.green:K.border}`,color:modo==="ingreso"?K.green:K.muted,borderRadius:12,padding:"12px 0",fontSize:14,fontWeight:800,cursor:"pointer"}}>⬆️ Ingreso</button>
+        <button onClick={()=>setModo("ingreso")} style={{flex:1,background:modo==="ingreso"?`${K.gold}18`:K.card,border:`1.5px solid ${modo==="ingreso"?K.gold:K.border}`,color:modo==="ingreso"?K.gold:K.muted,borderRadius:12,padding:"12px 0",fontSize:14,fontWeight:800,cursor:"pointer"}}>⬆️ Ingreso</button>
         <button onClick={()=>setModo("gasto")} style={{flex:1,background:modo==="gasto"?`${K.red}22`:K.card,border:`1.5px solid ${modo==="gasto"?K.red:K.border}`,color:modo==="gasto"?K.red:K.muted,borderRadius:12,padding:"12px 0",fontSize:14,fontWeight:800,cursor:"pointer"}}>⬇️ Gasto</button>
       </div>
-      {modo==="ingreso"?<IngresoForm onSave={onSaveIngreso}/>:<GastoForm onSave={onSaveGasto}/>}
+      {modo==="ingreso"?<IngresoForm onSave={onSaveIngreso} clientes={clientes}/>:<GastoForm onSave={onSaveGasto}/>}
     </div>
   );
 }
 
-function IngresoForm({onSave}){
+function IngresoForm({onSave,clientes=[]}){
   const [f,setF]=useState({tipo:"VENTA",producto:"",cliente:"",proveedor:"",costo:"",pv:"",debe:false});
   const [saving,setSaving]=useState(false);
   const [ok,setOk]=useState(false);
@@ -439,12 +585,12 @@ function IngresoForm({onSave}){
     <div>
       <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:18}}>
         <span style={{fontSize:26}}>⬆️</span>
-        <div><div style={{fontSize:10,color:K.muted}}>NUEVO · SE GUARDA EN SHEETS</div><div style={{fontSize:20,fontWeight:800,color:K.green}}>Ingreso</div></div>
+        <div><div style={{fontSize:10,color:K.muted}}>NUEVO · SE GUARDA EN SHEETS</div><div style={{fontSize:20,fontWeight:800,color:K.gold}}>Ingreso</div></div>
       </div>
       <Card ch={<>
         <ChipGroup label="Tipo" options={TIPOS} value={f.tipo} onChange={up("tipo")}/>
         <FInput label="Producto" value={f.producto} onChange={up("producto")} placeholder="ej: NIKE TN, SAMBA..."/>
-        <FInput label="Cliente" value={f.cliente} onChange={up("cliente")} placeholder="ej: ALEJANDRA"/>
+        <AutocompleteInput label="Cliente" value={f.cliente} onChange={up("cliente")} placeholder="ej: ALEJANDRA" sugerencias={clientes}/>
         <FInput label="Proveedor" value={f.proveedor} onChange={up("proveedor")} placeholder="ej: LIDER, BOA, FYM..."/>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
           <FInput label="Costo" value={f.costo} onChange={up("costo")} type="number" prefix="$" placeholder="0"/>
@@ -455,11 +601,11 @@ function IngresoForm({onSave}){
           <div style={{textAlign:"right"}}><div style={{fontSize:9,color:K.muted,marginBottom:1}}>MARGEN</div><div style={{fontSize:17,fontWeight:800,color:gan>=0?K.green:K.red}}>{mrg}%</div></div>
         </div>}
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-          <span style={{fontSize:13,color:K.muted}}>¿El cliente debe?</span>
-          <button onClick={()=>up("debe")(!f.debe)} style={{background:f.debe?`${K.red}22`:"transparent",border:`1.5px solid ${f.debe?K.red:K.border}`,color:f.debe?K.red:K.muted,borderRadius:20,padding:"6px 18px",fontSize:13,fontWeight:700,cursor:"pointer"}}>{f.debe?"SÍ ✓":"NO"}</button>
+          <span style={{fontSize:11,color:K.muted,textTransform:"uppercase",letterSpacing:.8}}>¿El cliente debe?</span>
+          <button onClick={()=>up("debe")(!f.debe)} style={{background:f.debe?K.red:"transparent",border:`2px solid ${f.debe?K.red:K.border}`,color:f.debe?"#0A0A0A":K.muted,borderRadius:6,padding:"8px 20px",fontSize:12,fontWeight:800,cursor:"pointer",letterSpacing:.5,transition:"all .15s"}}>{f.debe?"SÍ — DEBE ✓":"NO DEBE"}</button>
         </div>
       </>}/>
-      {ok&&<div style={{textAlign:"center",color:K.green,fontWeight:700,marginBottom:8,fontSize:14}}>✅ ¡Guardado en Google Sheets!</div>}
+      {ok&&<div style={{textAlign:"center",color:K.gold,fontWeight:700,marginBottom:8,fontSize:14}}>✓ Guardado en Google Sheets!</div>}
       {err&&<div style={{textAlign:"center",color:K.red,fontWeight:700,marginBottom:8,fontSize:13}}>{err}</div>}
       <Btn label="REGISTRAR INGRESO" onClick={go} dis={!f.producto||!f.pv} loading={saving}/>
     </div>
@@ -500,7 +646,7 @@ function GastoForm({onSave}){
         </div>
         <FInput label="Referencia" value={f.ref} onChange={up("ref")} placeholder="ej: ARRIENDO, MERCADO..."/>
       </>}/>
-      {ok&&<div style={{textAlign:"center",color:K.green,fontWeight:700,marginBottom:8,fontSize:14}}>✅ ¡Guardado en Google Sheets!</div>}
+      {ok&&<div style={{textAlign:"center",color:K.gold,fontWeight:700,marginBottom:8,fontSize:14}}>✓ Guardado en Google Sheets!</div>}
       {err&&<div style={{textAlign:"center",color:K.red,fontWeight:700,marginBottom:8,fontSize:13}}>{err}</div>}
       <Btn label="REGISTRAR GASTO" onClick={go} col={K.red} dis={!f.costo||!f.ref} loading={saving}/>
     </div>
@@ -550,8 +696,8 @@ function EditIngreso({item,onClose,onSave,onDelete}){
             <div style={{textAlign:"right"}}><div style={{fontSize:9,color:K.muted}}>MARGEN</div><div style={{fontSize:17,fontWeight:800,color:gan>=0?K.green:K.red}}>{mrg}%</div></div>
           </div>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-            <span style={{fontSize:13,color:K.muted}}>¿El cliente debe?</span>
-            <button onClick={()=>up("debe")(!f.debe)} style={{background:f.debe?`${K.red}22`:"transparent",border:`1.5px solid ${f.debe?K.red:K.border}`,color:f.debe?K.red:K.muted,borderRadius:20,padding:"6px 18px",fontSize:13,fontWeight:700,cursor:"pointer"}}>{f.debe?"SÍ ✓":"NO"}</button>
+            <span style={{fontSize:11,color:K.muted,textTransform:"uppercase",letterSpacing:.8}}>¿El cliente debe?</span>
+            <button onClick={()=>up("debe")(!f.debe)} style={{background:f.debe?K.red:"transparent",border:`2px solid ${f.debe?K.red:K.border}`,color:f.debe?"#0A0A0A":K.muted,borderRadius:6,padding:"8px 20px",fontSize:12,fontWeight:800,cursor:"pointer",letterSpacing:.5,transition:"all .15s"}}>{f.debe?"SÍ — DEBE ✓":"NO DEBE"}</button>
           </div>
         </>}/>
         {err&&<div style={{textAlign:"center",color:K.red,fontWeight:700,marginBottom:8,fontSize:13}}>{err}</div>}
@@ -643,16 +789,16 @@ function Historial({db,onEditIngreso,onEditGasto}){
         }
         return(
           <div key={m} style={{marginBottom:8}}>
-            <button onClick={()=>{setOpen(isOpen?null:m);setFilter("ingresos");setBuscar("");}} style={{width:"100%",background:K.card,border:`1px solid ${isOpen?K.green:K.border}`,borderRadius:isOpen?"14px 14px 0 0":14,padding:14,cursor:"pointer",textAlign:"left"}}>
+            <button onClick={()=>{setOpen(isOpen?null:m);setFilter("ingresos");setBuscar("");}} style={{width:"100%",background:K.card,border:`1px solid ${isOpen?K.gold:K.border}`,borderRadius:isOpen?"14px 14px 0 0":14,padding:14,cursor:"pointer",textAlign:"left"}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
                 <div style={{fontWeight:800,fontSize:16,color:K.text}}>{mLabel(m)}</div>
                 <div style={{display:"flex",alignItems:"center",gap:8}}>
-                  <div style={{fontWeight:900,fontSize:18,color:util>=0?K.green:K.red}}>{fmt(util)}</div>
+                  <div style={{fontWeight:900,fontSize:18,color:util>=0?K.gold:K.red}}>{fmt(util)}</div>
                   <span style={{color:K.muted}}>{isOpen?"▲":"▼"}</span>
                 </div>
               </div>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:4}}>
-                {[["Ventas",ventas,K.green],["Gan.",gan,K.blue],["Gastos",gastos,K.red],["Ahorro",ahorro,K.blue]].map(([l,v,col])=>(
+                {[["Ventas",ventas,K.gold],["Gan.",gan,K.green],["Gastos",gastos,K.red],["Ahorro",ahorro,K.blue]].map(([l,v,col])=>(
                   <div key={l} style={{background:K.bg,borderRadius:8,padding:"5px 4px",textAlign:"center"}}>
                     <div style={{fontSize:8,color:K.muted,textTransform:"uppercase"}}>{l}</div>
                     <div style={{fontSize:11,fontWeight:700,color:col}}>{fmt(v)}</div>
@@ -660,21 +806,21 @@ function Historial({db,onEditIngreso,onEditGasto}){
                 ))}
               </div>
               <div style={{marginTop:6,fontSize:10,color:K.muted}}>
-                Margen <b style={{color:util>=0?K.green:K.red}}>{ventas>0?(util/ventas*100).toFixed(1):0}%</b>
+                Margen <b style={{color:util>=0?K.gold:K.red}}>{ventas>0?(util/ventas*100).toFixed(1):0}%</b>
                 {"  ·  "}{ing.length} ingresos · {gas.length} gastos
               </div>
             </button>
             {isOpen&&(
-              <div style={{background:K.card2,border:`1px solid ${K.green}`,borderTop:"none",borderRadius:"0 0 14px 14px",padding:12}}>
+              <div style={{background:K.card2,border:`1px solid ${K.gold}44`,borderTop:"none",borderRadius:"0 0 14px 14px",padding:12}}>
                 <input value={buscar} onChange={e=>setBuscar(e.target.value)} placeholder="🔍 Buscar producto, cliente, concepto..." style={{width:"100%",background:K.bg,border:`1px solid ${K.border}`,borderRadius:10,color:K.text,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box",marginBottom:10}}/>
                 <div style={{display:"flex",gap:6,marginBottom:12}}>
-                  {[["ingresos","Ingresos",K.green],["gastos","Gastos",K.red]].map(([v,l,col])=>(
+                  {[["ingresos","Ingresos",K.gold],["gastos","Gastos",K.red]].map(([v,l,col])=>(
                     <button key={v} onClick={()=>setFilter(v)} style={{flex:1,background:filter===v?`${col}22`:"transparent",border:`1px solid ${filter===v?col:K.border}`,color:filter===v?col:K.muted,borderRadius:8,padding:"6px 0",fontSize:11,fontWeight:700,cursor:"pointer"}}>{l}</button>
                   ))}
                 </div>
                 {filtered.length===0&&<div style={{textAlign:"center",color:K.muted,padding:16,fontSize:13}}>Sin registros</div>}
                 {filtered.map((item,i)=>{
-                  const isI=item.t==="i",val=isI?item.ganancia:item.costo,col=isI?(val>=0?K.green:K.muted):CCAT[item.concepto]||K.red;
+                  const isI=item.t==="i",val=isI?item.ganancia:item.costo,col=isI?(val>=0?K.gold:K.muted):CCAT[item.concepto]||K.red;
                   return(
                     <button key={i} onClick={()=>isI?onEditIngreso(item):onEditGasto(item)} style={{width:"100%",background:"none",border:"none",display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:i<filtered.length-1?`1px solid ${K.border}`:"none",cursor:"pointer",textAlign:"left"}}>
                       <div style={{flex:1,minWidth:0}}>
@@ -721,19 +867,56 @@ function MarcarPagadoBtn({cliente,ventas,onMarcarPagado}){
   return(
     <div style={{marginBottom:14}}>
       {!confirmar?(
-        <button onClick={()=>setConfirmar(true)} style={{width:"100%",background:`${K.green}18`,border:`1.5px solid ${K.green}`,color:K.green,borderRadius:12,padding:"11px 0",fontSize:14,fontWeight:800,cursor:"pointer"}}>
+        <button onClick={()=>setConfirmar(true)} style={{width:"100%",background:`${K.gold}18`,border:`1.5px solid ${K.gold}`,color:K.gold,borderRadius:10,padding:"11px 0",fontSize:14,fontWeight:800,cursor:"pointer"}}>
           ✓ YA PAGÓ ({pendientes.length} pendiente{pendientes.length!==1?"s":""})
         </button>
       ):(
-        <div style={{background:K.card,border:`1.5px solid ${K.green}`,borderRadius:12,padding:12}}>
+        <div style={{background:K.card,border:`1.5px solid ${K.gold}`,borderRadius:10,padding:12}}>
           <div style={{fontSize:13,color:K.text,marginBottom:10,textAlign:"center"}}>¿Confirmar que {cliente} ya pagó las {pendientes.length} compra{pendientes.length!==1?"s":""} pendientes?</div>
           {error&&<div style={{color:K.red,fontSize:12,textAlign:"center",marginBottom:8}}>{error}</div>}
           <div style={{display:"flex",gap:6}}>
-            <button onClick={confirmarPago} disabled={cargando} style={{flex:1,background:K.green,border:"none",color:"#000",borderRadius:8,padding:"9px 0",fontSize:12,fontWeight:800,cursor:cargando?"not-allowed":"pointer",opacity:cargando?.6:1}}>{cargando?"⏳ Guardando...":"Sí, ya pagó"}</button>
+            <button onClick={confirmarPago} disabled={cargando} style={{flex:1,background:K.gold,border:"none",color:"#0A0A0A",borderRadius:8,padding:"9px 0",fontSize:12,fontWeight:800,cursor:cargando?"not-allowed":"pointer",opacity:cargando?.6:1}}>{cargando?"⏳ Guardando...":"Sí, ya pagó"}</button>
             <button onClick={()=>setConfirmar(false)} disabled={cargando} style={{flex:1,background:"transparent",border:`1.5px solid ${K.border}`,color:K.muted,borderRadius:8,padding:"9px 0",fontSize:12,fontWeight:700,cursor:"pointer"}}>Cancelar</button>
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ═══ SWIPEABLE VENTA ═════════════════════════════════════════════
+// Deslizar ← más de 60px activa el toggle DEBE/NO DEBE sin abrir el editor.
+// Tap normal abre el modal de edición.
+function SwipeableVenta({v,debe,onEdit,onToggleDebe,isLast}){
+  const touchX=useRef(null);
+  const [sliding,setSliding]=useState(false);
+  const onTouchStart=e=>{ touchX.current=e.touches[0].clientX; };
+  const onTouchEnd=e=>{
+    if(touchX.current===null)return;
+    const dx=touchX.current-e.changedTouches[0].clientX;
+    touchX.current=null;
+    if(dx>60){ onToggleDebe(); } // swipe izquierda → toggle debe
+    else if(Math.abs(dx)<10){ onEdit(); } // tap → editar
+  };
+  return(
+    <div
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+      onClick={e=>{ if(touchX.current===null)onEdit(); }}
+      style={{background:debe?"#1C0808":"transparent",border:debe?`1px solid ${K.red}44`:"none",borderRadius:debe?8:0,padding:debe?"10px 12px":"0",marginBottom:isLast?0:10,paddingBottom:isLast?0:(!debe?10:undefined),borderBottom:!debe&&!isLast?`1px solid ${K.border}`:"none",cursor:"pointer",userSelect:"none"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:13,fontWeight:700,color:K.text,display:"flex",alignItems:"center",gap:6}}>
+            {v.producto}
+            {debe&&<span style={{fontSize:9,background:`${K.red}33`,color:K.red,borderRadius:4,padding:"2px 6px",fontWeight:800,letterSpacing:.4}}>DEBE</span>}
+          </div>
+          <div style={{fontSize:10,color:K.muted,marginTop:2}}>{v.tipo} · {fDate(v.fecha)} · {v.proveedor}</div>
+        </div>
+        <div style={{textAlign:"right",marginLeft:10}}>
+          <div style={{fontSize:13,fontWeight:800,color:K.gold}}>+{fmt(v.ganancia)}</div>
+          <div style={{fontSize:10,color:debe?K.red:K.muted,fontWeight:debe?700:400}}>{fmt(v.precioVenta)}</div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -766,9 +949,10 @@ function Clientes({db,onEditIngreso,onMarcarPagado}){
     deudaPorCliente[k]={
       debe:(prev?.debe||false)||c.debe==="SI",
       saldo:(prev?.saldo||0)+c.saldo,
+      abonos:(prev?.abonos||0)+(c.abonos||0),
     };
   });
-  Object.keys(map).forEach(k=>{map[k].debe=deudaPorCliente[k]?.debe||false; map[k].saldo=deudaPorCliente[k]?.saldo||0;});
+  Object.keys(map).forEach(k=>{map[k].debe=deudaPorCliente[k]?.debe||false; map[k].saldo=deudaPorCliente[k]?.saldo||0; map[k].abonos=deudaPorCliente[k]?.abonos||0;});
 
   const lista=Object.entries(map).filter(([k])=>!q||k.includes(q.toUpperCase())).sort((a,b)=>b[1].gan-a[1].gan);
   const totalPaginas=Math.max(1,Math.ceil(lista.length/PORPAGINA));
@@ -781,39 +965,43 @@ function Clientes({db,onEditIngreso,onMarcarPagado}){
     const ventasFiltradas=mesSel==="todos"?ventas:ventas.filter(v=>mKey(v.fecha)===mesSel);
     const tv=ventasFiltradas.reduce((s,v)=>s+v.precioVenta,0);
     const ganF=ventasFiltradas.reduce((s,v)=>s+v.ganancia,0);
+    const abonos=map[sel]?.abonos||0;
     return(
       <div>
-        <button onClick={()=>{setSel(null);setMesSel("todos");}} style={{background:"none",border:"none",color:K.blue,fontSize:15,cursor:"pointer",marginBottom:16,padding:0}}>← Todos</button>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-          <div style={{fontSize:18,fontWeight:800}}>{sel}</div>
-          {map[sel]?.debe&&<Pill text={`DEBE ${fmt(map[sel].saldo)}`} color={K.red}/>}
+        <button onClick={()=>{setSel(null);setMesSel("todos");}} style={{background:"none",border:"none",color:K.gold,fontSize:13,fontWeight:700,cursor:"pointer",marginBottom:14,padding:0,letterSpacing:.3}}>← Volver</button>
+        {/* Header del cliente con deuda y abonos */}
+        <div style={{background:map[sel]?.debe?"#1C0808":K.card,border:`1px solid ${map[sel]?.debe?K.red+"55":K.border}`,borderRadius:10,padding:"14px 16px",marginBottom:10}}>
+          <div style={{fontSize:9,color:K.muted,textTransform:"uppercase",letterSpacing:1.5,marginBottom:2}}>Cliente</div>
+          <div style={{fontSize:22,fontWeight:900,color:K.white,letterSpacing:-.5,marginBottom:6}}>{sel}</div>
+          {map[sel]?.debe&&(
+            <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
+              <div><div style={{fontSize:9,color:K.red,textTransform:"uppercase",letterSpacing:1}}>Saldo deuda</div><div style={{fontSize:16,fontWeight:800,color:K.red}}>{fmt(map[sel].saldo)}</div></div>
+              {abonos>0&&<div><div style={{fontSize:9,color:K.green,textTransform:"uppercase",letterSpacing:1}}>Abonado</div><div style={{fontSize:16,fontWeight:800,color:K.green}}>{fmt(abonos)}</div></div>}
+            </div>
+          )}
         </div>
         {map[sel]?.debe&&<MarcarPagadoBtn cliente={sel} ventas={ventas} onMarcarPagado={onMarcarPagado}/>}
+        {/* Filtro por mes */}
         {meses.length>1&&(
-          <div style={{display:"flex",gap:6,marginBottom:12,overflowX:"auto",paddingBottom:2}}>
-            <button onClick={()=>setMesSel("todos")} style={{flexShrink:0,background:mesSel==="todos"?`${K.green}22`:"transparent",border:`1.5px solid ${mesSel==="todos"?K.green:K.border}`,color:mesSel==="todos"?K.green:K.muted,borderRadius:8,padding:"5px 12px",fontSize:11,fontWeight:700,cursor:"pointer"}}>Todos</button>
+          <div style={{display:"flex",gap:6,marginBottom:12,overflowX:"auto",paddingBottom:2,WebkitOverflowScrolling:"touch"}}>
+            <button onClick={()=>setMesSel("todos")} style={{flexShrink:0,background:mesSel==="todos"?K.gold:"transparent",border:`1.5px solid ${mesSel==="todos"?K.gold:K.border}`,color:mesSel==="todos"?"#0A0A0A":K.muted,borderRadius:6,padding:"5px 12px",fontSize:10,fontWeight:800,cursor:"pointer",letterSpacing:.5}}>Todos</button>
             {meses.map(mk=>(
-              <button key={mk} onClick={()=>setMesSel(mk)} style={{flexShrink:0,background:mesSel===mk?`${K.green}22`:"transparent",border:`1.5px solid ${mesSel===mk?K.green:K.border}`,color:mesSel===mk?K.green:K.muted,borderRadius:8,padding:"5px 12px",fontSize:11,fontWeight:700,cursor:"pointer"}}>{mLabel(mk)}</button>
+              <button key={mk} onClick={()=>setMesSel(mk)} style={{flexShrink:0,background:mesSel===mk?K.gold:"transparent",border:`1.5px solid ${mesSel===mk?K.gold:K.border}`,color:mesSel===mk?"#0A0A0A":K.muted,borderRadius:6,padding:"5px 12px",fontSize:10,fontWeight:800,cursor:"pointer",letterSpacing:.5}}>{mLabel(mk)}</button>
             ))}
           </div>
         )}
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
-          <Card s={{marginBottom:0}} ch={<><div style={{fontSize:9,color:K.muted,marginBottom:2}}>TOTAL VENTAS</div><div style={{fontSize:18,fontWeight:800,color:K.green}}>{fmt(tv)}</div></>}/>
-          <Card s={{marginBottom:0}} ch={<><div style={{fontSize:9,color:K.muted,marginBottom:2}}>GANANCIA</div><div style={{fontSize:18,fontWeight:800,color:K.blue}}>{fmt(ganF)}</div></>}/>
+        {/* Stats del periodo */}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
+          <Card s={{marginBottom:0}} ch={<><div style={{fontSize:9,color:K.muted,marginBottom:2,textTransform:"uppercase",letterSpacing:.8}}>Total ventas</div><div style={{fontSize:18,fontWeight:800,color:K.gold}}>{fmt(tv)}</div></>}/>
+          <Card s={{marginBottom:0}} ch={<><div style={{fontSize:9,color:K.muted,marginBottom:2,textTransform:"uppercase",letterSpacing:.8}}>Ganancia</div><div style={{fontSize:18,fontWeight:800,color:K.green}}>{fmt(ganF)}</div></>}/>
         </div>
+        {/* Historial con cliente visible y swipe para debe/no debe */}
         <Card ch={<>
-          <div style={{fontSize:11,color:K.muted,textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>Historial ({ventasFiltradas.length}) · toca para editar</div>
-          {ventasFiltradas.length===0&&<div style={{textAlign:"center",color:K.muted,padding:16,fontSize:13}}>Sin compras este mes</div>}
+          <div style={{fontSize:10,color:K.gold,textTransform:"uppercase",letterSpacing:1.5,marginBottom:10,fontWeight:700}}>Historial ({ventasFiltradas.length}) · desliza ← para cambiar deuda</div>
+          {ventasFiltradas.length===0&&<div style={{textAlign:"center",color:K.muted,padding:16,fontSize:13}}>Sin compras este período</div>}
           {ventasFiltradas.sort((a,b)=>new Date(b.fecha)-new Date(a.fecha)).map((v,i,arr)=>{
             const debe=v.debe==="SI";
-            return(
-            <button key={i} onClick={()=>onEditIngreso(v)} style={{width:"100%",background:debe?"#2a0f0f":"none",border:debe?`1px solid ${K.red}`:"none",borderRadius:debe?10:0,padding:debe?"8px 10px":"0",textAlign:"left",cursor:"pointer",paddingBottom:i<arr.length-1?10:(debe?8:0),marginBottom:i<arr.length-1?10:0,borderBottom:!debe&&i<arr.length-1?`1px solid ${K.border}`:(debe?`1px solid ${K.red}`:"none")}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                <div><div style={{fontSize:13,fontWeight:700,color:K.text}}>{v.producto}{debe&&<span style={{marginLeft:6,fontSize:9,background:`${K.red}33`,color:K.red,borderRadius:5,padding:"2px 6px",fontWeight:700}}>DEBE</span>}</div><div style={{fontSize:10,color:K.muted}}>{v.tipo} · {fDate(v.fecha)} · {v.proveedor}</div></div>
-                <div style={{textAlign:"right"}}><div style={{fontSize:13,fontWeight:800,color:K.green}}>+{fmt(v.ganancia)}</div><div style={{fontSize:10,color:debe?K.red:K.muted,fontWeight:debe?700:400}}>{fmt(v.precioVenta)}</div></div>
-              </div>
-            </button>
-            );
+            return <SwipeableVenta key={v._row||i} v={v} debe={debe} onEdit={()=>onEditIngreso(v)} onToggleDebe={()=>onMarcarPagado([v])} isLast={i===arr.length-1}/>;
           })}
         </>}/>
       </div>
@@ -860,6 +1048,84 @@ function Clientes({db,onEditIngreso,onMarcarPagado}){
 
 // ═══ INVENTARIO ════════════════════════════════════════════════
 // Lista simple de compras a proveedor, tal cual la hoja: sin cruzar con ventas.
+// ═══ BÚSQUEDA GLOBAL ═════════════════════════════════════════════
+// Busca en tiempo real en ingresos (producto, cliente, proveedor) y gastos
+// (referencia, concepto). Toca cualquier resultado para editarlo.
+function BusquedaGlobal({db,onEditIngreso,onEditGasto}){
+  const [q,setQ]=useState("");
+  const QU=q.toUpperCase().trim();
+  const ingRes=QU.length<2?[]:db.ingresos.filter(i=>
+    (i.producto||"").toUpperCase().includes(QU)||
+    (i.cliente||"").toUpperCase().includes(QU)||
+    (i.proveedor||"").toUpperCase().includes(QU)
+  ).slice(0,20);
+  const gasRes=QU.length<2?[]:db.gastos.filter(g=>
+    (g.referencia||"").toUpperCase().includes(QU)||
+    (g.concepto||"").toUpperCase().includes(QU)
+  ).slice(0,10);
+  const total=ingRes.length+gasRes.length;
+  return(
+    <div style={{padding:"24px 16px 0"}}>
+      <div style={{fontSize:10,color:K.gold,textTransform:"uppercase",letterSpacing:1.5,fontWeight:700,marginBottom:12}}>Búsqueda Global</div>
+      <div style={{position:"relative",marginBottom:16}}>
+        <input
+          value={q}
+          onChange={e=>setQ(e.target.value)}
+          placeholder="Cliente, producto, proveedor, concepto..."
+          autoFocus
+          style={{width:"100%",background:K.card,border:`1.5px solid ${q?K.gold:K.border}`,borderRadius:10,color:K.text,padding:"13px 40px 13px 16px",fontSize:14,outline:"none",boxSizing:"border-box"}}
+        />
+        {q&&<button onClick={()=>setQ("")} style={{position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",color:K.muted,fontSize:18,cursor:"pointer"}}>×</button>}
+      </div>
+      {QU.length>=2&&(
+        <div style={{fontSize:10,color:K.muted,marginBottom:10}}>
+          {total===0?"Sin resultados":`${total} resultado${total!==1?"s":""}`}
+        </div>
+      )}
+      {QU.length<2&&(
+        <div style={{textAlign:"center",color:K.muted,padding:"40px 0",fontSize:13}}>
+          Escribe al menos 2 caracteres para buscar
+        </div>
+      )}
+      {ingRes.length>0&&(
+        <div style={{marginBottom:12}}>
+          <div style={{fontSize:10,color:K.gold,textTransform:"uppercase",letterSpacing:1,marginBottom:8,fontWeight:700}}>Ingresos ({ingRes.length})</div>
+          <Card ch={<>
+            {ingRes.map((it,i)=>(
+              <button key={it.id} onClick={()=>onEditIngreso(it)} style={{width:"100%",background:"none",border:"none",textAlign:"left",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",paddingBottom:i<ingRes.length-1?10:0,marginBottom:i<ingRes.length-1?10:0,borderBottom:i<ingRes.length-1?`1px solid ${K.border}`:"none"}}>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:13,fontWeight:700,color:K.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{it.producto}</div>
+                  <div style={{fontSize:10,color:K.muted}}>{it.cliente} · {it.proveedor} · {fDate(it.fecha)}</div>
+                </div>
+                <div style={{textAlign:"right",marginLeft:10}}>
+                  <div style={{fontSize:13,fontWeight:800,color:it.debe==="SI"?K.red:K.gold}}>+{fmt(it.ganancia)}</div>
+                  {it.debe==="SI"&&<div style={{fontSize:9,color:K.red,fontWeight:700}}>DEBE</div>}
+                </div>
+              </button>
+            ))}
+          </>}/>
+        </div>
+      )}
+      {gasRes.length>0&&(
+        <div>
+          <div style={{fontSize:10,color:K.muted,textTransform:"uppercase",letterSpacing:1,marginBottom:8,fontWeight:700}}>Gastos ({gasRes.length})</div>
+          <Card ch={<>
+            {gasRes.map((g,i)=>(
+              <button key={g.id} onClick={()=>onEditGasto(g)} style={{width:"100%",background:"none",border:"none",textAlign:"left",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",paddingBottom:i<gasRes.length-1?10:0,marginBottom:i<gasRes.length-1?10:0,borderBottom:i<gasRes.length-1?`1px solid ${K.border}`:"none"}}>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:13,fontWeight:700,color:K.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{g.referencia}</div>
+                  <div style={{fontSize:10,color:K.muted}}>{g.concepto} · {fDate(g.fecha)}</div>
+                </div>
+                <div style={{fontSize:13,fontWeight:800,color:CCAT[g.concepto]||K.red,marginLeft:10}}>-{fmt(g.costo)}</div>
+              </button>
+            ))}
+          </>}/>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Inventario({db,onAdd,onEdit,onDelete}){
   const items=[...(db.inventario||[])].sort((a,b)=>new Date(b.fecha)-new Date(a.fecha));
   const total=items.reduce((s,i)=>s+i.costo,0);
@@ -1057,7 +1323,7 @@ function LoginScreen({onSuccess}){
   return(
     <div style={{background:K.bg,minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:18,color:K.text,fontFamily:"-apple-system,sans-serif",padding:24}}>
       <span style={{fontSize:56}}>👟</span>
-      <div style={{color:K.green,fontWeight:800,fontSize:20}}>Altaclase Bodega</div>
+      <div style={{color:K.gold,fontWeight:800,fontSize:20}}>Altaclase Bodega</div>
       <div style={{maxWidth:280,width:"100%"}}>
         <input
           type="password"
@@ -1089,8 +1355,38 @@ export default function App(){
   const [editIng,setEditIng]=useState(null);
   const [editGas,setEditGas]=useState(null);
   const intervalRef=useRef(null);
+  const inactivityRef=useRef(null);
+  const INACTIVITY_MS=3*60*1000; // 3 minutos
 
-  const flash=(msg,col=K.green)=>{setToast({msg,col});setTimeout(()=>setToast(null),2500);};
+  const cerrarSesion=useCallback(()=>{
+    localStorage.removeItem(LS_AUTH_KEY);
+    setAutenticado(false);
+  },[]);
+
+  // Cierra sesión al cerrar/recargar el navegador
+  useEffect(()=>{
+    const onUnload=()=>localStorage.removeItem(LS_AUTH_KEY);
+    window.addEventListener("beforeunload",onUnload);
+    return()=>window.removeEventListener("beforeunload",onUnload);
+  },[]);
+
+  // Timeout de inactividad: reinicia con cada toque/click/tecla
+  useEffect(()=>{
+    if(!autenticado)return;
+    const reset=()=>{
+      clearTimeout(inactivityRef.current);
+      inactivityRef.current=setTimeout(cerrarSesion,INACTIVITY_MS);
+    };
+    const events=["touchstart","mousedown","keydown","scroll"];
+    events.forEach(e=>window.addEventListener(e,reset,{passive:true}));
+    reset(); // iniciar el timer al autenticarse
+    return()=>{
+      clearTimeout(inactivityRef.current);
+      events.forEach(e=>window.removeEventListener(e,reset));
+    };
+  },[autenticado,cerrarSesion]);
+
+  const flash=(msg,col=K.gold)=>{setToast({msg,col});setTimeout(()=>setToast(null),2500)};
 
   const loadData=useCallback(async(silent=false)=>{
     if(!silent)setLoading(true);
@@ -1214,9 +1510,10 @@ export default function App(){
   };
 
   const NAV=[
-    {id:"home",icon:"🏠",label:"Inicio"},
-    {id:"nuevo",icon:"➕",label:"Nuevo",col:K.green},
-    {id:"mas",icon:"☰",label:"Más"},
+    {id:"home",label:"Inicio"},
+    {id:"nuevo",label:"Nuevo"},
+    {id:"buscar",label:"Buscar"},
+    {id:"mas",label:"Más"},
   ];
 
   if(!autenticado){
@@ -1227,10 +1524,10 @@ export default function App(){
     return(
       <div style={{background:K.bg,minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:12,color:K.text,fontFamily:"-apple-system,sans-serif"}}>
         <span style={{fontSize:56}}>👟</span>
-        <div style={{color:K.green,fontWeight:700,fontSize:18}}>Altaclase Bodega</div>
+        <div style={{color:K.gold,fontWeight:700,fontSize:18}}>Altaclase Bodega</div>
         <div style={{color:K.muted,fontSize:13}}>Conectando con Google Sheets...</div>
         <div style={{width:40,height:4,background:K.border,borderRadius:2,overflow:"hidden",marginTop:8}}>
-          <div style={{width:"60%",height:"100%",background:K.green,borderRadius:2}}/>
+          <div style={{width:"60%",height:"100%",background:K.gold,borderRadius:2}}/>
         </div>
       </div>
     );
@@ -1248,24 +1545,27 @@ export default function App(){
   }
 
   return(
-    <div style={{background:K.bg,minHeight:"100vh",color:K.text,fontFamily:"-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif",maxWidth:430,margin:"0 auto",paddingBottom:82}}>
+    <div style={{background:K.bg,minHeight:"100vh",color:K.text,fontFamily:"-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif",maxWidth:430,margin:"0 auto",paddingBottom:"calc(64px + env(safe-area-inset-bottom, 0px))"}}>
       {toast&&(
-        <div style={{position:"fixed",top:16,left:"50%",transform:"translateX(-50%)",background:toast.col,color:"#000",padding:"8px 20px",borderRadius:20,fontWeight:700,zIndex:9999,fontSize:13,boxShadow:"0 4px 20px rgba(0,0,0,.5)",whiteSpace:"nowrap"}}>
+        <div style={{position:"fixed",top:16,left:"50%",transform:"translateX(-50%)",background:K.gold,color:"#0A0A0A",padding:"8px 22px",borderRadius:6,fontWeight:800,zIndex:9999,fontSize:12,boxShadow:"0 4px 24px rgba(201,168,76,.35)",whiteSpace:"nowrap",letterSpacing:.5}}>
           {toast.msg}
         </div>
       )}
       <div style={{overflowY:"auto",WebkitOverflowScrolling:"touch"}}>
         {tab==="home"&&<Home db={db} onRefresh={()=>loadData(false)} loading={loading} lastSync={lastSync}/>}
-        {tab==="nuevo"&&<NuevoMovimiento onSaveIngreso={saveIngreso} onSaveGasto={saveGasto}/>}
+        {tab==="nuevo"&&<NuevoMovimiento onSaveIngreso={saveIngreso} onSaveGasto={saveGasto}
+          clientes={[...new Set(db.ingresos.filter(cuentaParaListaClientes).map(i=>i.cliente.toUpperCase().trim()).filter(Boolean))].sort()}
+        />}
+        {tab==="buscar"&&<BusquedaGlobal db={db} onEditIngreso={setEditIng} onEditGasto={setEditGas}/>}
         {tab==="mas"&&<Mas db={db} onEditIngreso={setEditIng} onEditGasto={setEditGas} onMarcarPagado={marcarPagado} onAddInv={addInventario} onEditInv={editInventario} onDeleteInv={removeInventario} onAddDeuda={addDeuda} onEditDeuda={editDeuda} onDeleteDeuda={removeDeuda}/>}
       </div>
-      <div style={{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:430,background:"rgba(12,12,12,.97)",backdropFilter:"blur(12px)",WebkitBackdropFilter:"blur(12px)",borderTop:`1px solid ${K.border}`,display:"flex",zIndex:100,paddingBottom:"env(safe-area-inset-bottom,0px)"}}>
-        {NAV.map(({id,icon,label,col})=>{
+      {/* Nav bar ─ fijo, sin emojis, con dorado como active state */}
+      <div style={{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:430,background:"rgba(10,10,10,.98)",backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",borderTop:`1px solid #2A2A2A`,display:"flex",zIndex:200,paddingBottom:"env(safe-area-inset-bottom,0px)"}}>
+        {NAV.map(({id,label})=>{
           const active=tab===id;
           return(
-            <button key={id} onClick={()=>setTab(id)} style={{flex:1,background:"none",border:"none",padding:"10px 0 13px",cursor:"pointer",color:active?(col||K.green):K.muted,display:"flex",flexDirection:"column",alignItems:"center",gap:3,borderTop:`2.5px solid ${active?(col||K.green):"transparent"}`,transition:"all .15s"}}>
-              <span style={{fontSize:20}}>{icon}</span>
-              <span style={{fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:.5}}>{label}</span>
+            <button key={id} onClick={()=>setTab(id)} style={{flex:1,background:"none",border:"none",padding:"12px 0 14px",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:4,borderTop:`2px solid ${active?K.gold:"transparent"}`,transition:"border-color .15s"}}>
+              <span style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:1.2,color:active?K.gold:K.muted}}>{label}</span>
             </button>
           );
         })}
