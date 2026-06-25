@@ -3,13 +3,33 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#0c0c0c" />
+    <!-- Viewport: cover para respetar el notch del iPhone, no escalado por usuario -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+    <!-- Elimina el delay de 300ms en tap en iOS -->
+    <meta name="format-detection" content="telephone=no">
+    <!-- PWA / instalable como app en iPhone -->
+    <meta name="theme-color" content="#000000" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Altaclase" />
     <link rel="manifest" href="/manifest.json" />
     <title>Altaclase Bodega</title>
+    <style>
+      /* Reset base para eliminar comportamientos de browser no deseados en iOS */
+      *, *::before, *::after { box-sizing: border-box; }
+      html, body {
+        margin: 0; padding: 0;
+        background: #000;
+        overscroll-behavior: none;
+        -webkit-text-size-adjust: 100%;
+        -webkit-tap-highlight-color: transparent;
+      }
+      /* Scroll momentum nativo en iOS */
+      body { -webkit-overflow-scrolling: touch; }
+      /* Deshabilitar selección de texto accidental durante swipe */
+      button { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+      input, textarea { -webkit-appearance: none; border-radius: 0; }
+    </style>
   </head>
   <body>
     <div id="root"></div>

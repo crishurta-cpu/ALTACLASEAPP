@@ -9,26 +9,26 @@ const SYNC_INTERVAL_MS = 120000; // 2 minutos
 const CLAVE_ACCESO = "ClaudeAlta";
 const LS_AUTH_KEY = "altaclase_auth_ok";
 
-// ─── Paleta Altaclase Bodega ────────────────────────────────────
-// Negro / Dorado / Beige — marca premium B2B colombiana.
-// El dorado es el único accent: positivo, activo, seleccionado.
-// El beige reemplaza el blanco frío como texto principal.
+// ─── Sistema de diseño Altaclase — inspiración iOS ──────────────
+// Capas de negro para profundidad. Dorado solo en valores que importan.
+// Sin bordes en cards: la profundidad de color crea la separación.
 const K={
-  bg:"#0A0A0A",        // negro profundo — fondo
-  card:"#141414",      // negro tarjeta
-  card2:"#1C1C1C",     // negro tarjeta secundaria
-  gold:"#C9A84C",      // dorado — accent único, reemplaza verde genérico
-  goldDim:"#8A6F32",   // dorado apagado para estados secundarios
-  green:"#4CAF7D",     // solo para ganancia positiva real
-  red:"#E05252",       // rojo cálido — deuda y alertas
-  blue:"#7EB8C9",      // azul frío — información neutral
-  yellow:"#C9A84C",    // dorado (alias para categorías que usaban yellow)
-  purple:"#9B8AC4",    // púrpura suave
-  orange:"#C98A4C",    // naranja cálido
-  border:"#2A2A2A",    // borde sutil
-  muted:"#8A7D6A",     // beige apagado — texto secundario
-  text:"#E8DCC8",      // beige cálido — texto principal
-  white:"#FFFFFF",     // blanco puro para contraste máximo
+  bg:"#000000",        // negro puro — fondo raíz (iOS dark)
+  card:"#1C1C1E",      // gris oscuro iOS — nivel 1
+  card2:"#2C2C2E",     // gris medio iOS — nivel 2
+  card3:"#3A3A3C",     // gris claro iOS — nivel 3 / inputs
+  gold:"#C9A84C",      // dorado — SOLO en valores monetarios clave
+  green:"#30D158",     // verde iOS sistema
+  red:"#FF453A",       // rojo iOS sistema
+  blue:"#0A84FF",      // azul iOS sistema
+  yellow:"#C9A84C",    // alias dorado para categorías
+  purple:"#BF5AF2",    // púrpura iOS
+  orange:"#FF9F0A",    // naranja iOS
+  teal:"#5AC8FA",      // azul cielo iOS
+  border:"#38383A",    // separador iOS
+  muted:"#8E8E93",     // gris iOS etiquetas secundarias
+  text:"#F2F2F7",      // blanco suave iOS — texto principal
+  white:"#FFFFFF",
 };
 const CCAT={"AHORRO":K.blue,"DEUDA - BANCOS":K.red,"GASTO FIJO":K.yellow,"MERCADO":"#4CAF7D","NEGOCIO":K.purple,"PERSONALES":K.orange,"SALIDA / DOMICILIO":"#C47EB8"};
 const TIPOS=["VENTA","COMISION","COMPRA CON SALDO","OCASIONALES","RECIBIDO CLIENTE"];
@@ -231,7 +231,7 @@ function parseDeudaPersonal(rows){
 }
 
 // ═══ UI ATOMS ═════════════════════════════════════════════════
-const Card=({ch,s={}})=><div style={{background:K.card,borderRadius:10,padding:"14px 16px",marginBottom:10,border:`1px solid ${K.border}`,...s}}>{ch}</div>;
+const Card=({ch,s={}})=><div style={{background:K.card,borderRadius:16,padding:"16px",marginBottom:10,...s}}>{ch}</div>;
 const Divider=()=><div style={{height:1,background:K.border,margin:"10px 0"}}/>;
 const ConfirmDelete=({onConfirm,onCancel})=>(
   <div style={{display:"flex",gap:6,marginTop:10}}>
@@ -241,24 +241,24 @@ const ConfirmDelete=({onConfirm,onCancel})=>(
 );
 const Pill=({text,color})=><span style={{background:`${color}18`,color,borderRadius:4,padding:"2px 8px",fontSize:9,fontWeight:800,letterSpacing:.6,textTransform:"uppercase"}}>{text}</span>;
 const Btn=({label,onClick,col=K.gold,dis,outline,sm,loading})=>(
-  <button onClick={onClick} disabled={dis||loading} style={{width:sm?"auto":"100%",padding:sm?"8px 16px":"14px",background:outline?"transparent":(dis||loading)?K.card2:col,color:outline?col:(dis||loading)?K.muted:"#0A0A0A",border:`1.5px solid ${outline?col:(dis||loading)?K.border:col}`,borderRadius:sm?8:10,fontSize:sm?12:14,fontWeight:800,cursor:(dis||loading)?"not-allowed":"pointer",opacity:(dis||loading)?.5:1,letterSpacing:.3}}>
+  <button onClick={onClick} disabled={dis||loading} style={{width:sm?"auto":"100%",padding:sm?"9px 18px":"15px",background:outline?"transparent":(dis||loading)?"#2C2C2E":col,color:outline?col:(dis||loading)?K.muted:"#000000",border:outline?`1.5px solid ${col}`:"none",borderRadius:sm?10:14,fontSize:sm?13:15,fontWeight:700,cursor:(dis||loading)?"not-allowed":"pointer",opacity:(dis||loading)?.4:1,letterSpacing:-.1,WebkitTapHighlightColor:"transparent"}}>
     {loading?"Guardando...":label}
   </button>
 );
 const ChipGroup=({label,options,value,onChange,colorMap={}})=>(
-  <div style={{marginBottom:14}}>
-    {label&&<div style={{fontSize:10,color:K.muted,marginBottom:6,textTransform:"uppercase",letterSpacing:1}}>{label}</div>}
+  <div style={{marginBottom:16}}>
+    {label&&<div style={{fontSize:12,color:K.muted,marginBottom:8,textTransform:"uppercase",letterSpacing:.5,fontWeight:600}}>{label}</div>}
     <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-      {options.map(o=>{const col=colorMap[o]||K.gold,sel=value===o;return <button key={o} onClick={()=>onChange(o)} style={{background:sel?col:"transparent",border:`1.5px solid ${sel?col:K.border}`,color:sel?"#0A0A0A":K.muted,borderRadius:6,padding:"5px 10px",fontSize:11,fontWeight:sel?800:600,cursor:"pointer",letterSpacing:.3}}>{o}</button>;})}
+      {options.map(o=>{const col=colorMap[o]||K.gold,sel=value===o;return <button key={o} onClick={()=>onChange(o)} style={{background:sel?"#FFFFFF0F":"transparent",border:`1px solid ${sel?"#FFFFFF22":K.border}`,color:sel?K.text:K.muted,borderRadius:8,padding:"6px 12px",fontSize:12,fontWeight:sel?600:400,cursor:"pointer",WebkitTapHighlightColor:"transparent"}}>{o}</button>;})}
     </div>
   </div>
 );
 const FInput=({label,value,onChange,type="text",placeholder,prefix})=>(
-  <div style={{marginBottom:12,minWidth:0}}>
-    {label&&<div style={{fontSize:10,color:K.muted,marginBottom:5,textTransform:"uppercase",letterSpacing:1}}>{label}</div>}
-    <div style={{display:"flex",alignItems:"center",background:K.card2,border:`1px solid ${value?K.gold:K.border}`,borderRadius:8,overflow:"hidden",minWidth:0,transition:"border-color .15s"}}>
-      {prefix&&<span style={{padding:"0 12px",color:K.gold,fontSize:13,fontWeight:700,flexShrink:0}}>{prefix}</span>}
-      <input type={type} value={value??""} onChange={e=>onChange(e.target.value)} placeholder={placeholder||""} style={{flex:1,minWidth:0,width:"100%",background:"transparent",border:"none",color:K.text,padding:"12px 12px",fontSize:15,outline:"none",boxSizing:"border-box"}}/>
+  <div style={{marginBottom:14,minWidth:0}}>
+    {label&&<div style={{fontSize:12,color:K.muted,marginBottom:6,fontWeight:500}}>{label}</div>}
+    <div style={{display:"flex",alignItems:"center",background:K.card2,borderRadius:12,overflow:"hidden",minWidth:0}}>
+      {prefix&&<span style={{padding:"0 14px",color:K.muted,fontSize:15,flexShrink:0}}>{prefix}</span>}
+      <input type={type} value={value??""} onChange={e=>onChange(e.target.value)} placeholder={placeholder||""} style={{flex:1,minWidth:0,width:"100%",background:"transparent",border:"none",color:K.text,padding:"14px 12px",fontSize:17,outline:"none",boxSizing:"border-box",WebkitAppearance:"none"}}/>
     </div>
   </div>
 );
@@ -450,7 +450,7 @@ function Home({db,onRefresh,loading,lastSync}){
                 const debeMucho=(deudaPorNombre[nom]||0)>1000000;
                 const medals=["#C9A84C","#A8A8A8","#8B6914","#2A2A2A","#2A2A2A"];
                 return(
-                  <div key={nom} style={{flexShrink:0,scrollSnapAlign:"start",width:112,background:K.card,border:`1.5px solid ${i===0?K.gold:K.border}`,borderRadius:10,padding:12,display:"flex",flexDirection:"column",justifyContent:"space-between",minHeight:110}}>
+                  <div key={nom} style={{flexShrink:0,scrollSnapAlign:"start",width:90,background:K.card,borderRadius:14,padding:10,display:"flex",flexDirection:"column",justifyContent:"space-between",minHeight:90}}>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                       <div style={{width:20,height:20,borderRadius:"50%",background:medals[i],display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:900,color:i<3?"#0A0A0A":K.muted}}>{i+1}</div>
                       {debeMucho&&<span style={{fontSize:12}}>⚠️</span>}
@@ -574,7 +574,8 @@ function IngresoForm({onSave,clientes=[]}){
   const go=async()=>{
     setSaving(true);setErr(null);
     try{
-      const item={fecha:new Date().toISOString(),tipo:f.tipo,producto:f.producto,cliente:f.cliente,proveedor:f.proveedor,costo:Number(f.costo)||0,precioVenta:Number(f.pv)||0,debe:f.debe?"SI":"NO",ganancia:gan,margen:mrg+"%"};
+      const trim=s=>String(s||"").toUpperCase().trim();
+      const item={fecha:new Date().toISOString(),tipo:f.tipo,producto:trim(f.producto),cliente:trim(f.cliente),proveedor:trim(f.proveedor),costo:Number(f.costo)||0,precioVenta:Number(f.pv)||0,debe:f.debe?"SI":"NO",ganancia:gan,margen:mrg+"%"};
       await onSave(ingresoToRow(item));
       setF({tipo:"VENTA",producto:"",cliente:"",proveedor:"",costo:"",pv:"",debe:false});
       setOk(true);setTimeout(()=>setOk(false),3000);
@@ -622,7 +623,7 @@ function GastoForm({onSave}){
   const go=async()=>{
     setSaving(true);setErr(null);
     try{
-      const item={fecha:new Date().toISOString(),concepto:f.concepto,costo:Number(f.costo)||0,referencia:f.ref};
+      const item={fecha:new Date().toISOString(),concepto:f.concepto,costo:Number(f.costo)||0,referencia:String(f.ref||"").toUpperCase().trim()};
       await onSave(gastoToRow(item));
       setF({concepto:f.concepto,costo:"",ref:""});
       setOk(true);setTimeout(()=>setOk(false),3000);
@@ -847,6 +848,53 @@ function Historial({db,onEditIngreso,onEditGasto}){
 // Actualiza DEBE?=NO en CADA fila de INGRESOS de ese cliente que tenga deuda.
 // Esto es lo único que persiste de verdad: la hoja CLIENTES se recalcula sola con
 // fórmulas, así que escribirle ahí se perdería en el próximo recálculo.
+// ═══ ABONO MODAL ═════════════════════════════════════════════════
+// Registra un abono en la columna F de CLIENTES buscando por nombre.
+// El valor que se guarda es el TOTAL acumulado de abonos (el que ya había + el nuevo),
+// porque la hoja espera el total, no el incremento.
+function AbonoModal({cliente,abonosActuales,onClose,onRegistrar}){
+  const [monto,setMonto]=useState("");
+  const [saving,setSaving]=useState(false);
+  const [err,setErr]=useState(null);
+  const nuevoTotal=(abonosActuales||0)+(Number(monto)||0);
+  const guardar=async()=>{
+    if(!Number(monto)||Number(monto)<=0){setErr("Ingresa un monto válido");return;}
+    setSaving(true);setErr(null);
+    try{
+      await onRegistrar(cliente,nuevoTotal);
+      onClose();
+    }catch(e){setErr("Error: "+e.message);setSaving(false);}
+  };
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.75)",zIndex:1000,display:"flex",alignItems:"flex-end"}} onClick={onClose}>
+      <div onClick={e=>e.stopPropagation()} style={{background:K.bg,width:"100%",maxWidth:430,margin:"0 auto",borderRadius:"16px 16px 0 0",padding:"18px 16px 32px",border:`1px solid ${K.border}`}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+          <div>
+            <div style={{fontSize:10,color:K.muted,textTransform:"uppercase",letterSpacing:1}}>Registrar abono</div>
+            <div style={{fontSize:18,fontWeight:800,color:K.white}}>{cliente}</div>
+          </div>
+          <button onClick={onClose} style={{background:"none",border:"none",color:K.muted,fontSize:22,cursor:"pointer"}}>✕</button>
+        </div>
+        {abonosActuales>0&&(
+          <div style={{background:K.card2,borderRadius:8,padding:"10px 12px",marginBottom:12,display:"flex",justifyContent:"space-between"}}>
+            <span style={{fontSize:11,color:K.muted}}>Abonos anteriores</span>
+            <span style={{fontSize:13,fontWeight:700,color:K.green}}>{fmt(abonosActuales)}</span>
+          </div>
+        )}
+        <FInput label="Monto del abono" value={monto} onChange={setMonto} type="number" prefix="$" placeholder="0"/>
+        {monto&&Number(monto)>0&&(
+          <div style={{background:K.card,border:`1px solid ${K.gold}44`,borderRadius:8,padding:"10px 14px",marginBottom:12,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <span style={{fontSize:11,color:K.muted}}>Total abonado quedaría</span>
+            <span style={{fontSize:16,fontWeight:900,color:K.gold}}>{fmt(nuevoTotal)}</span>
+          </div>
+        )}
+        {err&&<div style={{color:K.red,fontSize:12,marginBottom:8,textAlign:"center"}}>{err}</div>}
+        <Btn label="REGISTRAR ABONO" onClick={guardar} loading={saving} dis={!monto||Number(monto)<=0}/>
+      </div>
+    </div>
+  );
+}
+
 function MarcarPagadoBtn({cliente,ventas,onMarcarPagado}){
   const [confirmar,setConfirmar]=useState(false);
   const [cargando,setCargando]=useState(false);
@@ -885,48 +933,104 @@ function MarcarPagadoBtn({cliente,ventas,onMarcarPagado}){
 }
 
 // ═══ SWIPEABLE VENTA ═════════════════════════════════════════════
-// Deslizar ← más de 60px activa el toggle DEBE/NO DEBE sin abrir el editor.
-// Tap normal abre el modal de edición.
+// ← (>60px) = marcar NO DEBE  |  → (>60px) = marcar DEBE
+// Feedback visual en tiempo real: la fila se desplaza con el dedo
+// y muestra una etiqueta de acción de fondo antes de soltar.
 function SwipeableVenta({v,debe,onEdit,onToggleDebe,isLast}){
-  const touchX=useRef(null);
-  const [sliding,setSliding]=useState(false);
-  const onTouchStart=e=>{ touchX.current=e.touches[0].clientX; };
-  const onTouchEnd=e=>{
-    if(touchX.current===null)return;
-    const dx=touchX.current-e.changedTouches[0].clientX;
-    touchX.current=null;
-    if(dx>60){ onToggleDebe(); } // swipe izquierda → toggle debe
-    else if(Math.abs(dx)<10){ onEdit(); } // tap → editar
+  const startX=useRef(null);
+  const startY=useRef(null);
+  const [offsetX,setOffsetX]=useState(0);
+  const [swiping,setSwiping]=useState(false);
+  const THRESHOLD=72;
+
+  const onTouchStart=e=>{
+    startX.current=e.touches[0].clientX;
+    startY.current=e.touches[0].clientY;
+    setSwiping(false);
+    setOffsetX(0);
   };
+  const onTouchMove=e=>{
+    if(startX.current===null)return;
+    const dx=e.touches[0].clientX-startX.current;
+    const dy=e.touches[0].clientY-startY.current;
+    // Si el scroll vertical es dominante, no interferimos
+    if(!swiping&&Math.abs(dy)>Math.abs(dx)*1.5)return;
+    setSwiping(true);
+    // Limitar el offset para que no se vaya lejos
+    setOffsetX(Math.max(-130,Math.min(130,dx)));
+  };
+  const onTouchEnd=e=>{
+    const dx=e.changedTouches[0].clientX-(startX.current||0);
+    const dy=e.changedTouches[0].clientY-(startY.current||0);
+    const wasSwiping=swiping;
+    startX.current=null; startY.current=null;
+    setSwiping(false); setOffsetX(0);
+    if(!wasSwiping&&Math.abs(dx)<8&&Math.abs(dy)<8){ onEdit(); return; }
+    if(dx<-THRESHOLD){ onToggleDebe(); } // ← marcar NO DEBE
+    if(dx>THRESHOLD){ onToggleDebe(); }  // → marcar DEBE
+  };
+
+  const action=offsetX<-THRESHOLD?"NO DEBE":offsetX>THRESHOLD?"DEBE":null;
+  const actionColor=offsetX<-THRESHOLD?K.green:K.red;
+
   return(
-    <div
-      onTouchStart={onTouchStart}
-      onTouchEnd={onTouchEnd}
-      onClick={e=>{ if(touchX.current===null)onEdit(); }}
-      style={{background:debe?"#1C0808":"transparent",border:debe?`1px solid ${K.red}44`:"none",borderRadius:debe?8:0,padding:debe?"10px 12px":"0",marginBottom:isLast?0:10,paddingBottom:isLast?0:(!debe?10:undefined),borderBottom:!debe&&!isLast?`1px solid ${K.border}`:"none",cursor:"pointer",userSelect:"none"}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-        <div style={{flex:1,minWidth:0}}>
-          <div style={{fontSize:13,fontWeight:700,color:K.text,display:"flex",alignItems:"center",gap:6}}>
-            {v.producto}
-            {debe&&<span style={{fontSize:9,background:`${K.red}33`,color:K.red,borderRadius:4,padding:"2px 6px",fontWeight:800,letterSpacing:.4}}>DEBE</span>}
-          </div>
-          <div style={{fontSize:10,color:K.muted,marginTop:2}}>{v.tipo} · {fDate(v.fecha)} · {v.proveedor}</div>
+    <div style={{position:"relative",overflow:"hidden",borderRadius:12,marginBottom:isLast?0:8}}>
+      {/* Fondo de acción visible durante el swipe */}
+      {swiping&&Math.abs(offsetX)>20&&(
+        <div style={{
+          position:"absolute",inset:0,
+          background:offsetX<0?`${K.green}22`:`${K.red}22`,
+          display:"flex",alignItems:"center",
+          justifyContent:offsetX<0?"flex-end":"flex-start",
+          padding:"0 20px",
+          borderRadius:12,
+        }}>
+          <span style={{fontSize:11,fontWeight:800,color:actionColor,letterSpacing:.5}}>
+            {offsetX<0?"✓ NO DEBE":"⚠ DEBE"}
+          </span>
         </div>
-        <div style={{textAlign:"right",marginLeft:10}}>
-          <div style={{fontSize:13,fontWeight:800,color:K.gold}}>+{fmt(v.ganancia)}</div>
-          <div style={{fontSize:10,color:debe?K.red:K.muted,fontWeight:debe?700:400}}>{fmt(v.precioVenta)}</div>
+      )}
+      {/* Fila que se desplaza */}
+      <div
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        style={{
+          transform:`translateX(${offsetX}px)`,
+          transition:swiping?"none":"transform .25s cubic-bezier(.4,0,.2,1)",
+          background:debe?"#2C0A0A":K.card2,
+          borderRadius:12,
+          padding:"12px 14px",
+          display:"flex",justifyContent:"space-between",alignItems:"center",
+          cursor:"pointer",
+          userSelect:"none",
+          WebkitUserSelect:"none",
+          WebkitTapHighlightColor:"transparent",
+          willChange:"transform",
+        }}>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:15,fontWeight:600,color:K.text,display:"flex",alignItems:"center",gap:8}}>
+            {v.producto}
+            {debe&&<span style={{fontSize:10,background:K.red,color:"#fff",borderRadius:4,padding:"1px 6px",fontWeight:700}}>DEBE</span>}
+          </div>
+          <div style={{fontSize:13,color:K.muted,marginTop:3}}>{v.tipo} · {fDate(v.fecha)}{v.proveedor?" · "+v.proveedor:""}</div>
+        </div>
+        <div style={{textAlign:"right",marginLeft:12,flexShrink:0}}>
+          <div style={{fontSize:15,fontWeight:700,color:K.gold}}>+{fmt(v.ganancia)}</div>
+          <div style={{fontSize:13,color:debe?K.red:K.muted}}>{fmt(v.precioVenta)}</div>
         </div>
       </div>
     </div>
   );
 }
 
-function Clientes({db,onEditIngreso,onMarcarPagado}){
+function Clientes({db,onEditIngreso,onMarcarPagado,onRegistrarAbono}){
   const [sel,setSel]=useState(null);
   const [q,setQ]=useState("");
   const [mesSel,setMesSel]=useState("todos"); // filtro de mes dentro del detalle de un cliente
   const [pagina,setPagina]=useState(1);
   const PORPAGINA=15;
+  const [abonoAbierto,setAbonoAbierto]=useState(false);
   const map={};
   // CRIS, PRESTAMO y demás movimientos internos se excluyen AQUÍ (lista de clientes),
   // pero siguen sumando en la Ganancia/Utilidad general del Home, porque ese dinero sí
@@ -980,7 +1084,17 @@ function Clientes({db,onEditIngreso,onMarcarPagado}){
             </div>
           )}
         </div>
-        {map[sel]?.debe&&<MarcarPagadoBtn cliente={sel} ventas={ventas} onMarcarPagado={onMarcarPagado}/>}
+        {map[sel]?.debe&&(
+          <>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
+              <MarcarPagadoBtn cliente={sel} ventas={ventas} onMarcarPagado={onMarcarPagado}/>
+              <button onClick={()=>setAbonoAbierto(true)} style={{background:`${K.gold}14`,border:`1px solid ${K.gold}44`,borderRadius:10,padding:"11px 0",fontSize:13,fontWeight:700,color:K.gold,cursor:"pointer",WebkitTapHighlightColor:"transparent"}}>+ Abono</button>
+            </div>
+            {abonoAbierto&&<AbonoModal cliente={sel} abonosActuales={abonos} onClose={()=>setAbonoAbierto(false)} onRegistrar={onRegistrarAbono}/>}
+          </>
+        )}
+        {/* Reporte del cliente */}
+        <ReporteClienteBtn cliente={sel} ventas={ventasFiltradas} mes={mesSel}/>
         {/* Filtro por mes */}
         {meses.length>1&&(
           <div style={{display:"flex",gap:6,marginBottom:12,overflowX:"auto",paddingBottom:2,WebkitOverflowScrolling:"touch"}}>
@@ -1048,7 +1162,116 @@ function Clientes({db,onEditIngreso,onMarcarPagado}){
 
 // ═══ INVENTARIO ════════════════════════════════════════════════
 // Lista simple de compras a proveedor, tal cual la hoja: sin cruzar con ventas.
+// ═══ CONFIGURACIÓN ════════════════════════════════════════════════
+// Panel de ajustes dentro de Más. Por ahora: info de la app, cerrar sesión.
+// Diseñado para crecer: aquí irán preferencias de diseño, notificaciones, etc.
+function Configuracion(){
+  const cerrar=()=>{
+    localStorage.removeItem(LS_AUTH_KEY);
+    window.location.reload();
+  };
+  return(
+    <div style={{padding:"0 0 16px"}}>
+      {/* App info */}
+      <Card s={{marginBottom:8}} ch={<>
+        <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:12}}>
+          <div style={{width:52,height:52,background:K.gold,borderRadius:14,display:"flex",alignItems:"center",justifyContent:"center",fontSize:26,fontWeight:900,color:"#000",flexShrink:0}}>A</div>
+          <div>
+            <div style={{fontSize:17,fontWeight:700,color:K.text}}>Altaclase Bodega</div>
+            <div style={{fontSize:13,color:K.muted}}>Control financiero B2B</div>
+          </div>
+        </div>
+        <div style={{height:"0.5px",background:K.border,margin:"0 -16px 12px"}}/>
+        <div style={{display:"flex",justifyContent:"space-between"}}>
+          <span style={{fontSize:13,color:K.muted}}>Versión</span>
+          <span style={{fontSize:13,color:K.text,fontWeight:500}}>2.0</span>
+        </div>
+      </>}/>
+
+      {/* Sesión */}
+      <Card s={{marginBottom:8}} ch={<>
+        <div style={{fontSize:12,color:K.muted,textTransform:"uppercase",letterSpacing:.5,fontWeight:600,marginBottom:10}}>Sesión</div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+          <span style={{fontSize:15,color:K.text}}>Auto-cierre por inactividad</span>
+          <span style={{fontSize:13,color:K.muted,fontWeight:500}}>3 min</span>
+        </div>
+        <div style={{height:"0.5px",background:K.border,margin:"0 -16px 10px"}}/>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <span style={{fontSize:15,color:K.text}}>Cerrar al cerrar navegador</span>
+          <span style={{fontSize:13,color:K.green,fontWeight:600}}>Activo</span>
+        </div>
+      </>}/>
+
+      {/* Datos */}
+      <Card s={{marginBottom:8}} ch={<>
+        <div style={{fontSize:12,color:K.muted,textTransform:"uppercase",letterSpacing:.5,fontWeight:600,marginBottom:10}}>Datos</div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+          <span style={{fontSize:15,color:K.text}}>Sincronización automática</span>
+          <span style={{fontSize:13,color:K.muted}}>Cada 2 min</span>
+        </div>
+        <div style={{height:"0.5px",background:K.border,margin:"0 -16px 10px"}}/>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <span style={{fontSize:15,color:K.text}}>Fuente de datos</span>
+          <span style={{fontSize:13,color:K.muted}}>Google Sheets</span>
+        </div>
+      </>}/>
+
+      {/* Cerrar sesión */}
+      <button onClick={cerrar} style={{width:"100%",background:"transparent",border:"none",color:K.red,fontSize:17,fontWeight:500,padding:"14px 0",cursor:"pointer",WebkitTapHighlightColor:"transparent"}}>
+        Cerrar sesión
+      </button>
+    </div>
+  );
+}
+
+// ═══ REPORTE POR CLIENTE ══════════════════════════════════════════
+// Genera un resumen de un cliente específico filtrado por mes,
+// listo para copiar y compartir por WhatsApp.
+function ReporteClienteBtn({cliente,ventas,mes}){
+  const [copiado,setCopiado]=useState(false);
+  const fmt2=n=>"$"+Number(n||0).toLocaleString("es-CO");
+  const generar=()=>{
+    const ventasMes=mes==="todos"?ventas:ventas.filter(v=>mKey(v.fecha)===mes);
+    if(ventasMes.length===0)return;
+    const totalV=ventasMes.reduce((s,v)=>s+v.precioVenta,0);
+    const totalG=ventasMes.reduce((s,v)=>s+v.ganancia,0);
+    const deben=ventasMes.filter(v=>v.debe==="SI");
+    const lineas=[
+      `📋 *REPORTE CLIENTE: ${cliente}*`,
+      mes!=="todos"?`📅 ${mLabel(mes)}`:"📅 Histórico completo",
+      ``,
+      `🛍 Compras: ${ventasMes.length} pedido${ventasMes.length!==1?"s":""}`,
+      `💰 Total en ventas: ${fmt2(totalV)}`,
+      `✅ Ganancia generada: ${fmt2(totalG)}`,
+    ];
+    if(deben.length>0){
+      const totalDebe=deben.reduce((s,v)=>s+v.precioVenta,0);
+      lineas.push(`⚠️ Pendiente de cobro: ${fmt2(totalDebe)} (${deben.length} pedido${deben.length!==1?"s":""})`);
+      deben.forEach(v=>lineas.push(`   • ${v.producto} — ${fmt2(v.precioVenta)}`));
+    }
+    lineas.push(``);
+    lineas.push(`_Altaclase Bodega_`);
+    const texto=lineas.join("\n");
+    if(navigator.clipboard?.writeText){
+      navigator.clipboard.writeText(texto).then(()=>{setCopiado(true);setTimeout(()=>setCopiado(false),2500);});
+    }else{
+      const el=document.createElement("textarea");
+      el.value=texto;el.style.cssText="position:fixed;opacity:0";
+      document.body.appendChild(el);el.select();
+      document.execCommand("copy");document.body.removeChild(el);
+      setCopiado(true);setTimeout(()=>setCopiado(false),2500);
+    }
+  };
+  return(
+    <button onClick={generar} style={{width:"100%",background:copiado?"#1C2A1C":K.card2,border:`1px solid ${copiado?K.green:K.border}`,borderRadius:12,padding:"12px 14px",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10,WebkitTapHighlightColor:"transparent",transition:"all .2s"}}>
+      <span style={{fontSize:13,fontWeight:600,color:copiado?K.green:K.muted}}>{copiado?"✓ Reporte copiado":"📋 Generar reporte del cliente"}</span>
+      <span style={{fontSize:11,color:K.muted}}>Para WhatsApp</span>
+    </button>
+  );
+}
+
 // ═══ BÚSQUEDA GLOBAL ═════════════════════════════════════════════
+
 // Busca en tiempo real en ingresos (producto, cliente, proveedor) y gastos
 // (referencia, concepto). Toca cualquier resultado para editarlo.
 function BusquedaGlobal({db,onEditIngreso,onEditGasto}){
@@ -1284,9 +1507,31 @@ function DeudaPersonalForm({item,saldoBase=0,onClose,onSave,onDelete}){
 }
 
 // ═══ MÁS ═══════════════════════════════════════════════════════
-function Mas({db,onEditIngreso,onEditGasto,onMarcarPagado,onAddInv,onEditInv,onDeleteInv,onAddDeuda,onEditDeuda,onDeleteDeuda}){
+// Wrappers de pantalla completa para los nuevos tabs del nav
+function CliEntesTab({db,onEditIngreso,onMarcarPagado,onRegistrarAbono}){
+  return(
+    <div style={{padding:"0 0 0"}}>
+      <div style={{padding:"16px 16px 0"}}>
+        <div style={{fontSize:28,fontWeight:700,letterSpacing:-.5,marginBottom:16,color:K.text}}>Clientes</div>
+        <Clientes db={db} onEditIngreso={onEditIngreso} onMarcarPagado={onMarcarPagado} onRegistrarAbono={onRegistrarAbono}/>
+      </div>
+    </div>
+  );
+}
+function HistorialTab({db,onEditIngreso,onEditGasto}){
+  return(
+    <div style={{padding:"0 0 0"}}>
+      <div style={{padding:"16px 16px 0"}}>
+        <div style={{fontSize:28,fontWeight:700,letterSpacing:-.5,marginBottom:16,color:K.text}}>Historial</div>
+        <Historial db={db} onEditIngreso={onEditIngreso} onEditGasto={onEditGasto}/>
+      </div>
+    </div>
+  );
+}
+
+function Mas({db,onEditIngreso,onEditGasto,onMarcarPagado,onRegistrarAbono,onAddInv,onEditInv,onDeleteInv,onAddDeuda,onEditDeuda,onDeleteDeuda}){
   const [v,setV]=useState("clientes");
-  const tabs=[["clientes","👥","Clientes"],["hist","📅","Historial"],["inv","📦","Inventario"],["personal","📓","Personal"]];
+  const tabs=[["buscar","🔍","Buscar"],["inv","📦","Inventario"],["personal","📓","Personal"],["config","⚙️","Config"]];
   return(
     <div style={{padding:"24px 16px 0"}}>
       <div style={{fontSize:20,fontWeight:800,marginBottom:14}}>Más</div>
@@ -1298,10 +1543,10 @@ function Mas({db,onEditIngreso,onEditGasto,onMarcarPagado,onAddInv,onEditInv,onD
           </button>
         ))}
       </div>
-      {v==="clientes"&&<Clientes db={db} onEditIngreso={onEditIngreso} onMarcarPagado={onMarcarPagado}/>}
-      {v==="hist"&&<Historial db={db} onEditIngreso={onEditIngreso} onEditGasto={onEditGasto}/>}
+      {v==="buscar"&&<BusquedaGlobal db={db} onEditIngreso={onEditIngreso} onEditGasto={onEditGasto}/>}
       {v==="inv"&&<Inventario db={db} onAdd={onAddInv} onEdit={onEditInv} onDelete={onDeleteInv}/>}
       {v==="personal"&&<Personal db={db} onAdd={onAddDeuda} onEdit={onEditDeuda} onDelete={onDeleteDeuda}/>}
+      {v==="config"&&<Configuracion/>}
     </div>
   );
 }
@@ -1345,7 +1590,8 @@ function LoginScreen({onSuccess}){
 
 export default function App(){
   const [autenticado,setAutenticado]=useState(()=>localStorage.getItem(LS_AUTH_KEY)==="1");
-  const [tab,setTab]=useState("home");
+  const [tab,setTab]=useState("home"); // siempre inicia en home
+  const [showNuevo,setShowNuevo]=useState(false);
   const [db,setDb]=useState({ingresos:[],gastos:[],inventario:[],clientesResumen:[],clientesEspeciales:[],deudaPersonal:[]});
   const [loading,setLoading]=useState(false);
   const [toast,setToast]=useState(null);
@@ -1509,15 +1755,27 @@ export default function App(){
     flash(`✓ ${pendientes.length} pago${pendientes.length!==1?"s":""} registrado${pendientes.length!==1?"s":""}`);
   };
 
+  // Registra un abono en la columna F de la hoja CLIENTES, buscando por nombre.
+  // No usa _row porque las filas de CLIENTES se reordenan solas con fórmulas UNIQUE/FILTER.
+  const registrarAbono=async(cliente,montoNuevo)=>{
+    const qs=new URLSearchParams({action:"updateCell",sheet:"CLIENTES",lookupValue:cliente,col:"F",value:String(montoNuevo)}).toString();
+    const res=await fetch(`${API}?${qs}`,{method:"GET",redirect:"follow"});
+    if(!res.ok)throw new Error("HTTP "+res.status);
+    const data=await res.json();
+    if(!data.ok)throw new Error(data.error||"Error al registrar abono");
+    await loadData(true);
+    flash(`✓ Abono de ${cliente} registrado`);
+  };
+
   const NAV=[
-    {id:"home",label:"Inicio"},
-    {id:"nuevo",label:"Nuevo"},
-    {id:"buscar",label:"Buscar"},
-    {id:"mas",label:"Más"},
+    {id:"home",icon:"⌂",label:""},
+    {id:"clientes",icon:"",label:"Clientes"},
+    {id:"historial",icon:"",label:"Historial"},
+    {id:"mas",icon:"",label:"Más"},
   ];
 
   if(!autenticado){
-    return <LoginScreen onSuccess={()=>setAutenticado(true)}/>;
+    return <LoginScreen onSuccess={()=>{setAutenticado(true);setTab("home");}}/>;
   }
 
   if(!initDone){
@@ -1545,31 +1803,88 @@ export default function App(){
   }
 
   return(
-    <div style={{background:K.bg,minHeight:"100vh",color:K.text,fontFamily:"-apple-system,BlinkMacSystemFont,'Helvetica Neue',sans-serif",maxWidth:430,margin:"0 auto",paddingBottom:"calc(64px + env(safe-area-inset-bottom, 0px))"}}>
+    <div style={{background:K.bg,minHeight:"100dvh",color:K.text,fontFamily:"-apple-system,BlinkMacSystemFont,'SF Pro Display','Helvetica Neue',sans-serif",maxWidth:430,margin:"0 auto",paddingBottom:"calc(60px + env(safe-area-inset-bottom,16px))"}}>
+      {/* Toast iOS-style */}
       {toast&&(
-        <div style={{position:"fixed",top:16,left:"50%",transform:"translateX(-50%)",background:K.gold,color:"#0A0A0A",padding:"8px 22px",borderRadius:6,fontWeight:800,zIndex:9999,fontSize:12,boxShadow:"0 4px 24px rgba(201,168,76,.35)",whiteSpace:"nowrap",letterSpacing:.5}}>
+        <div style={{position:"fixed",top:"max(20px, env(safe-area-inset-top, 20px))",left:"50%",transform:"translateX(-50%)",background:"rgba(44,44,46,.96)",backdropFilter:"blur(20px)",WebkitBackdropFilter:"blur(20px)",color:K.text,padding:"10px 20px",borderRadius:20,fontWeight:600,zIndex:9999,fontSize:13,boxShadow:"0 4px 24px rgba(0,0,0,.4)",whiteSpace:"nowrap",border:`1px solid ${K.border}`}}>
           {toast.msg}
         </div>
       )}
-      <div style={{overflowY:"auto",WebkitOverflowScrolling:"touch"}}>
+      {/* Contenido principal — scroll nativo */}
+      <div style={{WebkitOverflowScrolling:"touch",overscrollBehavior:"none"}}>
         {tab==="home"&&<Home db={db} onRefresh={()=>loadData(false)} loading={loading} lastSync={lastSync}/>}
-        {tab==="nuevo"&&<NuevoMovimiento onSaveIngreso={saveIngreso} onSaveGasto={saveGasto}
-          clientes={[...new Set(db.ingresos.filter(cuentaParaListaClientes).map(i=>i.cliente.toUpperCase().trim()).filter(Boolean))].sort()}
-        />}
-        {tab==="buscar"&&<BusquedaGlobal db={db} onEditIngreso={setEditIng} onEditGasto={setEditGas}/>}
-        {tab==="mas"&&<Mas db={db} onEditIngreso={setEditIng} onEditGasto={setEditGas} onMarcarPagado={marcarPagado} onAddInv={addInventario} onEditInv={editInventario} onDeleteInv={removeInventario} onAddDeuda={addDeuda} onEditDeuda={editDeuda} onDeleteDeuda={removeDeuda}/>}
+        {tab==="clientes"&&<CliEntesTab db={db} onEditIngreso={setEditIng} onMarcarPagado={marcarPagado} onRegistrarAbono={registrarAbono}/>}
+        {tab==="historial"&&<HistorialTab db={db} onEditIngreso={setEditIng} onEditGasto={setEditGas}/>}
+        {tab==="mas"&&<Mas db={db} onEditIngreso={setEditIng} onEditGasto={setEditGas} onMarcarPagado={marcarPagado} onRegistrarAbono={registrarAbono} onAddInv={addInventario} onEditInv={editInventario} onDeleteInv={removeInventario} onAddDeuda={addDeuda} onEditDeuda={editDeuda} onDeleteDeuda={removeDeuda}/>}
       </div>
-      {/* Nav bar ─ fijo, sin emojis, con dorado como active state */}
-      <div style={{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:430,background:"rgba(10,10,10,.98)",backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",borderTop:`1px solid #2A2A2A`,display:"flex",zIndex:200,paddingBottom:"env(safe-area-inset-bottom,0px)"}}>
-        {NAV.map(({id,label})=>{
+
+      {/* Botón flotante FAB — agregar registro */}
+      {(tab==="home"||tab==="clientes"||tab==="historial")&&(
+        <button
+          onClick={()=>setShowNuevo(true)}
+          style={{
+            position:"fixed",
+            bottom:`calc(76px + env(safe-area-inset-bottom,0px))`,
+            right:`calc(20px + env(safe-area-inset-right,0px))`,
+            width:56,height:56,
+            background:K.gold,
+            border:"none",
+            borderRadius:"50%",
+            display:"flex",alignItems:"center",justifyContent:"center",
+            boxShadow:"0 4px 20px rgba(201,168,76,.45)",
+            cursor:"pointer",
+            zIndex:150,
+            WebkitTapHighlightColor:"transparent",
+            fontSize:26,
+            color:"#000",
+            fontWeight:300,
+            lineHeight:1,
+          }}>
+          +
+        </button>
+      )}
+
+      {/* Modal de nuevo movimiento */}
+      {showNuevo&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.6)",zIndex:500,display:"flex",alignItems:"flex-end"}} onClick={()=>setShowNuevo(false)}>
+          <div onClick={e=>e.stopPropagation()} style={{background:K.card,width:"100%",maxWidth:430,margin:"0 auto",borderRadius:"20px 20px 0 0",maxHeight:"92dvh",overflowY:"auto",paddingBottom:"env(safe-area-inset-bottom,0px)"}}>
+            <div style={{width:36,height:4,background:K.card3,borderRadius:2,margin:"10px auto 0"}}/>
+            <NuevoMovimiento
+              onSaveIngreso={async r=>{await saveIngreso(r);setShowNuevo(false);}}
+              onSaveGasto={async r=>{await saveGasto(r);setShowNuevo(false);}}
+              clientes={[...new Set(db.ingresos.filter(cuentaParaListaClientes).map(i=>i.cliente.toUpperCase().trim()).filter(Boolean))].sort()}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Nav bar iOS — fijo, sin superposición */}
+      <div style={{
+        position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",
+        width:"100%",maxWidth:430,
+        background:"rgba(28,28,30,.95)",
+        backdropFilter:"blur(24px)",WebkitBackdropFilter:"blur(24px)",
+        borderTop:`0.5px solid ${K.border}`,
+        display:"flex",zIndex:200,
+        paddingBottom:"env(safe-area-inset-bottom,0px)",
+      }}>
+        {NAV.map(({id,icon,label})=>{
           const active=tab===id;
           return(
-            <button key={id} onClick={()=>setTab(id)} style={{flex:1,background:"none",border:"none",padding:"12px 0 14px",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:4,borderTop:`2px solid ${active?K.gold:"transparent"}`,transition:"border-color .15s"}}>
-              <span style={{fontSize:10,fontWeight:800,textTransform:"uppercase",letterSpacing:1.2,color:active?K.gold:K.muted}}>{label}</span>
+            <button key={id} onClick={()=>setTab(id)} style={{flex:1,background:"none",border:"none",padding:"10px 0 12px",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2,WebkitTapHighlightColor:"transparent"}}>
+              {id==="home"?(
+                <svg width="22" height="22" viewBox="0 0 24 24" fill={active?K.gold:K.muted}>
+                  <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+                </svg>
+              ):(
+                <span style={{fontSize:11,fontWeight:active?700:400,color:active?K.gold:K.muted,letterSpacing:-.1}}>{label}</span>
+              )}
+              {id!=="home"&&<div style={{width:4,height:4,borderRadius:"50%",background:active?K.gold:"transparent",marginTop:1}}/>}
             </button>
           );
         })}
       </div>
+
       {editIng&&<EditIngreso item={editIng} onClose={()=>setEditIng(null)} onSave={updateIngreso} onDelete={removeIngreso}/>}
       {editGas&&<EditGasto item={editGas} onClose={()=>setEditGas(null)} onSave={updateGasto} onDelete={removeGasto}/>}
     </div>
