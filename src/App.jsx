@@ -272,14 +272,12 @@ const Card=({ch,s={}})=><div style={{
   boxShadow:DS.shadow.md,
   ...s
 }}>{ch}</div>;
-const Divider=()=><div style={{height:1,background:K.border,margin:"10px 0"}}/>;
 const ConfirmDelete=({onConfirm,onCancel})=>(
   <div style={{display:"flex",gap:6,marginTop:10}}>
     <button onClick={onConfirm} style={{flex:1,background:`${K.red}18`,border:`1.5px solid ${K.red}`,color:K.red,borderRadius:DS.r.sm,padding:"8px 0",fontSize:12,fontWeight:700,cursor:"pointer",letterSpacing:.3}}>Sí, borrar</button>
     <button onClick={onCancel} style={{flex:1,background:"transparent",border:`1.5px solid ${K.border}`,color:K.muted,borderRadius:DS.r.sm,padding:"8px 0",fontSize:12,fontWeight:700,cursor:"pointer"}}>Cancelar</button>
   </div>
 );
-const Pill=({text,color})=><span style={{background:`${color}18`,color,borderRadius:4,padding:"2px 8px",fontSize:9,fontWeight:700,letterSpacing:.6,textTransform:"uppercase"}}>{text}</span>;
 const Btn=({label,onClick,col=K.gold,dis,outline,sm,loading})=>(
   <button onClick={onClick} disabled={dis||loading} style={{
     width:sm?"auto":"100%",
@@ -344,7 +342,6 @@ function GraficoPuntos({datos}){
   if(!datos||datos.length<2)return null;
   const W=300,H=90,PADY=14,PADX=48; // PADX izquierdo para etiquetas de escala
   const vals=datos.map(d=>d.total);
-  const min=0; // escala siempre desde 0
   const max=Math.max(...vals)||1;
   // Escala legible: redondear al múltiplo bonito más cercano
   const rango=max;
@@ -382,58 +379,6 @@ function GraficoPuntos({datos}){
         </g>
       ))}
     </svg>
-  );
-}
-
-function ReporteBtn({mes,ventas,gan,gastos,util,mrg,debenList,top5,ganSem,ventasSem}){
-  const [copiado,setCopiado]=useState(false);
-  const generar=()=>{
-    const fmt2=n=>"$"+Number(n||0).toLocaleString("es-CO");
-    const lineas=[
-      `📊 *REPORTE ALTACLASE BODEGA — ${mes.toUpperCase()}*`,
-      ``,
-      `💰 Utilidad: ${fmt2(util)} (Margen ${mrg}%)`,
-      `📈 Ventas: ${fmt2(ventas)}`,
-      `✅ Ganancia: ${fmt2(gan)}`,
-      `📉 Gastos: ${fmt2(gastos)}`,
-      ``,
-      `📅 *ESTA SEMANA*`,
-      `   Ganancia: ${fmt2(ganSem)} · ${ventasSem} venta${ventasSem!==1?"s":""}`,
-    ];
-    if(top5.length>0){
-      lineas.push(``);
-      lineas.push(`🏆 *TOP CLIENTES*`);
-      top5.forEach(([nom,st],i)=>lineas.push(`   ${i+1}. ${nom} — ${fmt2(st.g)}`));
-    }
-    if(debenList.length>0){
-      lineas.push(``);
-      lineas.push(`⚠️ *COBROS PENDIENTES*`);
-      debenList.forEach(c=>lineas.push(`   • ${c.cliente} — ${fmt2(c.saldo)}`));
-    }
-    lineas.push(``);
-    lineas.push(`_Altaclase Bodega_`);
-    const texto=lineas.join("\n");
-    if(navigator.clipboard?.writeText){
-      navigator.clipboard.writeText(texto).then(()=>{setCopiado(true);setTimeout(()=>setCopiado(false),2500);});
-    }else{
-      // fallback para Safari que a veces bloquea clipboard API
-      const el=document.createElement("textarea");
-      el.value=texto; el.style.position="fixed"; el.style.opacity="0";
-      document.body.appendChild(el); el.select();
-      document.execCommand("copy"); document.body.removeChild(el);
-      setCopiado(true); setTimeout(()=>setCopiado(false),2500);
-    }
-  };
-  return(
-    <div style={{marginBottom:10}}>
-      {meses.length>1&&(
-        <ChipGroup label="Período" options={meses} value={mes} onChange={onChangeMes} colorMap={{todos:K.gold}}/>
-      )}
-      <button onClick={generar} style={{width:"100%",background:copiado?`${K.gold}22`:K.card2,border:`1px solid ${copiado?K.gold:K.border}`,borderRadius:DS.r.sm,padding:"11px 14px",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10,transition:"all .2s"}}>
-        <span style={{fontSize:12,fontWeight:700,color:copiado?K.gold:K.muted,letterSpacing:.5,textTransform:"uppercase"}}>{copiado?"✓ Reporte copiado":"📋 Generar reporte del mes"}</span>
-        <span style={{fontSize:10,color:K.muted}}>Copiar para WhatsApp</span>
-      </button>
-    </div>
   );
 }
 
@@ -720,7 +665,7 @@ function NuevoMovimiento({onSaveIngreso,onSaveGasto,clientes}){
 // ═══ INGRESO BLOQUE FORM ══════════════════════════════════════════
 // Registro rápido de múltiples ventas en una sola entrada.
 // Cada fila = un producto vendido a un cliente por un proveedor.
-function IngresoBloqueForm({onSave,clientes=[]}){
+function IngresoBloqueForm({onSave}){
   const [filas,setFilas]=useState([{id:1,producto:"",cliente:"",proveedor:"",costo:"",precio:""}]);
   const [saving,setSaving]=useState(false);
   const [ok,setOk]=useState(false);
@@ -745,7 +690,7 @@ function IngresoBloqueForm({onSave,clientes=[]}){
         const mrg=pv>0?(gan/pv*100).toFixed(1):0;
         const trim=s=>String(s||"").toUpperCase().trim();
         const item={fecha:new Date().toISOString(),tipo:"VENTA",producto:trim(f.producto),cliente:trim(f.cliente),proveedor:trim(f.proveedor),costo,precioVenta:pv,debe:"NO",ganancia:gan,margen:mrg+"%"};
-        await onSave(item);
+        await onSave(ingresoToRow(item));
       }
       setFilas([{id:nextId+1,producto:"",cliente:"",proveedor:"",costo:"",precio:""}]);
       setOk(true);setTimeout(()=>setOk(false),2500);
@@ -996,16 +941,17 @@ function EditGasto({item,onClose,onSave,onDelete}){
 function GraficoCircular({datos,colores,total}){
   if(!datos||datos.length===0||total===0)return null;
   const R=40,CX=50,CY=50;
-  let ang=-Math.PI/2;
-  const slices=datos.map(([cat,val],i)=>{
+  const slices=datos.reduce((acc,[cat,val],i)=>{
+    const startAng=acc.ang;
     const pct=val/total;
-    const startAng=ang;
-    ang+=pct*2*Math.PI;
+    const endAng=startAng+pct*2*Math.PI;
     const x1=CX+R*Math.cos(startAng),y1=CY+R*Math.sin(startAng);
-    const x2=CX+R*Math.cos(ang),y2=CY+R*Math.sin(ang);
+    const x2=CX+R*Math.cos(endAng),y2=CY+R*Math.sin(endAng);
     const large=pct>0.5?1:0;
-    return{cat,val,pct,x1,y1,x2,y2,large,col:colores[i%colores.length]};
-  });
+    acc.slices.push({cat,val,pct,x1,y1,x2,y2,large,col:colores[i%colores.length]});
+    acc.ang=endAng;
+    return acc;
+  },{ang:-Math.PI/2,slices:[]}).slices;
   return(
     <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:12,background:K.bg,borderRadius:DS.r.md,padding:10}}>
       <svg viewBox="0 0 100 100" width={80} height={80} style={{flexShrink:0}}>
@@ -1269,7 +1215,6 @@ function SwipeableVenta({v,debe,onEdit,onToggleDebe,isLast}){
     if(dx>THRESHOLD){ onToggleDebe("SI"); }  // → marcar DEBE
   };
 
-  const action=offsetX<-THRESHOLD?"NO DEBE":offsetX>THRESHOLD?"DEBE":null;
   const actionColor=offsetX<-THRESHOLD?K.green:K.red;
 
   return(
@@ -1364,9 +1309,10 @@ function Clientes({db,onEditIngreso,onMarcarPagado,onRegistrarAbono}){
   const totalPaginas=Math.max(1,Math.ceil(lista.length/PORPAGINA));
   const paginaSegura=Math.min(pagina,totalPaginas);
   const listaPagina=lista.slice((paginaSegura-1)*PORPAGINA,paginaSegura*PORPAGINA);
+  const [nowTs]=useState(()=>Date.now());
 
   if(sel){
-    const{ventas,gan}=map[sel]||{ventas:[],gan:0};
+    const{ventas}=map[sel]||{ventas:[]};
     const meses=[...new Set(ventas.map(v=>mKey(v.fecha)))].sort().reverse();
     const ventasFiltradas=mesSel==="todos"?ventas:ventas.filter(v=>mKey(v.fecha)===mesSel);
     const tv=ventasFiltradas.reduce((s,v)=>s+v.precioVenta,0);
@@ -1374,7 +1320,7 @@ function Clientes({db,onEditIngreso,onMarcarPagado,onRegistrarAbono}){
     const abonos=map[sel]?.abonos||0;
     // Días desde la deuda más antigua sin pagar
     const ventasDeudorasAll=ventas.filter(v=>v.debe==="SI");
-    const diasDebe=ventasDeudorasAll.length>0?Math.floor((Date.now()-new Date(ventasDeudorasAll.sort((a,b)=>new Date(a.fecha)-new Date(b.fecha))[0].fecha))/(1000*60*60*24)):null;
+    const diasDebe=ventasDeudorasAll.length>0?Math.floor((nowTs-new Date(ventasDeudorasAll.sort((a,b)=>new Date(a.fecha)-new Date(b.fecha))[0].fecha))/(1000*60*60*24)):null;
     return(
       <div>
         <button onClick={()=>{setSel(null);setMesSel("todos");}} style={{background:"none",border:"none",color:K.gold,fontSize:13,fontWeight:600,cursor:"pointer",marginBottom:14,padding:0}}>← Volver</button>
@@ -1930,7 +1876,7 @@ function HistorialTab({db,onEditIngreso,onEditGasto}){
   );
 }
 
-function Mas({db,onEditIngreso,onEditGasto,onMarcarPagado,onRegistrarAbono,onAddInv,onEditInv,onDeleteInv,onAddDeuda,onEditDeuda,onDeleteDeuda}){
+function Mas({db,onEditIngreso,onEditGasto,onAddInv,onEditInv,onDeleteInv,onAddDeuda,onEditDeuda,onDeleteDeuda}){
   const [v,setV]=useState("clientes");
   const tabs=[["buscar","🔍","Buscar"],["inv","📦","Inventario"],["personal","📓","Personal"],["config","⚙️","Config"]];
   return(
@@ -2080,7 +2026,7 @@ export default function App(){
       clearTimeout(inactivityRef.current);
       events.forEach(e=>window.removeEventListener(e,reset));
     };
-  },[autenticado,cerrarSesion]);
+  },[autenticado,cerrarSesion,INACTIVITY_MS]);
 
   const flash=(msg,col=K.gold)=>{setToast({msg,col});setTimeout(()=>setToast(null),2500)};
 
@@ -2120,6 +2066,7 @@ export default function App(){
   },[]);
 
   // Carga inicial
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(()=>{if(autenticado)loadData(false);},[loadData,autenticado]);
 
   // Auto-sync cada 2 minutos en segundo plano, y al volver a la pestaña/app
@@ -2408,7 +2355,7 @@ export default function App(){
         paddingBottom:"env(safe-area-inset-bottom,0px)",
         boxShadow:"0 -8px 32px rgba(0,0,0,.6)",
       }}>
-        {NAV.map(({id,icon,label})=>{
+        {NAV.map(({id,label})=>{
           const active=tab===id;
           const accent=K.gold;
           return(
