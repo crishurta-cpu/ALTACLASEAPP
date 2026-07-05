@@ -272,12 +272,14 @@ const Card=({ch,s={}})=><div style={{
   boxShadow:DS.shadow.md,
   ...s
 }}>{ch}</div>;
+const Divider=()=><div style={{height:1,background:K.border,margin:"10px 0"}}/>;
 const ConfirmDelete=({onConfirm,onCancel})=>(
   <div style={{display:"flex",gap:6,marginTop:10}}>
     <button onClick={onConfirm} style={{flex:1,background:`${K.red}18`,border:`1.5px solid ${K.red}`,color:K.red,borderRadius:DS.r.sm,padding:"8px 0",fontSize:12,fontWeight:700,cursor:"pointer",letterSpacing:.3}}>Sí, borrar</button>
     <button onClick={onCancel} style={{flex:1,background:"transparent",border:`1.5px solid ${K.border}`,color:K.muted,borderRadius:DS.r.sm,padding:"8px 0",fontSize:12,fontWeight:700,cursor:"pointer"}}>Cancelar</button>
   </div>
 );
+const Pill=({text,color})=><span style={{background:`${color}18`,color,borderRadius:4,padding:"2px 8px",fontSize:9,fontWeight:700,letterSpacing:.6,textTransform:"uppercase"}}>{text}</span>;
 const Btn=({label,onClick,col=K.gold,dis,outline,sm,loading})=>(
   <button onClick={onClick} disabled={dis||loading} style={{
     width:sm?"auto":"100%",
@@ -342,6 +344,7 @@ function GraficoPuntos({datos}){
   if(!datos||datos.length<2)return null;
   const W=300,H=90,PADY=14,PADX=48; // PADX izquierdo para etiquetas de escala
   const vals=datos.map(d=>d.total);
+  const min=0; // escala siempre desde 0
   const max=Math.max(...vals)||1;
   // Escala legible: redondear al múltiplo bonito más cercano
   const rango=max;
@@ -375,10 +378,62 @@ function GraficoPuntos({datos}){
       {pts.map((p,i)=>(
         <g key={i}>
           <circle cx={p.x} cy={p.y} r={3} fill={accent}/>
-          <text x={p.x} y={H+12} textAnchor="middle" fill={K.muted} fontSize="7">{fDate(p.d.fecha).split(" ")[0]}</text>
+          <text x={p.x} y={H+14} textAnchor="middle" fill={K.muted} fontSize="7">{(()=>{const d=new Date(p.d.fecha);return d.getDate()+" "+["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"][d.getMonth()];})()}</text>
         </g>
       ))}
     </svg>
+  );
+}
+
+function ReporteBtn({mes,ventas,gan,gastos,util,mrg,debenList,top5,ganSem,ventasSem}){
+  const [copiado,setCopiado]=useState(false);
+  const generar=()=>{
+    const fmt2=n=>"$"+Number(n||0).toLocaleString("es-CO");
+    const lineas=[
+      `📊 *REPORTE ALTACLASE BODEGA — ${mes.toUpperCase()}*`,
+      ``,
+      `💰 Utilidad: ${fmt2(util)} (Margen ${mrg}%)`,
+      `📈 Ventas: ${fmt2(ventas)}`,
+      `✅ Ganancia: ${fmt2(gan)}`,
+      `📉 Gastos: ${fmt2(gastos)}`,
+      ``,
+      `📅 *ESTA SEMANA*`,
+      `   Ganancia: ${fmt2(ganSem)} · ${ventasSem} venta${ventasSem!==1?"s":""}`,
+    ];
+    if(top5.length>0){
+      lineas.push(``);
+      lineas.push(`🏆 *TOP CLIENTES*`);
+      top5.forEach(([nom,st],i)=>lineas.push(`   ${i+1}. ${nom} — ${fmt2(st.g)}`));
+    }
+    if(debenList.length>0){
+      lineas.push(``);
+      lineas.push(`⚠️ *COBROS PENDIENTES*`);
+      debenList.forEach(c=>lineas.push(`   • ${c.cliente} — ${fmt2(c.saldo)}`));
+    }
+    lineas.push(``);
+    lineas.push(`_Altaclase Bodega_`);
+    const texto=lineas.join("\n");
+    if(navigator.clipboard?.writeText){
+      navigator.clipboard.writeText(texto).then(()=>{setCopiado(true);setTimeout(()=>setCopiado(false),2500);});
+    }else{
+      // fallback para Safari que a veces bloquea clipboard API
+      const el=document.createElement("textarea");
+      el.value=texto; el.style.position="fixed"; el.style.opacity="0";
+      document.body.appendChild(el); el.select();
+      document.execCommand("copy"); document.body.removeChild(el);
+      setCopiado(true); setTimeout(()=>setCopiado(false),2500);
+    }
+  };
+  return(
+    <div style={{marginBottom:10}}>
+      {meses.length>1&&(
+        <ChipGroup label="Período" options={meses} value={mes} onChange={onChangeMes} colorMap={{todos:K.gold}}/>
+      )}
+      <button onClick={generar} style={{width:"100%",background:copiado?`${K.gold}22`:K.card2,border:`1px solid ${copiado?K.gold:K.border}`,borderRadius:DS.r.sm,padding:"11px 14px",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10,transition:"all .2s"}}>
+        <span style={{fontSize:12,fontWeight:700,color:copiado?K.gold:K.muted,letterSpacing:.5,textTransform:"uppercase"}}>{copiado?"✓ Reporte copiado":"📋 Generar reporte del mes"}</span>
+        <span style={{fontSize:10,color:K.muted}}>Copiar para WhatsApp</span>
+      </button>
+    </div>
   );
 }
 
@@ -420,8 +475,11 @@ function Home({db,onRefresh,loading,lastSync}){
   (db.clientesResumen||[]).forEach(c=>{
     if(esClienteEspecial(c.cliente))return;
     const k=c.cliente.toUpperCase().trim();
-    if(!debenMap[k])debenMap[k]={cliente:k,saldo:0,debe:false};
-    debenMap[k].saldo+=c.saldo;
+    if(!debenMap[k])debenMap[k]={cliente:k,saldo:0,abonos:0,debe:false};
+    // Usar deudaTotal (col G = saldo bruto - abonos) si existe; si no, saldo bruto
+    const neto=c.deudaTotal!=null&&c.deudaTotal>0?c.deudaTotal:(c.saldo-(c.abonos||0));
+    debenMap[k].saldo+=Math.max(0,neto);
+    debenMap[k].abonos+=(c.abonos||0);
     debenMap[k].debe=debenMap[k].debe||c.debe==="SI";
   });
   const debenList=Object.values(debenMap).filter(c=>c.debe);
@@ -480,7 +538,7 @@ function Home({db,onRefresh,loading,lastSync}){
           position:"relative",overflow:"hidden",
         }}>
           <div style={{position:"absolute",top:-30,left:"50%",transform:"translateX(-50%)",width:200,height:100,borderRadius:"50%",background:util>=0?`${K.gold}06`:`${K.red}06`,filter:"blur(30px)"}}/>
-          <div style={{fontSize:11,color:K.muted,textTransform:"uppercase",letterSpacing:1.5,fontWeight:600,marginBottom:8}}>Utilidad del mes</div>
+          <div style={{fontSize:11,color:K.muted,textTransform:"uppercase",letterSpacing:1.5,fontWeight:600,marginBottom:8}}>Utilidad Neta del Mes Actual</div>
           <div style={{fontSize:48,fontWeight:700,color:util>=0?K.gold:K.red,letterSpacing:-2,lineHeight:1,marginBottom:8}}>{fmt(util)}</div>
           <div style={{fontSize:12,color:K.muted}}>Margen <span style={{color:util>=0?K.gold:K.red,fontWeight:700}}>{mrg}%</span>{ahorro>0&&<span style={{marginLeft:8}}>· Ahorro <span style={{color:K.blue,fontWeight:600}}>{fmt(ahorro)}</span></span>}</div>
         </div>
@@ -510,6 +568,8 @@ function Home({db,onRefresh,loading,lastSync}){
         </div>
 
 
+        {/* === INICIO 2 COLUMNAS EN DESKTOP === */}
+        <div className="ac-desktop-2col">
         {/* Top Clientes del Mes */}
         {top5.length>0&&(
           <div style={{marginBottom:10}}>
@@ -587,6 +647,7 @@ function Home({db,onRefresh,loading,lastSync}){
           </div>
         )}
 
+        </div>{/* fin ac-desktop-2col */}
         <div style={{textAlign:"center",fontSize:10,color:K.muted,paddingBottom:8,marginTop:4}}>
           {db.ingresos.length} ingresos · {db.gastos.length} gastos
         </div>
@@ -665,7 +726,7 @@ function NuevoMovimiento({onSaveIngreso,onSaveGasto,clientes}){
 // ═══ INGRESO BLOQUE FORM ══════════════════════════════════════════
 // Registro rápido de múltiples ventas en una sola entrada.
 // Cada fila = un producto vendido a un cliente por un proveedor.
-function IngresoBloqueForm({onSave}){
+function IngresoBloqueForm({onSave,clientes=[]}){
   const [filas,setFilas]=useState([{id:1,producto:"",cliente:"",proveedor:"",costo:"",precio:""}]);
   const [saving,setSaving]=useState(false);
   const [ok,setOk]=useState(false);
@@ -690,7 +751,7 @@ function IngresoBloqueForm({onSave}){
         const mrg=pv>0?(gan/pv*100).toFixed(1):0;
         const trim=s=>String(s||"").toUpperCase().trim();
         const item={fecha:new Date().toISOString(),tipo:"VENTA",producto:trim(f.producto),cliente:trim(f.cliente),proveedor:trim(f.proveedor),costo,precioVenta:pv,debe:"NO",ganancia:gan,margen:mrg+"%"};
-        await onSave(ingresoToRow(item));
+        await onSave(item);
       }
       setFilas([{id:nextId+1,producto:"",cliente:"",proveedor:"",costo:"",precio:""}]);
       setOk(true);setTimeout(()=>setOk(false),2500);
@@ -941,17 +1002,16 @@ function EditGasto({item,onClose,onSave,onDelete}){
 function GraficoCircular({datos,colores,total}){
   if(!datos||datos.length===0||total===0)return null;
   const R=40,CX=50,CY=50;
-  const slices=datos.reduce((acc,[cat,val],i)=>{
-    const startAng=acc.ang;
+  let ang=-Math.PI/2;
+  const slices=datos.map(([cat,val],i)=>{
     const pct=val/total;
-    const endAng=startAng+pct*2*Math.PI;
+    const startAng=ang;
+    ang+=pct*2*Math.PI;
     const x1=CX+R*Math.cos(startAng),y1=CY+R*Math.sin(startAng);
-    const x2=CX+R*Math.cos(endAng),y2=CY+R*Math.sin(endAng);
+    const x2=CX+R*Math.cos(ang),y2=CY+R*Math.sin(ang);
     const large=pct>0.5?1:0;
-    acc.slices.push({cat,val,pct,x1,y1,x2,y2,large,col:colores[i%colores.length]});
-    acc.ang=endAng;
-    return acc;
-  },{ang:-Math.PI/2,slices:[]}).slices;
+    return{cat,val,pct,x1,y1,x2,y2,large,col:colores[i%colores.length]};
+  });
   return(
     <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:12,background:K.bg,borderRadius:DS.r.md,padding:10}}>
       <svg viewBox="0 0 100 100" width={80} height={80} style={{flexShrink:0}}>
@@ -983,7 +1043,8 @@ function Historial({db,onEditIngreso,onEditGasto}){
   const months=[...new Set([...db.ingresos.map(i=>mKey(i.fecha)),...db.gastos.map(g=>mKey(g.fecha))].filter(Boolean))].sort().reverse();
   return(
     <div style={{padding:"24px 16px 0"}}>
-      <div style={{fontSize:28,fontWeight:700,letterSpacing:-.5,marginBottom:16,color:K.text}}>Historial</div>
+      <div style={{fontSize:26,fontWeight:700,letterSpacing:-.5,color:K.text}}>Historial Anual</div>
+      <div style={{fontSize:13,color:K.muted,marginTop:2,marginBottom:16}}>2026</div>
       {months.map(m=>{
         const ing=db.ingresos.filter(i=>mKey(i.fecha)===m&&cuentaParaTotales(i));
         const gas=db.gastos.filter(g=>mKey(g.fecha)===m);
@@ -1036,28 +1097,28 @@ function Historial({db,onEditIngreso,onEditGasto}){
                 <input value={buscar} onChange={e=>setBuscar(e.target.value)} placeholder="🔍 Buscar..." style={{width:"100%",background:K.bg,border:`1px solid ${K.border}`,borderRadius:DS.r.sm,color:K.text,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box",marginBottom:10}}/>
                 <div style={{display:"flex",gap:6,marginBottom:10}}>
                   {[["ingresos","Ingresos",K.gold],["gastos","Gastos",K.red]].map(([v,l,col])=>(
-                    <button key={v} onClick={()=>{setFilter(v);setCategFiltro(null);}} style={{flex:1,background:filter===v?`${col}22`:"transparent",border:`1px solid ${filter===v?col:K.border}`,color:filter===v?col:K.muted,borderRadius:DS.r.sm,padding:"6px 0",fontSize:11,fontWeight:700,cursor:"pointer",WebkitTapHighlightColor:"transparent"}}>{l}</button>
+                    <button key={v} onClick={()=>{setFilter(v);setCategFiltro(null);}} style={{flex:1,background:filter===v?`${col}22`:"transparent",border:`1px solid ${filter===v?col:K.border}`,color:filter===v?col:K.muted,borderRadius:DS.r.sm,padding:"6px 0",fontSize:11,fontWeight:600,cursor:"pointer",WebkitTapHighlightColor:"transparent"}}>{l}</button>
                   ))}
                 </div>
-
                 {/* Controles extra para gastos */}
                 {filter==="gastos"&&gastos>0&&(
                   <>
-                    {/* Gráfico circular por categoría */}
                     <GraficoCircular datos={catEntries} colores={PIE_COLORS} total={gastos}/>
-                    {/* Filtro categoría */}
-                    <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:8}}>
-                      <button onClick={()=>setCategFiltro(null)} style={{background:!categFiltro?K.gold:"transparent",border:`1px solid ${!categFiltro?K.gold:K.border}`,color:!categFiltro?"#000":K.muted,borderRadius:DS.r.sm,padding:"3px 8px",fontSize:10,fontWeight:600,cursor:"pointer",WebkitTapHighlightColor:"transparent"}}>Todos</button>
-                      {categDisponibles.map((c,ci)=>(
-                        <button key={c} onClick={()=>setCategFiltro(c===categFiltro?null:c)} style={{background:categFiltro===c?PIE_COLORS[ci%PIE_COLORS.length]:"transparent",border:`1px solid ${categFiltro===c?PIE_COLORS[ci%PIE_COLORS.length]:K.border}`,color:categFiltro===c?"#000":K.muted,borderRadius:DS.r.sm,padding:"3px 8px",fontSize:10,fontWeight:600,cursor:"pointer",WebkitTapHighlightColor:"transparent"}}>{c}</button>
-                      ))}
-                    </div>
-                    {/* Ordenar */}
-                    <div style={{display:"flex",gap:4,marginBottom:10}}>
-                      <span style={{fontSize:10,color:K.muted,alignSelf:"center"}}>Ordenar:</span>
-                      {[["fecha","Fecha"],["monto","Monto"]].map(([v,l])=>(
-                        <button key={v} onClick={()=>setOrden(v)} style={{background:orden===v?K.card3:"transparent",border:`1px solid ${orden===v?K.border:K.border}`,color:orden===v?K.text:K.muted,borderRadius:DS.r.sm,padding:"3px 10px",fontSize:10,fontWeight:orden===v?700:400,cursor:"pointer",WebkitTapHighlightColor:"transparent"}}>{l}</button>
-                      ))}
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
+                      <div style={{position:"relative"}}>
+                        <select value={categFiltro||""} onChange={e=>setCategFiltro(e.target.value||null)} style={{width:"100%",background:K.card3,border:`1px solid ${categFiltro?K.gold:K.border}`,borderRadius:DS.r.sm,color:categFiltro?K.gold:K.text,padding:"9px 28px 9px 10px",fontSize:12,outline:"none",WebkitAppearance:"none",appearance:"none",cursor:"pointer"}}>
+                          <option value="">Todas las categorías</option>
+                          {categDisponibles.map(cat=><option key={cat} value={cat} style={{background:K.card,color:K.text}}>{cat}</option>)}
+                        </select>
+                        <span style={{position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",color:K.muted,pointerEvents:"none",fontSize:10}}>▾</span>
+                      </div>
+                      <div style={{position:"relative"}}>
+                        <select value={orden} onChange={e=>setOrden(e.target.value)} style={{width:"100%",background:K.card3,border:`1px solid ${K.border}`,borderRadius:DS.r.sm,color:K.text,padding:"9px 28px 9px 10px",fontSize:12,outline:"none",WebkitAppearance:"none",appearance:"none",cursor:"pointer"}}>
+                          <option value="fecha">Más reciente</option>
+                          <option value="monto">Mayor monto</option>
+                        </select>
+                        <span style={{position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",color:K.muted,pointerEvents:"none",fontSize:10}}>▾</span>
+                      </div>
                     </div>
                   </>
                 )}
@@ -1215,6 +1276,7 @@ function SwipeableVenta({v,debe,onEdit,onToggleDebe,isLast}){
     if(dx>THRESHOLD){ onToggleDebe("SI"); }  // → marcar DEBE
   };
 
+  const action=offsetX<-THRESHOLD?"NO DEBE":offsetX>THRESHOLD?"DEBE":null;
   const actionColor=offsetX<-THRESHOLD?K.green:K.red;
 
   return(
@@ -1274,7 +1336,7 @@ function Clientes({db,onEditIngreso,onMarcarPagado,onRegistrarAbono}){
   const [letraFiltro,setLetraFiltro]=useState(null);
   const [mesSel,setMesSel]=useState("todos");
   const [pagina,setPagina]=useState(1);
-  const PORPAGINA=15;
+  const PORPAGINA=10;
   const [abonoAbierto,setAbonoAbierto]=useState(false);
   const map={};
   db.ingresos.filter(cuentaParaListaClientes).forEach(i=>{
@@ -1309,10 +1371,9 @@ function Clientes({db,onEditIngreso,onMarcarPagado,onRegistrarAbono}){
   const totalPaginas=Math.max(1,Math.ceil(lista.length/PORPAGINA));
   const paginaSegura=Math.min(pagina,totalPaginas);
   const listaPagina=lista.slice((paginaSegura-1)*PORPAGINA,paginaSegura*PORPAGINA);
-  const [nowTs]=useState(()=>Date.now());
 
   if(sel){
-    const{ventas}=map[sel]||{ventas:[]};
+    const{ventas,gan}=map[sel]||{ventas:[],gan:0};
     const meses=[...new Set(ventas.map(v=>mKey(v.fecha)))].sort().reverse();
     const ventasFiltradas=mesSel==="todos"?ventas:ventas.filter(v=>mKey(v.fecha)===mesSel);
     const tv=ventasFiltradas.reduce((s,v)=>s+v.precioVenta,0);
@@ -1320,7 +1381,7 @@ function Clientes({db,onEditIngreso,onMarcarPagado,onRegistrarAbono}){
     const abonos=map[sel]?.abonos||0;
     // Días desde la deuda más antigua sin pagar
     const ventasDeudorasAll=ventas.filter(v=>v.debe==="SI");
-    const diasDebe=ventasDeudorasAll.length>0?Math.floor((nowTs-new Date(ventasDeudorasAll.sort((a,b)=>new Date(a.fecha)-new Date(b.fecha))[0].fecha))/(1000*60*60*24)):null;
+    const diasDebe=ventasDeudorasAll.length>0?Math.floor((Date.now()-new Date(ventasDeudorasAll.sort((a,b)=>new Date(a.fecha)-new Date(b.fecha))[0].fecha))/(1000*60*60*24)):null;
     return(
       <div>
         <button onClick={()=>{setSel(null);setMesSel("todos");}} style={{background:"none",border:"none",color:K.gold,fontSize:13,fontWeight:600,cursor:"pointer",marginBottom:14,padding:0}}>← Volver</button>
@@ -1355,24 +1416,50 @@ function Clientes({db,onEditIngreso,onMarcarPagado,onRegistrarAbono}){
             {abonoAbierto&&<AbonoModal cliente={sel} abonosActuales={abonos} onClose={()=>setAbonoAbierto(false)} onRegistrar={onRegistrarAbono}/>}
           </>
         )}
-        {/* Reporte del cliente con filtro de mes */}
-        <ReporteClienteBtn cliente={sel} ventas={ventasFiltradas} mes={mesSel} meses={meses} onChangeMes={setMesSel}/>
+        {/* Selector de período */}
+        {meses.length>1&&(
+          <div style={{marginBottom:10}}>
+            <div style={{position:"relative"}}>
+              <select value={mesSel} onChange={e=>setMesSel(e.target.value)} style={{width:"100%",background:K.card3,border:`1px solid ${mesSel!=="todos"?K.gold:K.border}`,borderRadius:DS.r.md,color:mesSel!=="todos"?K.gold:K.text,padding:"11px 34px 11px 14px",fontSize:14,outline:"none",WebkitAppearance:"none",appearance:"none",cursor:"pointer"}}>
+                {["todos",...meses.filter(m=>m!=="todos")].map(m=><option key={m} value={m} style={{background:K.card,color:K.text}}>{m==="todos"?"Todos los períodos":mLabel(m)}</option>)}
+              </select>
+              <span style={{position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",color:K.muted,pointerEvents:"none"}}>▾</span>
+            </div>
+          </div>
+        )}
         {/* Stats del periodo */}
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
           <Card s={{marginBottom:0}} ch={<><div style={{fontSize:9,color:K.muted,marginBottom:2,textTransform:"uppercase",letterSpacing:.8}}>Total ventas</div><div style={{fontSize:18,fontWeight:700,color:K.gold}}>{fmt(tv)}</div></>}/>
           <Card s={{marginBottom:0}} ch={<><div style={{fontSize:9,color:K.muted,marginBottom:2,textTransform:"uppercase",letterSpacing:.8}}>Ganancia</div><div style={{fontSize:18,fontWeight:700,color:K.green}}>{fmt(ganF)}</div></>}/>
         </div>
-        {/* Historial con swipe */}
-        <Card ch={<>
-          <div style={{fontSize:10,color:K.gold,textTransform:"uppercase",letterSpacing:1.5,marginBottom:10,fontWeight:700}}>Historial ({ventasFiltradas.length}) · desliza para cambiar deuda</div>
-          {ventasFiltradas.length===0&&<div style={{textAlign:"center",color:K.muted,padding:16,fontSize:13}}>Sin compras este período</div>}
-          {ventasFiltradas.sort((a,b)=>new Date(b.fecha)-new Date(a.fecha)).map((v,i,arr)=>{
-            const debe=v.debe==="SI";
-            return <SwipeableVenta key={v._row||i} v={v} debe={debe} onEdit={()=>onEditIngreso(v)} onToggleDebe={(estado)=>onMarcarPagado([v],estado)} isLast={i===arr.length-1}/>;
-          })}
-        </>}/>
-        {/* Factura de deuda — SIEMPRE al final, no desaparece con filtros */}
-        <DeudaFactura cliente={sel} ventasDeudoras={ventas.filter(v=>v.debe==="SI")}/>
+        {/* Historial con swipe — paginado */}
+        {(()=>{
+          const [pagH,setPagH]=useState(1);
+          const sortedV=[...ventasFiltradas].sort((a,b)=>new Date(b.fecha)-new Date(a.fecha));
+          const totalPH=Math.max(1,Math.ceil(sortedV.length/10));
+          const sliceV=sortedV.slice((Math.min(pagH,totalPH)-1)*10,Math.min(pagH,totalPH)*10);
+          return(
+            <Card ch={<>
+              <div style={{fontSize:10,color:K.gold,textTransform:"uppercase",letterSpacing:1.5,marginBottom:10,fontWeight:700}}>Historial ({ventasFiltradas.length}) · desliza para cambiar deuda</div>
+              {sliceV.length===0&&<div style={{textAlign:"center",color:K.muted,padding:16,fontSize:13}}>Sin compras este período</div>}
+              {sliceV.map((v,i,arr)=>{
+                const debe=v.debe==="SI";
+                return <SwipeableVenta key={v._row||i} v={v} debe={debe} onEdit={()=>onEditIngreso(v)} onToggleDebe={(estado)=>onMarcarPagado([v],estado)} isLast={i===arr.length-1}/>;
+              })}
+              {totalPH>1&&(
+                <div style={{display:"flex",justifyContent:"center",alignItems:"center",gap:10,marginTop:12,paddingTop:10,borderTop:`1px solid ${K.border}`}}>
+                  <button onClick={()=>setPagH(p=>Math.max(1,p-1))} disabled={pagH<=1} style={{background:"none",border:`1px solid ${K.border}`,color:pagH<=1?K.muted:K.text,borderRadius:8,padding:"5px 12px",fontSize:12,cursor:"pointer",opacity:pagH<=1?.4:1}}>‹</button>
+                  <span style={{fontSize:11,color:K.muted}}>{Math.min(pagH,totalPH)}/{totalPH}</span>
+                  <button onClick={()=>setPagH(p=>Math.min(totalPH,p+1))} disabled={pagH>=totalPH} style={{background:"none",border:`1px solid ${K.border}`,color:pagH>=totalPH?K.muted:K.text,borderRadius:8,padding:"5px 12px",fontSize:12,cursor:"pointer",opacity:pagH>=totalPH?.4:1}}>›</button>
+                </div>
+              )}
+            </>}/>
+          );
+        })()}
+        {/* Factura de deuda — siempre al final con abonos */}
+        <DeudaFactura cliente={sel} ventasDeudoras={ventas.filter(v=>v.debe==="SI")} abonos={abonos}/>
+        {/* Reporte — AL FINAL, solo si hay deuda */}
+        <ReporteClienteBtn cliente={sel} ventasDeudoras={ventas.filter(v=>v.debe==="SI")} abonos={abonos}/>
       </div>
     );
   }
@@ -1439,6 +1526,123 @@ function Clientes({db,onEditIngreso,onMarcarPagado,onRegistrarAbono}){
 // ═══ CONFIGURACIÓN ════════════════════════════════════════════════
 // Panel de ajustes dentro de Más. Por ahora: info de la app, cerrar sesión.
 // Diseñado para crecer: aquí irán preferencias de diseño, notificaciones, etc.
+// ═══ ANÁLISIS IA ══════════════════════════════════════════════════
+// Envía datos del negocio a Claude y hace preguntas específicas.
+// No requiere API key del usuario: usa el endpoint de Anthropic del artefacto.
+function AnalisisIA({db}){
+  const [pregunta,setPregunta]=useState("");
+  const [respuesta,setRespuesta]=useState("");
+  const [cargando,setCargando]=useState(false);
+  const [err,setErr]=useState(null);
+
+  // Construir resumen del negocio para el contexto de la IA
+  const buildContext=()=>{
+    const ing=db.ingresos.filter(cuentaParaTotales);
+    const gas=db.gastos;
+    const m=curM();
+    const ingMes=ing.filter(i=>mKey(i.fecha)===m);
+    const gasMes=gas.filter(g=>mKey(g.fecha)===m);
+    const ventas=ingMes.reduce((s,i)=>s+i.precioVenta,0);
+    const gan=ingMes.reduce((s,i)=>s+i.ganancia,0);
+    const gastosMes=gasMes.reduce((s,g)=>s+g.costo,0);
+    const util=gan-gastosMes;
+    const clientesDeuda=(db.clientesResumen||[]).filter(c=>c.debe==="SI");
+    const totalDeuda=clientesDeuda.reduce((s,c)=>s+(c.deudaTotal||c.saldo||0),0);
+    const topClientes=Object.entries(
+      ingMes.filter(i=>i.tipo==="VENTA").reduce((m,i)=>{
+        const k=i.cliente.toUpperCase().trim();
+        if(!m[k])m[k]=0; m[k]+=i.ganancia; return m;
+      },{})
+    ).sort((a,b)=>b[1]-a[1]).slice(0,5);
+
+    return `Eres el analista financiero y estratega de ALTACLASE BODEGA, una operación B2B de zapatillas réplica en Colombia.
+
+DATOS DEL MES ACTUAL (${mLabel(m)}):
+- Ventas totales: $${ventas.toLocaleString("es-CO")} COP
+- Ganancia bruta: $${gan.toLocaleString("es-CO")} COP  
+- Gastos: $${gastosMes.toLocaleString("es-CO")} COP
+- Utilidad neta: $${util.toLocaleString("es-CO")} COP
+- Margen: ${ventas>0?(util/ventas*100).toFixed(1):0}%
+- Total registros este mes: ${ingMes.length} ingresos, ${gasMes.length} gastos
+
+CLIENTES EN DEUDA: ${clientesDeuda.length} clientes deben un total de $${totalDeuda.toLocaleString("es-CO")} COP
+
+TOP 5 CLIENTES POR GANANCIA ESTE MES:
+${topClientes.map(([n,g],i)=>`${i+1}. ${n}: $${g.toLocaleString("es-CO")}`).join("\n")}
+
+OPERACIÓN: Solo zapatillas réplica B2B. Sin inventario. Trabajo solo. WhatsApp como canal principal. Margen promedio $30.000/par.
+
+Responde de forma concisa, práctica y directa. Sin rodeos. En español.`;
+  };
+
+  const preguntas_rapidas=[
+    "¿Cómo va el mes comparado con la tendencia?",
+    "¿Qué clientes debo priorizar para cobrar?",
+    "¿Dónde están mis fugas de dinero?",
+    "Dame 3 acciones concretas para mejorar el margen",
+    "¿Estoy en camino de mejorar vs el mes pasado?",
+  ];
+
+  const consultar=async(q)=>{
+    const query=q||pregunta.trim();
+    if(!query)return;
+    setCargando(true);setErr(null);setRespuesta("");
+    try{
+      const res=await fetch("https://api.anthropic.com/v1/messages",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          model:"claude-sonnet-4-6",
+          max_tokens:1000,
+          system:buildContext(),
+          messages:[{role:"user",content:query}],
+        }),
+      });
+      const data=await res.json();
+      if(data.error)throw new Error(data.error.message);
+      const texto=data.content?.find(b=>b.type==="text")?.text||"Sin respuesta";
+      setRespuesta(texto);
+    }catch(e){
+      setErr("Error al consultar IA: "+e.message);
+    }finally{
+      setCargando(false);
+    }
+  };
+
+  return(
+    <div style={{padding:"0 0 16px"}}>
+      <Card s={{marginBottom:12}} ch={<>
+        <div style={{fontSize:11,color:K.muted,textTransform:"uppercase",letterSpacing:.5,fontWeight:600,marginBottom:8}}>Preguntas rápidas</div>
+        <div style={{display:"flex",flexDirection:"column",gap:6}}>
+          {preguntas_rapidas.map(p=>(
+            <button key={p} onClick={()=>consultar(p)} disabled={cargando} style={{background:K.card3,border:`1px solid ${K.border}`,borderRadius:DS.r.sm,padding:"9px 12px",color:K.text,fontSize:12,cursor:cargando?"not-allowed":"pointer",textAlign:"left",WebkitTapHighlightColor:"transparent",opacity:cargando?.5:1}}>
+              {p}
+            </button>
+          ))}
+        </div>
+      </>}/>
+      <Card s={{marginBottom:12}} ch={<>
+        <div style={{fontSize:11,color:K.muted,textTransform:"uppercase",letterSpacing:.5,fontWeight:600,marginBottom:8}}>Pregunta libre</div>
+        <textarea
+          value={pregunta}
+          onChange={e=>setPregunta(e.target.value)}
+          placeholder="¿Qué quieres analizar de tu negocio?"
+          rows={3}
+          style={{width:"100%",background:K.card3,border:`1px solid ${K.border}`,borderRadius:DS.r.sm,color:K.text,padding:"12px",fontSize:14,outline:"none",resize:"none",boxSizing:"border-box",marginBottom:10,WebkitAppearance:"none"}}
+        />
+        <Btn label={cargando?"Analizando...":"Consultar IA"} onClick={()=>consultar()} loading={cargando} dis={!pregunta.trim()}/>
+      </>}/>
+      {err&&<div style={{color:K.red,fontSize:12,padding:"10px 14px",background:`${K.red}12`,borderRadius:DS.r.sm,marginBottom:10}}>{err}</div>}
+      {respuesta&&(
+        <Card ch={<>
+          <div style={{fontSize:11,color:K.gold,textTransform:"uppercase",letterSpacing:.5,fontWeight:600,marginBottom:10}}>Análisis IA</div>
+          <div style={{fontSize:14,color:K.text,lineHeight:1.6,whiteSpace:"pre-wrap"}}>{respuesta}</div>
+        </>}/>
+      )}
+    </div>
+  );
+}
+
 function Configuracion(){
   const [accentId,setAccentId]=useState(()=>localStorage.getItem(ACCENT_KEY)||"gold");
   const cerrar=()=>{localStorage.removeItem(LS_AUTH_KEY);window.location.reload();};
@@ -1519,101 +1723,115 @@ function Configuracion(){
 // Genera un resumen de un cliente específico filtrado por mes,
 // listo para copiar y compartir por WhatsApp.
 // ═══ DEUDA FACTURA ════════════════════════════════════════════════
-// Muestra los productos que debe el cliente con fecha y valor.
-// Diseño de factura/invoice para imprimir o compartir.
-function DeudaFactura({cliente,ventasDeudoras}){
+function DeudaFactura({cliente,ventasDeudoras,abonos=0}){
   if(!ventasDeudoras||ventasDeudoras.length===0)return null;
-  const totalDebe=ventasDeudoras.reduce((s,v)=>s+v.precioVenta,0);
   const fmt2=n=>"$"+Number(n||0).toLocaleString("es-CO");
+  const totalBruto=ventasDeudoras.reduce((s,v)=>s+v.precioVenta,0);
+  const totalNeto=Math.max(0,totalBruto-abonos);
+  const sorted=[...ventasDeudoras].sort((a,b)=>new Date(b.fecha)-new Date(a.fecha));
+  const hoy=new Date();
+  const fechaStr=hoy.toLocaleDateString("es-CO",{day:"numeric",month:"long",year:"numeric"});
   return(
-    <div style={{background:K.card,borderRadius:16,padding:"16px",marginBottom:10,border:`1px solid ${K.border}`}}>
-      <div style={{fontSize:10,color:K.muted,textTransform:"uppercase",letterSpacing:1,marginBottom:8,fontWeight:600}}>Detalle de deuda</div>
-      
-      {/* Encabezado tipo invoice */}
+    <div style={{background:K.card,borderRadius:16,padding:"16px",marginBottom:10,border:`1px solid ${K.red}33`}}>
+      {/* Header factura */}
       <div style={{borderBottom:`1px solid ${K.border}`,paddingBottom:10,marginBottom:10}}>
-        <div style={{fontSize:13,fontWeight:700,color:K.text,marginBottom:2}}>📋 Factura de cobro</div>
-        <div style={{fontSize:11,color:K.muted}}>Cliente: <span style={{color:K.text,fontWeight:600}}>{cliente}</span></div>
-        <div style={{fontSize:11,color:K.muted}}>Fecha: {new Date().toLocaleDateString("es-CO")}</div>
+        <div style={{fontSize:12,fontWeight:700,color:K.text,marginBottom:1}}>⚠️ Detalle de deuda pendiente</div>
+        <div style={{fontSize:11,color:K.muted,marginTop:3}}>
+          <span style={{fontWeight:700,color:K.text}}>{cliente}</span>  ·  {fechaStr}
+        </div>
       </div>
-
-      {/* Items */}
+      {/* Lista de productos */}
       <div style={{marginBottom:10}}>
-        {ventasDeudoras.map((v,i)=>(
-          <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",paddingBottom:8,marginBottom:i<ventasDeudoras.length-1?8:0,borderBottom:i<ventasDeudoras.length-1?`0.5px solid ${K.border}`:"none"}}>
-            <div style={{flex:1,minWidth:0}}>
-              <div style={{fontSize:13,fontWeight:600,color:K.text,marginBottom:2}}>{v.producto}</div>
-              <div style={{fontSize:11,color:K.muted}}>{fDate(v.fecha)}</div>
+        {sorted.map((v,i)=>{
+          const d=new Date(v.fecha);
+          const fStr=`${d.getDate()}/${d.getMonth()+1}`;
+          return(
+            <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingBottom:7,marginBottom:i<sorted.length-1?7:0,borderBottom:i<sorted.length-1?`0.5px solid ${K.border}`:"none"}}>
+              <div style={{flex:1,minWidth:0}}>
+                <span style={{fontSize:11,color:K.muted,marginRight:6}}>{fStr}</span>
+                <span style={{fontSize:13,fontWeight:600,color:K.text}}>{v.producto}</span>
+              </div>
+              <div style={{fontSize:13,fontWeight:700,color:K.red,flexShrink:0}}>{fmt2(v.precioVenta)}</div>
             </div>
-            <div style={{textAlign:"right",marginLeft:10,flexShrink:0}}>
-              <div style={{fontSize:13,fontWeight:700,color:K.red}}>{fmt2(v.precioVenta)}</div>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
-
-      {/* Total */}
-      <div style={{background:K.card2,borderRadius:DS.r.sm,padding:"10px 12px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-        <span style={{fontSize:13,fontWeight:700,color:K.text}}>Total a cobrar</span>
-        <span style={{fontSize:16,fontWeight:700,color:K.red}}>{fmt2(totalDebe)}</span>
+      {/* Abonos si existen */}
+      {abonos>0&&(
+        <div style={{display:"flex",justifyContent:"space-between",padding:"7px 10px",background:`${K.green}12`,borderRadius:8,marginBottom:8}}>
+          <span style={{fontSize:12,color:K.green}}>Abonos realizados</span>
+          <span style={{fontSize:12,fontWeight:700,color:K.green}}>- {fmt2(abonos)}</span>
+        </div>
+      )}
+      {/* Total neto */}
+      <div style={{background:K.card2,borderRadius:DS.r.sm,padding:"10px 14px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <span style={{fontSize:13,fontWeight:700,color:K.text}}>Total deuda</span>
+        <span style={{fontSize:17,fontWeight:700,color:K.red}}>{fmt2(totalNeto)}</span>
       </div>
     </div>
   );
 }
 
-function ReporteClienteBtn({cliente,ventas,mes,meses=[],onChangeMes}){
+// recibe ventasDeudoras (todas las deudas, no filtradas) y abonos
+function ReporteClienteBtn({cliente,ventasDeudoras=[],abonos=0}){
   const [copiado,setCopiado]=useState(false);
   const fmt2=n=>"$"+Number(n||0).toLocaleString("es-CO");
-  const ventasMes=mes==="todos"?ventas:ventas.filter(v=>mKey(v.fecha)===mes);
+  if(ventasDeudoras.length===0)return null;
   const generar=()=>{
-    if(ventasMes.length===0)return;
     const hoy=new Date();
-    const fechaStr=hoy.toLocaleDateString("es-CO",{day:"2-digit",month:"long",year:"numeric"});
-    // Ventas solo del mes en curso si hay filtro, sino del mes actual
-    const mesActual=curM();
-    const ventasMesActual=ventasMes.filter(v=>mKey(v.fecha)===mesActual);
-    const totalVMes=ventasMesActual.reduce((s,v)=>s+v.precioVenta,0);
-    const deben=ventasMes.filter(v=>v.debe==="SI");
-    const totalDebe=deben.reduce((s,v)=>s+v.precioVenta,0);
+    const fechaStr=hoy.toLocaleDateString("es-CO",{day:"numeric",month:"long",year:"numeric"});
+    const sorted=[...ventasDeudoras].sort((a,b)=>new Date(b.fecha)-new Date(a.fecha));
+    const totalBruto=sorted.reduce((s,v)=>s+v.precioVenta,0);
+    const totalNeto=Math.max(0,totalBruto-abonos);
     const lineas=[
-      `📋 REPORTE ACTUALIZADO CLIENTE:`,
-      `${cliente}`,
+      `📋 *REPORTE ACTUALIZADO CLIENTE:*`,
+      `      *• ${cliente}*`,
       `📅 ${fechaStr}`,
       ``,
-      `🛍 Compras: ${ventasMesActual.length} pedido${ventasMesActual.length!==1?"s":""} este mes`,
-      `💰 Total vendido mes: ${fmt2(totalVMes)}`,
+      `⚠️ *Productos en deuda a la fecha:*`,
     ];
-    if(deben.length>0){
-      lineas.push(`⚠️ Deuda Actual: ${fmt2(totalDebe)}`);
-      deben.forEach(v=>{
-        const f=new Date(v.fecha);
-        const fStr=`${f.getDate()}/${f.getMonth()+1}`;
-        lineas.push(`   • ${fStr} - ${v.producto} — ${fmt2(v.precioVenta)}`);
-      });
-    }
+    sorted.forEach(v=>{
+      const d=new Date(v.fecha);
+      const fStr=`${d.getDate()}/${d.getMonth()+1}`;
+      lineas.push(`• ${fStr} - ${v.producto} — ${fmt2(v.precioVenta)}`);
+    });
     lineas.push(``);
-    lineas.push(`Cristhian Hurtado`);
-    lineas.push(`Altaclase Bodega`);
+    if(abonos>0)lineas.push(`✅ Abonos aplicados: ${fmt2(abonos)}`,``);
+    lineas.push(`*Total de deuda: ${fmt2(totalNeto)} COP*`);
+    lineas.push(``,`────────────────────────`,``);
+    lineas.push(`📌 *INFORMACIÓN PARA PAGOS:*`,``);
+    lineas.push(`Si vas a realizar una transferencia, puedes utilizar cualquiera de los siguientes datos:`,``);
+    lineas.push(`🏦 Banco:
+Bancolombia`,``);
+    lineas.push(`👤 Titular:
+CRISTHIAN HURTADO`,``);
+    lineas.push(`💳 Cuenta de ahorros:
+74500048704`,``);
+    lineas.push(`⚡ Llave Bre-B:
+@cristhianh7600`,``);
+    lineas.push(`Una vez realizado el pago o abono, envía el comprobante para registrar el abono y mantener tu estado de cuenta actualizado.`,``);
+    lineas.push(`CRISTHIAN HURTADO
+ALTACLASE BODEGA
+CALI - COLOMBIA`);
     const texto=lineas.join("\n");
     if(navigator.clipboard?.writeText){
-      navigator.clipboard.writeText(texto).then(()=>{setCopiado(true);setTimeout(()=>setCopiado(false),2500);});
+      navigator.clipboard.writeText(texto).then(()=>{setCopiado(true);setTimeout(()=>setCopiado(false),3000);});
     }else{
       const el=document.createElement("textarea");
       el.value=texto;el.style.cssText="position:fixed;opacity:0";
       document.body.appendChild(el);el.select();
       document.execCommand("copy");document.body.removeChild(el);
-      setCopiado(true);setTimeout(()=>setCopiado(false),2500);
+      setCopiado(true);setTimeout(()=>setCopiado(false),3000);
     }
   };
   return(
-    <div style={{marginBottom:10}}>
-      {meses.length>1&&(
-        <ChipGroup label="Período" options={meses} value={mes} onChange={onChangeMes} colorMap={{todos:K.gold}}/>
-      )}
-      <button onClick={generar} disabled={ventasMes.length===0} style={{width:"100%",background:copiado?"#1C2A1C":K.card2,border:`1px solid ${copiado?K.green:K.border}`,borderRadius:DS.r.md,padding:"12px 14px",cursor:ventasMes.length===0?"not-allowed":"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",opacity:ventasMes.length===0?.4:1,WebkitTapHighlightColor:"transparent",transition:"all .2s"}}>
-        <span style={{fontSize:13,fontWeight:600,color:copiado?K.green:K.muted}}>{copiado?"✓ Reporte copiado":"📋 Generar reporte del cliente"}</span>
-        <span style={{fontSize:11,color:K.muted}}>Para WhatsApp</span>
-      </button>
-    </div>
+    <button onClick={generar} style={{width:"100%",background:copiado?`${K.green}15`:K.card2,border:`1.5px solid ${copiado?K.green:K.border}`,borderRadius:DS.r.md,padding:"14px 16px",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10,WebkitTapHighlightColor:"transparent",transition:"all .2s"}}>
+      <div style={{textAlign:"left"}}>
+        <div style={{fontSize:13,fontWeight:700,color:copiado?K.green:K.text}}>{copiado?"✓ Copiado para WhatsApp":"📋 GENERAR REPORTE DE DEUDA"}</div>
+        <div style={{fontSize:10,color:K.muted,marginTop:2}}>Incluye datos de pago</div>
+      </div>
+      <span style={{fontSize:18,color:copiado?K.green:K.muted,marginLeft:8}}>→</span>
+    </button>
   );
 }
 
@@ -1876,9 +2094,9 @@ function HistorialTab({db,onEditIngreso,onEditGasto}){
   );
 }
 
-function Mas({db,onEditIngreso,onEditGasto,onAddInv,onEditInv,onDeleteInv,onAddDeuda,onEditDeuda,onDeleteDeuda}){
+function Mas({db,onEditIngreso,onEditGasto,onMarcarPagado,onRegistrarAbono,onAddInv,onEditInv,onDeleteInv,onAddDeuda,onEditDeuda,onDeleteDeuda}){
   const [v,setV]=useState("clientes");
-  const tabs=[["buscar","🔍","Buscar"],["inv","📦","Inventario"],["personal","📓","Personal"],["config","⚙️","Config"]];
+  const tabs=[["buscar","🔍","Buscar"],["ia","🤖","Análisis IA"],["inv","📦","Inventario"],["personal","📓","Personal"],["config","⚙️","Config"]];
   return(
     <div style={{padding:"24px 16px 0"}}>
       <div style={{fontSize:20,fontWeight:700,marginBottom:14}}>Más</div>
@@ -1893,6 +2111,7 @@ function Mas({db,onEditIngreso,onEditGasto,onAddInv,onEditInv,onDeleteInv,onAddD
       {v==="buscar"&&<BusquedaGlobal db={db} onEditIngreso={onEditIngreso} onEditGasto={onEditGasto}/>}
       {v==="inv"&&<Inventario db={db} onAdd={onAddInv} onEdit={onEditInv} onDelete={onDeleteInv}/>}
       {v==="personal"&&<Personal db={db} onAdd={onAddDeuda} onEdit={onEditDeuda} onDelete={onDeleteDeuda}/>}
+      {v==="ia"&&<AnalisisIA db={db}/>}
       {v==="config"&&<Configuracion/>}
     </div>
   );
@@ -2026,7 +2245,7 @@ export default function App(){
       clearTimeout(inactivityRef.current);
       events.forEach(e=>window.removeEventListener(e,reset));
     };
-  },[autenticado,cerrarSesion,INACTIVITY_MS]);
+  },[autenticado,cerrarSesion]);
 
   const flash=(msg,col=K.gold)=>{setToast({msg,col});setTimeout(()=>setToast(null),2500)};
 
@@ -2066,7 +2285,6 @@ export default function App(){
   },[]);
 
   // Carga inicial
-  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(()=>{if(autenticado)loadData(false);},[loadData,autenticado]);
 
   // Auto-sync cada 2 minutos en segundo plano, y al volver a la pestaña/app
@@ -2200,33 +2418,39 @@ export default function App(){
     );
   }
 
+  const acc=K.gold;
   return(
+    <>
+    <style>{`
+      html,body{margin:0;padding:0;background:#0D0D12;width:100%;max-width:100vw;overflow-x:hidden;overscroll-behavior:none;}
+      *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+      .ac-sidebar{display:none;flex-direction:column;width:220px;min-height:100dvh;
+        background:rgba(22,22,30,.97);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+        border-right:1px solid rgba(255,255,255,.07);padding:48px 16px 24px;
+        position:fixed;top:0;left:0;bottom:0;z-index:100;}
+      .ac-main-inner{width:100%;max-width:430px;margin:0 auto;}
+      .ac-nav{position:fixed;bottom:0;left:0;right:0;display:flex;z-index:200;
+        background:rgba(13,13,18,.95);backdrop-filter:blur(28px);-webkit-backdrop-filter:blur(28px);
+        border-top:1px solid rgba(255,255,255,.07);
+        padding-bottom:env(safe-area-inset-bottom,0px);}
+      .ac-fab{position:fixed;bottom:calc(78px + env(safe-area-inset-bottom,0px));right:20px;z-index:150;}
+      @media(min-width:768px){
+        .ac-sidebar{display:flex!important;}
+        .ac-main-inner{max-width:none!important;margin-left:0!important;}
+        .ac-nav{display:none!important;}
+        .ac-fab{right:32px!important;}
+        .ac-desktop-2col{display:grid!important;grid-template-columns:1fr 1fr!important;gap:16px!important;align-items:start!important;}
+      }
+    `}</style>
     <div style={{
       background:K.bg,minHeight:"100dvh",color:K.text,
-      fontFamily:"-apple-system,BlinkMacSystemFont,'SF Pro Display','SF Pro Text','Helvetica Neue',sans-serif",
-      WebkitFontSmoothing:"antialiased",MozOsxFontSmoothing:"grayscale",
+      fontFamily:"-apple-system,BlinkMacSystemFont,'SF Pro Display','Helvetica Neue',sans-serif",
+      WebkitFontSmoothing:"antialiased",width:"100%",overflowX:"hidden",
     }}>
-    {/* Vista desktop: sidebar + contenido. Mobile: solo columna */}
-    <div style={{
-      display:"flex",minHeight:"100dvh",
-      maxWidth:"100%",
-    }}>
-      {/* Sidebar desktop — solo visible en pantallas anchas */}
-      <div style={{
-        display:"none",
-        // Se activa con CSS media query simulado via style
-        ...(typeof window!=="undefined"&&window.innerWidth>=768?{
-          display:"flex",flexDirection:"column",
-          width:220,minHeight:"100dvh",
-          background:DS.glass,
-          backdropFilter:"blur(24px)",WebkitBackdropFilter:"blur(24px)",
-          borderRight:`1px solid ${K.border}`,
-          padding:"48px 16px 24px",
-          position:"fixed",top:0,left:0,bottom:0,
-          zIndex:100,
-        }:{}),
-      }}>
-        {typeof window!=="undefined"&&window.innerWidth>=768&&(<>
+    <div style={{display:"flex",minHeight:"100dvh"}}>
+      {/* Sidebar — desktop only via CSS class */}
+      <div className="ac-sidebar">
+        <>
           <div style={{marginBottom:32,padding:"0 8px"}}>
             <div style={{
               width:44,height:44,
@@ -2262,16 +2486,9 @@ export default function App(){
           })}
         </>)}
       </div>
-      {/* Contenido principal */}
-      <div style={{
-        flex:1,
-        maxWidth:430,
-        margin:"0 auto",
-        paddingBottom:"calc(60px + env(safe-area-inset-bottom,16px))",
-        ...(typeof window!=="undefined"&&window.innerWidth>=768?{
-          marginLeft:220,paddingBottom:0,maxWidth:"none",
-        }:{}),
-      }}>      {/* Toast premium */}
+      {/* Contenido principal — CSS controla el layout responsive */}
+      <div style={{flex:1,minWidth:0,overflowX:"hidden",paddingBottom:"calc(68px + env(safe-area-inset-bottom,0px))"}}>
+        <div className="ac-main-inner">      {/* Toast premium */}
       {toast&&(
         <div style={{
           position:"fixed",top:"max(24px, env(safe-area-inset-top, 24px))",
@@ -2344,50 +2561,38 @@ export default function App(){
         </div>
       )}
 
-      {/* Nav bar — glassmorphism premium */}
-      <div style={{
-        position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",
-        width:"100%",maxWidth:430,
-        background:"rgba(13,13,18,.92)",
-        backdropFilter:"blur(32px)",WebkitBackdropFilter:"blur(32px)",
-        borderTop:`1px solid rgba(255,255,255,.06)`,
-        display:"flex",zIndex:200,
-        paddingBottom:"env(safe-area-inset-bottom,0px)",
-        boxShadow:"0 -8px 32px rgba(0,0,0,.6)",
-      }}>
+      {/* Nav — CSS oculta en desktop */}
+      <nav className="ac-nav">
         {NAV.map(({id,label})=>{
           const active=tab===id;
-          const accent=K.gold;
-          return(
-            <button key={id} onClick={()=>setTab(id)} style={{flex:1,background:"none",border:"none",padding:"10px 0 13px",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3,WebkitTapHighlightColor:"transparent",transition:"opacity .15s"}}>
-              {id==="home"?(
-                <svg width="20" height="20" viewBox="0 0 24 24" fill={active?accent:"none"} stroke={active?accent:K.muted} strokeWidth="1.5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25"/>
-                </svg>
-              ):id==="clientes"?(
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={active?accent:K.muted} strokeWidth="1.5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"/>
-                </svg>
-              ):id==="historial"?(
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={active?accent:K.muted} strokeWidth="1.5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3m0 0l.5 1.5m-.5-1.5h-9.5m0 0l-.5 1.5"/>
-                </svg>
-              ):(
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={active?accent:K.muted} strokeWidth="1.5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"/>
-                </svg>
-              )}
-              <span style={{fontSize:10,fontWeight:active?600:400,color:active?accent:K.muted,letterSpacing:-.1}}>{id==="home"?"Inicio":label}</span>
-              {active&&<div style={{position:"absolute",bottom:0,width:3,height:3,borderRadius:"50%",background:accent}}/>}
-            </button>
-          );
+          const acc=K.gold;
+          const icons={
+            home:<svg width="20" height="20" viewBox="0 0 24 24" fill={active?acc:"none"} stroke={active?acc:K.muted} strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25"/></svg>,
+            clientes:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={active?acc:K.muted} strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"/></svg>,
+            historial:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={active?acc:K.muted} strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3"/></svg>,
+            mas:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={active?acc:K.muted} strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"/></svg>,
+          };
+          const labels={home:"Inicio",clientes:"Clientes",historial:"Historial",mas:"Más"};
+          return <button key={id} onClick={()=>setTab(id)} style={{flex:1,background:"none",border:"none",padding:"10px 0 12px",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:3,WebkitTapHighlightColor:"transparent"}}>
+            {icons[id]}
+            <span style={{fontSize:10,fontWeight:active?600:400,color:active?acc:K.muted}}>{labels[id]}</span>
+          </button>;
         })}
-      </div>
+      </nav>
+
+      {/* FAB — CSS posiciona correctamente */}
+      {(tab==="home"||tab==="clientes"||tab==="historial")&&(
+        <div className="ac-fab">
+          <button onClick={()=>setShowNuevo(true)} style={{width:56,height:56,background:K.gold,border:"none",borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:`0 4px 20px ${K.gold}50`,cursor:"pointer",fontSize:26,color:"#000",fontWeight:300,WebkitTapHighlightColor:"transparent"}}>+</button>
+        </div>
+      )}
 
       {editIng&&<EditIngreso item={editIng} onClose={()=>setEditIng(null)} onSave={updateIngreso} onDelete={removeIngreso}/>}
       {editGas&&<EditGasto item={editGas} onClose={()=>setEditGas(null)} onSave={updateGasto} onDelete={removeGasto}/>}
-    </div>
-    </div>
-    </div>
+        </div>{/* fin ac-main-inner */}
+      </div>{/* fin flex col */}
+    </div>{/* fin flex row */}
+    </div>{/* fin wrapper */}
+    </>
   );
 }
