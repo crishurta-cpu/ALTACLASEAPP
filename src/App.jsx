@@ -1335,6 +1335,7 @@ function Clientes({db,onEditIngreso,onMarcarPagado,onRegistrarAbono}){
   const [q,setQ]=useState("");
   const [letraFiltro,setLetraFiltro]=useState(null);
   const [mesSel,setMesSel]=useState("todos");
+  const [pagH,setPagH]=useState(1);
   const [pagina,setPagina]=useState(1);
   const PORPAGINA=10;
   const [abonoAbierto,setAbonoAbierto]=useState(false);
@@ -1434,7 +1435,7 @@ function Clientes({db,onEditIngreso,onMarcarPagado,onRegistrarAbono}){
         </div>
         {/* Historial con swipe — paginado */}
         {(()=>{
-          const [pagH,setPagH]=useState(1);
+          
           const sortedV=[...ventasFiltradas].sort((a,b)=>new Date(b.fecha)-new Date(a.fecha));
           const totalPH=Math.max(1,Math.ceil(sortedV.length/10));
           const sliceV=sortedV.slice((Math.min(pagH,totalPH)-1)*10,Math.min(pagH,totalPH)*10);
