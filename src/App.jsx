@@ -2483,8 +2483,8 @@ export default function App(){
                 <span style={{fontSize:13,fontWeight:active?600:400,color:active?K.gold:K.mutedLighter}}>{label}</span>
               </button>
             );
-          })}
-        </>)}
+                    })}
+        </>
       </div>
       {/* Contenido principal — CSS controla el layout responsive */}
       <div style={{flex:1,minWidth:0,overflowX:"hidden",paddingBottom:"calc(68px + env(safe-area-inset-bottom,0px))"}}>
