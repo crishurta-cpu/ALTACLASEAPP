@@ -2428,7 +2428,7 @@ export default function App(){
       .ac-sidebar{display:none;flex-direction:column;width:220px;min-height:100dvh;
         background:rgba(22,22,30,.97);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
         border-right:1px solid rgba(255,255,255,.07);padding:48px 16px 24px;
-        position:fixed;top:0;left:0;bottom:0;z-index:100;}
+        position:static;top:0;left:0;bottom:0;z-index:100;}
       .ac-main-inner{width:100%;max-width:430px;margin:0 auto;}
       .ac-nav{position:fixed;bottom:0;left:0;right:0;display:flex;z-index:200;
         background:rgba(13,13,18,.95);backdrop-filter:blur(28px);-webkit-backdrop-filter:blur(28px);
