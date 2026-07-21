@@ -1521,7 +1521,25 @@ function Clientes({db,onEditIngreso,onMarcarPagado,onRegistrarAbono}){
     </div>
   );
 }
+function Tareas({ db }) {
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold">📝 Tareas</h2>
 
+        <button className="px-4 py-2 rounded-xl bg-black text-white">
+          + Nueva tarea
+        </button>
+      </div>
+
+      <div className="bg-white rounded-2xl shadow p-6">
+        <p className="text-gray-500">
+          Aún no hay tareas.
+        </p>
+      </div>
+    </div>
+  );
+}
 // ═══ INVENTARIO ════════════════════════════════════════════════
 // Lista simple de compras a proveedor, tal cual la hoja: sin cruzar con ventas.
 // ═══ CONFIGURACIÓN ════════════════════════════════════════════════
@@ -1980,7 +1998,7 @@ function HistorialTab({db,onEditIngreso,onEditGasto}){
 
 function Mas({db,onEditIngreso,onEditGasto,onMarcarPagado,onRegistrarAbono,onAddInv,onEditInv,onDeleteInv,onAddDeuda,onEditDeuda,onDeleteDeuda}){
   const [v,setV]=useState("clientes");
-  const tabs=[["buscar","🔍","Buscar"],["ia","🤖","Análisis IA"],["inv","📦","Inventario"],["personal","📓","Personal"],["config","⚙️","Config"]];
+  const tabs=[["buscar","🔍","Buscar"],["tareas","🤖","Tareas"],["inv","📦","Inventario"],["personal","📓","Personal"],["config","⚙️","Config"]];
   return(
     <div style={{padding:"24px 16px 0"}}>
       <div style={{fontSize:20,fontWeight:700,marginBottom:14}}>Más</div>
@@ -1994,6 +2012,7 @@ function Mas({db,onEditIngreso,onEditGasto,onMarcarPagado,onRegistrarAbono,onAdd
       </div>
       {v==="buscar"&&<BusquedaGlobal db={db} onEditIngreso={onEditIngreso} onEditGasto={onEditGasto}/>}
       {v==="inv"&&<Inventario db={db} onAdd={onAddInv} onEdit={onEditInv} onDelete={onDeleteInv}/>}
+      {v==="tareas" && <Tareas db={db}/>}
       {v==="personal"&&<Personal db={db} onAdd={onAddDeuda} onEdit={onEditDeuda} onDelete={onDeleteDeuda}/>}
       {v==="config"&&<Configuracion/>}
     </div>
