@@ -1524,7 +1524,7 @@ function Clientes({db,onEditIngreso,onMarcarPagado,onRegistrarAbono}){
 function Tareas({ db }) {
   const [tareas, setTareas] = useState([]);
   const [nuevaTarea, setNuevaTarea] = useState("");
-
+  console.log("Render Tareas");
   function agregarTarea() {
     if (!nuevaTarea.trim()) return;
 
@@ -1542,6 +1542,8 @@ function Tareas({ db }) {
   }
 
   function toggleTarea(id) {
+    console.log("CLICK", id);
+    
     setTareas((prev) =>
       prev.map((tarea) =>
         tarea.id === id
