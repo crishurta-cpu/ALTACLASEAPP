@@ -1543,7 +1543,7 @@ function Tareas({ db }) {
 
   function toggleTarea(id) {
     console.log("CLICK", id);
-    
+
     setTareas((prev) =>
       prev.map((tarea) =>
         tarea.id === id
@@ -1607,22 +1607,26 @@ function Tareas({ db }) {
 
                 <div className="flex items-center gap-4">
 
-                  <input
-                    type="checkbox"
-                    checked={tarea.completada}
-                    onChange={() => toggleTarea(tarea.id)}
-                    className="h-5 w-5 cursor-pointer"
-                  />
+                  <button
+                    onClick={() => toggleTarea(tarea.id)}
+                    className={`flex h-6 w-6 items-center justify-center rounded-full border-2 transition-all ${
+                     tarea.completada
+                        ? "border-green-500 bg-green-500 text-white"
+                       : "border-gray-400 bg-white hover:border-green-500"
+                          }`}
+                          >
+                       {tarea.completada ? "✓" : ""}
+                  </button>
 
                   <div>
 
                     <p
-                      className={`font-medium ${
-                        tarea.completada
-                          ? "line-through text-gray-400"
-                          : "text-gray-900"
-                      }`}
-                    >
+  className={`text-base font-semibold transition-all ${
+    tarea.completada
+      ? "line-through text-gray-400"
+      : "text-gray-900"
+  }`}
+>
                       {tarea.texto}
                     </p>
 
