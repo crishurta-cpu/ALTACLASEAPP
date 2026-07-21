@@ -1522,15 +1522,57 @@ function Clientes({db,onEditIngreso,onMarcarPagado,onRegistrarAbono}){
   );
 }
 function Tareas({ db }) {
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">📝 Tareas</h2>
+  const [tareas, setTareas] = useState([]);
+  const [nuevaTarea, setNuevaTarea] = useState("");
+  function agregarTarea() {
+  if (!nuevaTarea.trim()) return;
 
-        <button className="px-4 py-2 rounded-xl bg-black text-white">
-          + Nueva tarea
-        </button>
-      </div>
+  const tarea = {
+    id: Date.now(),
+    texto: nuevaTarea,
+    completada: false,
+    prioridad: "Media",
+    categoria: "General",
+    creada: new Date().toISOString()
+  };
+
+  setTareas([tarea, ...tareas]);
+  setNuevaTarea("");
+} 
+  
+return (
+    <div className="space-y-4">
+      <div className="space-y-4">
+
+  <h2 className="text-2xl font-bold">
+    📝 Tareas
+  </h2>
+
+  <div className="flex gap-3">
+
+    <input
+      type="text"
+      value={nuevaTarea}
+      onChange={(e)=>setNuevaTarea(e.target.value)}
+      onKeyDown={(e)=>{
+        if(e.key==="Enter"){
+          agregarTarea();
+        }
+      }}
+      placeholder="Escribe una nueva tarea..."
+      className="flex-1 rounded-xl border border-gray-300 px-4 py-3"
+    />
+
+    <button
+      onClick={agregarTarea}
+      className="px-5 py-3 rounded-xl bg-black text-white"
+    >
+      Agregar
+    </button>
+
+  </div>
+
+</div>
 
       <div className="bg-white rounded-2xl shadow p-6">
         <p className="text-gray-500">
