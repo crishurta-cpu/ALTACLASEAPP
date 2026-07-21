@@ -1522,32 +1522,53 @@ function Clientes({db,onEditIngreso,onMarcarPagado,onRegistrarAbono}){
   );
 }
 function Tareas({ db }) {
-  const [tareas, setTareas] = useState([]);
+    const [tareas, setTareas] = useState([]);
+
   const [nuevaTarea, setNuevaTarea] = useState("");
+
   function agregarTarea() {
-    function toggleTarea(id) {
-  setTareas(
-    tareas.map((tarea) =>
-      tarea.id === id
-        ? { ...tarea, completada: !tarea.completada }
-        : tarea
-    )
-  );
-}
-  if (!nuevaTarea.trim()) return;
 
-  const tarea = {
-    id: Date.now(),
-    texto: nuevaTarea,
-    completada: false,
-    prioridad: "Media",
-    categoria: "General",
-    creada: new Date().toISOString()
-  };
+    if (!nuevaTarea.trim()) return;
 
-  setTareas([tarea, ...tareas]);
-  setNuevaTarea("");
-} 
+    const tarea = {
+
+      id: Date.now(),
+
+      texto: nuevaTarea,
+
+      completada: false,
+
+      prioridad: "Media",
+
+      categoria: "General",
+
+      creada: new Date().toISOString()
+
+    };
+
+    setTareas([tarea, ...tareas]);
+
+    setNuevaTarea("");
+
+  }
+
+  function toggleTarea(id) {
+
+    setTareas(
+
+      tareas.map((tarea) =>
+
+        tarea.id === id
+
+          ? { ...tarea, completada: !tarea.completada }
+
+          : tarea
+
+      )
+
+    );
+
+  }
   
 return (
     <div className="space-y-4">
