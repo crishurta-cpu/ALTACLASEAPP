@@ -1527,123 +1527,6 @@ function Clientes({db,onEditIngreso,onMarcarPagado,onRegistrarAbono}){
 // ═══ CONFIGURACIÓN ════════════════════════════════════════════════
 // Panel de ajustes dentro de Más. Por ahora: info de la app, cerrar sesión.
 // Diseñado para crecer: aquí irán preferencias de diseño, notificaciones, etc.
-// ═══ ANÁLISIS IA ══════════════════════════════════════════════════
-// Envía datos del negocio a Claude y hace preguntas específicas.
-// No requiere API key del usuario: usa el endpoint de Anthropic del artefacto.
-function AnalisisIA({db}){
-  const [pregunta,setPregunta]=useState("");
-  const [respuesta,setRespuesta]=useState("");
-  const [cargando,setCargando]=useState(false);
-  const [err,setErr]=useState(null);
-
-  // Construir resumen del negocio para el contexto de la IA
-  const buildContext=()=>{
-    const ing=db.ingresos.filter(cuentaParaTotales);
-    const gas=db.gastos;
-    const m=curM();
-    const ingMes=ing.filter(i=>mKey(i.fecha)===m);
-    const gasMes=gas.filter(g=>mKey(g.fecha)===m);
-    const ventas=ingMes.reduce((s,i)=>s+i.precioVenta,0);
-    const gan=ingMes.reduce((s,i)=>s+i.ganancia,0);
-    const gastosMes=gasMes.reduce((s,g)=>s+g.costo,0);
-    const util=gan-gastosMes;
-    const clientesDeuda=(db.clientesResumen||[]).filter(c=>c.debe==="SI");
-    const totalDeuda=clientesDeuda.reduce((s,c)=>s+(c.deudaTotal||c.saldo||0),0);
-    const topClientes=Object.entries(
-      ingMes.filter(i=>i.tipo==="VENTA").reduce((m,i)=>{
-        const k=i.cliente.toUpperCase().trim();
-        if(!m[k])m[k]=0; m[k]+=i.ganancia; return m;
-      },{})
-    ).sort((a,b)=>b[1]-a[1]).slice(0,5);
-
-    return `Eres el analista financiero y estratega de ALTACLASE BODEGA, una operación B2B de zapatillas réplica en Colombia.
-
-DATOS DEL MES ACTUAL (${mLabel(m)}):
-- Ventas totales: $${ventas.toLocaleString("es-CO")} COP
-- Ganancia bruta: $${gan.toLocaleString("es-CO")} COP  
-- Gastos: $${gastosMes.toLocaleString("es-CO")} COP
-- Utilidad neta: $${util.toLocaleString("es-CO")} COP
-- Margen: ${ventas>0?(util/ventas*100).toFixed(1):0}%
-- Total registros este mes: ${ingMes.length} ingresos, ${gasMes.length} gastos
-
-CLIENTES EN DEUDA: ${clientesDeuda.length} clientes deben un total de $${totalDeuda.toLocaleString("es-CO")} COP
-
-TOP 5 CLIENTES POR GANANCIA ESTE MES:
-${topClientes.map(([n,g],i)=>`${i+1}. ${n}: $${g.toLocaleString("es-CO")}`).join("\n")}
-
-OPERACIÓN: Solo zapatillas réplica B2B. Sin inventario. Trabajo solo. WhatsApp como canal principal. Margen promedio $30.000/par.
-
-Responde de forma concisa, práctica y directa. Sin rodeos. En español.`;
-  };
-
-  const preguntas_rapidas=[
-    "¿Cómo va el mes comparado con la tendencia?",
-    "¿Qué clientes debo priorizar para cobrar?",
-    "¿Dónde están mis fugas de dinero?",
-    "Dame 3 acciones concretas para mejorar el margen",
-    "¿Estoy en camino de mejorar vs el mes pasado?",
-  ];
-
-  const consultar=async(q)=>{
-    const query=q||pregunta.trim();
-    if(!query)return;
-    setCargando(true);setErr(null);setRespuesta("");
-    try{
-      const res=await fetch("https://api.anthropic.com/v1/messages",{
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({
-          model:"claude-sonnet-4-6",
-          max_tokens:1000,
-          system:buildContext(),
-          messages:[{role:"user",content:query}],
-        }),
-      });
-      const data=await res.json();
-      if(data.error)throw new Error(data.error.message);
-      const texto=data.content?.find(b=>b.type==="text")?.text||"Sin respuesta";
-      setRespuesta(texto);
-    }catch(e){
-      setErr("Error al consultar IA: "+e.message);
-    }finally{
-      setCargando(false);
-    }
-  };
-
-  return(
-    <div style={{padding:"0 0 16px"}}>
-      <Card s={{marginBottom:12}} ch={<>
-        <div style={{fontSize:11,color:K.muted,textTransform:"uppercase",letterSpacing:.5,fontWeight:600,marginBottom:8}}>Preguntas rápidas</div>
-        <div style={{display:"flex",flexDirection:"column",gap:6}}>
-          {preguntas_rapidas.map(p=>(
-            <button key={p} onClick={()=>consultar(p)} disabled={cargando} style={{background:K.card3,border:`1px solid ${K.border}`,borderRadius:DS.r.sm,padding:"9px 12px",color:K.text,fontSize:12,cursor:cargando?"not-allowed":"pointer",textAlign:"left",WebkitTapHighlightColor:"transparent",opacity:cargando?.5:1}}>
-              {p}
-            </button>
-          ))}
-        </div>
-      </>}/>
-      <Card s={{marginBottom:12}} ch={<>
-        <div style={{fontSize:11,color:K.muted,textTransform:"uppercase",letterSpacing:.5,fontWeight:600,marginBottom:8}}>Pregunta libre</div>
-        <textarea
-          value={pregunta}
-          onChange={e=>setPregunta(e.target.value)}
-          placeholder="¿Qué quieres analizar de tu negocio?"
-          rows={3}
-          style={{width:"100%",background:K.card3,border:`1px solid ${K.border}`,borderRadius:DS.r.sm,color:K.text,padding:"12px",fontSize:14,outline:"none",resize:"none",boxSizing:"border-box",marginBottom:10,WebkitAppearance:"none"}}
-        />
-        <Btn label={cargando?"Analizando...":"Consultar IA"} onClick={()=>consultar()} loading={cargando} dis={!pregunta.trim()}/>
-      </>}/>
-      {err&&<div style={{color:K.red,fontSize:12,padding:"10px 14px",background:`${K.red}12`,borderRadius:DS.r.sm,marginBottom:10}}>{err}</div>}
-      {respuesta&&(
-        <Card ch={<>
-          <div style={{fontSize:11,color:K.gold,textTransform:"uppercase",letterSpacing:.5,fontWeight:600,marginBottom:10}}>Análisis IA</div>
-          <div style={{fontSize:14,color:K.text,lineHeight:1.6,whiteSpace:"pre-wrap"}}>{respuesta}</div>
-        </>}/>
-      )}
-    </div>
-  );
-}
-
 function Configuracion(){
   const [accentId,setAccentId]=useState(()=>localStorage.getItem(ACCENT_KEY)||"gold");
   const cerrar=()=>{localStorage.removeItem(LS_AUTH_KEY);window.location.reload();};
@@ -2112,7 +1995,6 @@ function Mas({db,onEditIngreso,onEditGasto,onMarcarPagado,onRegistrarAbono,onAdd
       {v==="buscar"&&<BusquedaGlobal db={db} onEditIngreso={onEditIngreso} onEditGasto={onEditGasto}/>}
       {v==="inv"&&<Inventario db={db} onAdd={onAddInv} onEdit={onEditInv} onDelete={onDeleteInv}/>}
       {v==="personal"&&<Personal db={db} onAdd={onAddDeuda} onEdit={onEditDeuda} onDelete={onDeleteDeuda}/>}
-      {v==="ia"&&<AnalisisIA db={db}/>}
       {v==="config"&&<Configuracion/>}
     </div>
   );
