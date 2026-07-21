@@ -1522,144 +1522,141 @@ function Clientes({db,onEditIngreso,onMarcarPagado,onRegistrarAbono}){
   );
 }
 function Tareas({ db }) {
-    const [tareas, setTareas] = useState([]);
-
+  const [tareas, setTareas] = useState([]);
   const [nuevaTarea, setNuevaTarea] = useState("");
 
   function agregarTarea() {
-
     if (!nuevaTarea.trim()) return;
 
     const tarea = {
-
       id: Date.now(),
-
-      texto: nuevaTarea,
-
+      texto: nuevaTarea.trim(),
       completada: false,
-
       prioridad: "Media",
-
       categoria: "General",
-
-      creada: new Date().toISOString()
-
+      creada: new Date().toISOString(),
     };
 
-    setTareas([tarea, ...tareas]);
-
+    setTareas((prev) => [tarea, ...prev]);
     setNuevaTarea("");
-
   }
 
   function toggleTarea(id) {
-
-    setTareas(
-
-      tareas.map((tarea) =>
-
+    setTareas((prev) =>
+      prev.map((tarea) =>
         tarea.id === id
-
           ? { ...tarea, completada: !tarea.completada }
-
           : tarea
-
       )
-
     );
-
   }
-  
-return (
-    <div className="space-y-4">
-      <div className="space-y-4">
 
-  <h2 className="text-2xl font-bold">
-    📝 Tareas
-  </h2>
+  function eliminarTarea(id) {
+    setTareas((prev) => prev.filter((tarea) => tarea.id !== id));
+  }
 
-  <div className="flex gap-3">
+  return (
+    <div className="space-y-6">
 
-    <input
-      type="text"
-      value={nuevaTarea}
-      onChange={(e)=>setNuevaTarea(e.target.value)}
-      onKeyDown={(e)=>{
-        if(e.key==="Enter"){
-          agregarTarea();
-        }
-      }}
-      placeholder="Escribe una nueva tarea..."
-      className="flex-1 rounded-xl border border-gray-300 px-4 py-3"
-    />
+      <div>
+        <h2 className="text-2xl font-bold mb-4">
+          📝 Tareas
+        </h2>
 
-    <button
-      onClick={agregarTarea}
-      className="px-5 py-3 rounded-xl bg-black text-white"
-    >
-      Agregar
-    </button>
+        <div className="flex gap-3">
+          <input
+            type="text"
+            value={nuevaTarea}
+            onChange={(e) => setNuevaTarea(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") agregarTarea();
+            }}
+            placeholder="Escribe una nueva tarea..."
+            className="flex-1 rounded-xl border border-gray-300 px-4 py-3 outline-none focus:ring-2 focus:ring-black"
+          />
 
-  </div>
+          <button
+            onClick={agregarTarea}
+            className="rounded-xl bg-black px-5 py-3 text-white hover:opacity-90"
+          >
+            Agregar
+          </button>
+        </div>
+      </div>
 
-</div>
-<div className="bg-white rounded-2xl shadow p-6">
+      <div className="rounded-2xl border bg-white p-5 shadow-sm">
 
-  {tareas.length === 0 ? (
+        {tareas.length === 0 ? (
 
-    <p className="text-gray-500 text-center">
-      No hay tareas creadas.
-    </p>
+          <div className="py-12 text-center text-gray-400">
+            No hay tareas.
+          </div>
 
-  ) : (
+        ) : (
 
-    <div className="space-y-3">
+          <div className="space-y-3">
 
-      {tareas.map((tarea) => (
+            {tareas.map((tarea) => (
 
-        <div
-          key={tarea.id}
-          className="flex items-center justify-between border rounded-xl p-4"
-        >
+              <div
+                key={tarea.id}
+                className="flex items-center justify-between rounded-xl border p-4 hover:bg-gray-50 transition"
+              >
 
-          <div className="flex items-center gap-3">
+                <div className="flex items-center gap-4">
 
-            <input
-              type="checkbox"
-              checked={tarea.completada}
-              onChange={() => toggleTarea(tarea.id)}
-              className="w-5 h-5 cursor-pointer"
-/>
+                  <input
+                    type="checkbox"
+                    checked={tarea.completada}
+                    onChange={() => toggleTarea(tarea.id)}
+                    className="h-5 w-5 cursor-pointer"
+                  />
 
-            <div>
+                  <div>
 
-              <p
-                className={`font-medium ${
-                tarea.completada
-                  ? "line-through text-gray-400"
-                 : ""
-                        }`}
+                    <p
+                      className={`font-medium ${
+                        tarea.completada
+                          ? "line-through text-gray-400"
+                          : "text-gray-900"
+                      }`}
+                    >
+                      {tarea.texto}
+                    </p>
+
+                    <div className="mt-1 flex gap-2 text-sm">
+
+                      <span className="rounded-full bg-gray-100 px-2 py-1">
+                        📌 {tarea.categoria}
+                      </span>
+
+                      <span className="rounded-full bg-orange-100 px-2 py-1">
+                        🟠 {tarea.prioridad}
+                      </span>
+
+                    </div>
+
+                  </div>
+
+                </div>
+
+                <button
+                  onClick={() => eliminarTarea(tarea.id)}
+                  className="rounded-lg px-3 py-2 text-red-500 hover:bg-red-50"
                 >
-                 {tarea.texto}
-              </p>
+                  🗑
+                </button>
 
-              <p className="text-sm text-gray-500">
-                📌 {tarea.categoria} · 🟠 {tarea.prioridad}
-              </p>
+              </div>
 
-            </div>
+            ))}
 
           </div>
 
-        </div>
+        )}
 
-      ))}
+      </div>
 
-    </div>
-
-  )}
-
-</div>
     </div>
   );
 }
