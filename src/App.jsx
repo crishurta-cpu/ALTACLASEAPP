@@ -1525,6 +1525,15 @@ function Tareas({ db }) {
   const [tareas, setTareas] = useState([]);
   const [nuevaTarea, setNuevaTarea] = useState("");
   function agregarTarea() {
+    function toggleTarea(id) {
+  setTareas(
+    tareas.map((tarea) =>
+      tarea.id === id
+        ? { ...tarea, completada: !tarea.completada }
+        : tarea
+    )
+  );
+}
   if (!nuevaTarea.trim()) return;
 
   const tarea = {
@@ -1573,8 +1582,7 @@ return (
   </div>
 
 </div>
-
-      <div className="bg-white rounded-2xl shadow p-6">
+<div className="bg-white rounded-2xl shadow p-6">
 
   {tareas.length === 0 ? (
 
@@ -1598,13 +1606,20 @@ return (
             <input
               type="checkbox"
               checked={tarea.completada}
-              readOnly
-            />
+              onChange={() => toggleTarea(tarea.id)}
+              className="w-5 h-5 cursor-pointer"
+/>
 
             <div>
 
-              <p className="font-medium">
-                {tarea.texto}
+              <p
+                className={`font-medium ${
+                tarea.completada
+                  ? "line-through text-gray-400"
+                 : ""
+                        }`}
+                >
+                 {tarea.texto}
               </p>
 
               <p className="text-sm text-gray-500">
