@@ -1575,10 +1575,55 @@ return (
 </div>
 
       <div className="bg-white rounded-2xl shadow p-6">
-        <p className="text-gray-500">
-          Aún no hay tareas.
-        </p>
-      </div>
+
+  {tareas.length === 0 ? (
+
+    <p className="text-gray-500 text-center">
+      No hay tareas creadas.
+    </p>
+
+  ) : (
+
+    <div className="space-y-3">
+
+      {tareas.map((tarea) => (
+
+        <div
+          key={tarea.id}
+          className="flex items-center justify-between border rounded-xl p-4"
+        >
+
+          <div className="flex items-center gap-3">
+
+            <input
+              type="checkbox"
+              checked={tarea.completada}
+              readOnly
+            />
+
+            <div>
+
+              <p className="font-medium">
+                {tarea.texto}
+              </p>
+
+              <p className="text-sm text-gray-500">
+                📌 {tarea.categoria} · 🟠 {tarea.prioridad}
+              </p>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      ))}
+
+    </div>
+
+  )}
+
+</div>
     </div>
   );
 }
