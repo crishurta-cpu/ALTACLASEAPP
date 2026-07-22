@@ -1994,12 +1994,7 @@ function Mas({db,onEditIngreso,onEditGasto,onMarcarPagado,onRegistrarAbono,onAdd
       </div>
       {v==="buscar"&&<BusquedaGlobal db={db} onEditIngreso={onEditIngreso} onEditGasto={onEditGasto}/>}
       {v==="inv"&&<Inventario db={db} onAdd={onAddInv} onEdit={onEditInv} onDelete={onDeleteInv}/>}
-      {v==="tareas" && (
-  <Tareas
-    Tareas={Tareas}
-    setTareas={setTareas}
-  />
-)}
+      {v==="tareas" && (<Tareas />)}
       {v==="personal"&&<Personal db={db} onAdd={onAddDeuda} onEdit={onEditDeuda} onDelete={onDeleteDeuda}/>}
       {v==="config"&&<Configuracion/>}
     </div>
