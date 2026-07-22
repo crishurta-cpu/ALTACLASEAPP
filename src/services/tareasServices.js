@@ -15,6 +15,7 @@ export async function obtenerTareas() {
   return json.data;
 }
 
+
 export async function crearTarea(tarea) {
   const row = [
     tarea.id,
@@ -29,7 +30,7 @@ export async function crearTarea(tarea) {
   const res = await fetch(API, {
     method: "POST",
     headers: {
-      "Content-Type": "application/json",
+      "Content-Type": "text/plain;charset=utf-8",
     },
     body: JSON.stringify({
       action: "append",
@@ -45,6 +46,7 @@ export async function crearTarea(tarea) {
   return json;
 }
 
+
 export async function actualizarTarea(tarea) {
   const row = [
     tarea.ID,
@@ -58,6 +60,9 @@ export async function actualizarTarea(tarea) {
 
   const res = await fetch(API, {
     method: "POST",
+    headers: {
+      "Content-Type": "text/plain;charset=utf-8",
+    },
     body: JSON.stringify({
       action: "update",
       sheet: SHEET,
@@ -69,9 +74,13 @@ export async function actualizarTarea(tarea) {
   return await res.json();
 }
 
+
 export async function eliminarTarea(row) {
   const res = await fetch(API, {
     method: "POST",
+    headers: {
+      "Content-Type": "text/plain;charset=utf-8",
+    },
     body: JSON.stringify({
       action: "delete",
       sheet: SHEET,
