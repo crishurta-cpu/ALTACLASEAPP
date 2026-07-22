@@ -3,7 +3,7 @@ import {
   obtenerTareas,
   crearTarea,
   eliminarTarea,
-} from "../services/tareasServices";
+} from "../services/tareasServices.js";
 
 export default function Tareas() {
   const [tareas, setTareas] = useState([]);
