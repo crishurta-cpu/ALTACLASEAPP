@@ -3,6 +3,7 @@ const API =
 
 const SHEET = "TAREAS";
 
+
 export async function obtenerTareas() {
   const res = await fetch(
     `${API}?action=read&sheet=${SHEET}`
@@ -17,6 +18,7 @@ export async function obtenerTareas() {
 
 
 export async function crearTarea(tarea) {
+
   const row = [
     tarea.id,
     tarea.texto,
@@ -27,6 +29,7 @@ export async function crearTarea(tarea) {
     tarea.usuario,
   ];
 
+
   const res = await fetch(API, {
     method: "POST",
     headers: {
@@ -35,19 +38,26 @@ export async function crearTarea(tarea) {
     body: JSON.stringify({
       action: "append",
       sheet: SHEET,
-      row,
+      row: JSON.stringify(row),
     }),
   });
 
+
   const json = await res.json();
 
-  if (!json.ok) throw new Error(json.error);
+
+  if (!json.ok) {
+    throw new Error(json.error);
+  }
+
 
   return json;
 }
 
 
+
 export async function actualizarTarea(tarea) {
+
   const row = [
     tarea.ID,
     tarea.Texto,
@@ -57,6 +67,7 @@ export async function actualizarTarea(tarea) {
     tarea.Fecha,
     tarea.Usuario,
   ];
+
 
   const res = await fetch(API, {
     method: "POST",
@@ -71,11 +82,14 @@ export async function actualizarTarea(tarea) {
     }),
   });
 
+
   return await res.json();
 }
 
 
+
 export async function eliminarTarea(row) {
+
   const res = await fetch(API, {
     method: "POST",
     headers: {
@@ -87,6 +101,7 @@ export async function eliminarTarea(row) {
       rowNum: row,
     }),
   });
+
 
   return await res.json();
 }
