@@ -28,14 +28,21 @@ export async function crearTarea(tarea) {
 
   const res = await fetch(API, {
     method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify({
       action: "append",
       sheet: SHEET,
-      row: JSON.stringify(row),
+      row,
     }),
   });
 
-  return await res.json();
+  const json = await res.json();
+
+  if (!json.ok) throw new Error(json.error);
+
+  return json;
 }
 
 export async function actualizarTarea(tarea) {
