@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import Tareas from "./components/Tareas";
+import Tareas from "./components/tareas";
 const API = "https://script.google.com/macros/s/AKfycbySGO0LtHtnT7SBEHF22TfsDUmz3kqmz3C2a-tZk6zL3_ZFuEoUF485h4QWvxq4H_S7/exec";
 const SYNC_INTERVAL_MS = 120000; // 2 minutos
 
