@@ -6,7 +6,6 @@ const SYNC_INTERVAL_MS = 120000; // 2 minutos
 // Clave de acceso simple: bloquea curiosos casuales con el link, no es seguridad
 // criptográfica real (vive en el código del navegador). Suficiente para un solo
 // operador; si la app crece a multi-usuario, esto debe pasar a un backend real.
-const [tareas, setTareas] = useState([]);
 const CLAVE_ACCESO = "ClaudeAlta";
 const LS_AUTH_KEY = "altaclase_auth_ok";
 
@@ -1997,7 +1996,7 @@ function Mas({db,onEditIngreso,onEditGasto,onMarcarPagado,onRegistrarAbono,onAdd
       {v==="inv"&&<Inventario db={db} onAdd={onAddInv} onEdit={onEditInv} onDelete={onDeleteInv}/>}
       {v==="tareas" && (
   <Tareas
-    tareas={tareas}
+    Tareas={Tareas}
     setTareas={setTareas}
   />
 )}
