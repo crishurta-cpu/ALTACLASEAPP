@@ -2371,8 +2371,16 @@ export default function App(){
         </>
       </div>
       {/* Contenido principal — CSS controla el layout responsive */}
-      <div style={{flex:1,minWidth:0,overflowX:"hidden",paddingBottom:"calc(68px + env(safe-area-inset-bottom,0px))"}}>
-        <div className="ac-main-inner">      {/* Toast premium */}
+<div style={{
+  flex:1,
+  minWidth:0,
+  overflowX:"hidden",
+  overflowY:"auto",
+  height:"100vh",
+  WebkitOverflowScrolling:"touch",
+  paddingBottom:"calc(68px + env(safe-area-inset-bottom,0px))"
+}}>
+          <div className="ac-main-inner">      {/* Toast premium */}
       {toast&&(
         <div style={{
           position:"fixed",top:"max(24px, env(safe-area-inset-top, 24px))",
@@ -2391,8 +2399,8 @@ export default function App(){
         </div>
       )}
       {/* Contenido principal — scroll nativo */}
-      <div style={{WebkitOverflowScrolling:"touch",overscrollBehavior:"none"}}>
-        {tab==="home"&&<Home db={db} onRefresh={()=>loadData(false)} loading={loading} lastSync={lastSync}/>}
+<div style={{}}>
+          {tab==="home"&&<Home db={db} onRefresh={()=>loadData(false)} loading={loading} lastSync={lastSync}/>}
         {tab==="clientes"&&<CliEntesTab db={db} onEditIngreso={setEditIng} onMarcarPagado={marcarPagado} onRegistrarAbono={registrarAbono}/>}
         {tab==="historial"&&<HistorialTab db={db} onEditIngreso={setEditIng} onEditGasto={setEditGas}/>}
         {tab==="mas"&&<Mas db={db} onEditIngreso={setEditIng} onEditGasto={setEditGas} onMarcarPagado={marcarPagado} onRegistrarAbono={registrarAbono} onAddInv={addInventario} onEditInv={editInventario} onDeleteInv={removeInventario} onAddDeuda={addDeuda} onEditDeuda={editDeuda} onDeleteDeuda={removeDeuda}/>}
