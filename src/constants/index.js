@@ -39,13 +39,14 @@ export const DS = {
 };
 
 export const K = {
-  bg: "#0D0D12",            // negro azulado profundo — más rico que negro puro
+  bg: "#737380",            // negro azulado profundo — más rico que negro puro
   card: "#16161F",          // tarjeta nivel 1 — ligero tinte índigo
   card2: "#1E1E2A",         // tarjeta nivel 2
   card3: "#252533",         // input y elementos interactivos
   card4: "#2E2E3D",         // hover y activos
   get gold() { return getAccentColor(); },
   green: "#10B981",
+  grafico: "#6b7280",
   red: "#EF4444",
   blue: "#3B82F6",
   yellow: "#F59E0B",

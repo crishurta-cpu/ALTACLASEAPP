@@ -1134,7 +1134,7 @@ function GraficoCircular({datos,colores,total}){
           <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
             <div style={{display:"flex",alignItems:"center",gap:6}}>
               <div style={{width:8,height:8,borderRadius:"50%",background:s.col,flexShrink:0}}/>
-              <span style={{fontSize:10,color:K.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:80}}>{s.cat}</span>
+              <span style={{fontSize:10,color:K.grafico,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:80}}>{s.cat}</span>
             </div>
             <span style={{fontSize:10,color:K.muted,flexShrink:0}}>{(s.pct*100).toFixed(0)}%</span>
           </div>
