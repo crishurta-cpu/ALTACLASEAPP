@@ -818,8 +818,13 @@ function AutocompleteInput({label,value,onChange,sugerencias=[],placeholder}){
 }
 
 // ═══ NUEVO MOVIMIENTO ════════════════════════════════════════════
-function NuevoMovimiento({onSaveIngreso,onSaveGasto,clientes}){
-  const [modo,setModo]=useState("ingreso");
+function NuevoMovimiento({
+  onSaveIngreso,
+  onSaveGasto,
+  clientes,
+  proveedores,
+}) {
+    const [modo,setModo]=useState("ingreso");
   return(
     <div style={{padding:"24px 16px 0"}}>
       <div style={{display:"flex",gap:8,marginBottom:18}}>
@@ -827,7 +832,7 @@ function NuevoMovimiento({onSaveIngreso,onSaveGasto,clientes}){
         <button onClick={()=>setModo("lote")} style={{flex:1,background:modo==="lote"?`${K.gold}18`:K.card,border:`1.5px solid ${modo==="lote"?K.gold:K.border}`,color:modo==="lote"?K.gold:K.muted,borderRadius:DS.r.md,padding:"12px 0",fontSize:14,fontWeight:700,cursor:"pointer"}}>Lote</button>
         <button onClick={()=>setModo("gasto")} style={{flex:1,background:modo==="gasto"?`${K.red}22`:K.card,border:`1.5px solid ${modo==="gasto"?K.red:K.border}`,color:modo==="gasto"?K.red:K.muted,borderRadius:DS.r.md,padding:"12px 0",fontSize:14,fontWeight:700,cursor:"pointer"}}>Gasto</button>
       </div>
-      {modo==="ingreso"&&<IngresoForm onSave={onSaveIngreso} clientes={clientes}/>}
+      {modo==="ingreso"&&<IngresoForm onSave={onSaveIngreso} clientes={clientes} proveedores={proveedores}/>}
       {modo==="lote"&&<IngresoBloqueForm onSave={onSaveIngreso} clientes={clientes}/>}
       {modo==="gasto"&&<GastoForm onSave={onSaveGasto}/>}
     </div>
@@ -2237,7 +2242,7 @@ export default function App(){
   const proveedores = [
   ...new Set(
     db.ingresos
-      .map(i => i.PROVEEDOR?.toUpperCase().trim())
+      .map(i => i.proveedor?.toUpperCase().trim())
       .filter(Boolean)
   ),
 ].sort();
