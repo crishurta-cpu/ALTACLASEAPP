@@ -594,6 +594,10 @@ function Home({db,onRefresh,loading,lastSync}){
     debenMap[k].debe=debenMap[k].debe||c.debe==="SI";
   });
   const debenList=Object.values(debenMap).filter(c=>c.debe);
+  const totalPorCobrar = debenList.reduce(
+  (total, cliente) => total + (cliente.saldo || 0),
+  0
+);  
   // Mapa nombre -> saldo que debe, para marcar con ⚠️ en el Top Clientes si debe más de $1.000.000.
   const deudaPorNombre={};
   Object.values(debenMap).forEach(c=>{deudaPorNombre[c.cliente]=c.saldo;});
@@ -707,14 +711,29 @@ function Home({db,onRefresh,loading,lastSync}){
           </div>
         )}
 
-        {/* Gráfico de puntos — ganancia por día */}
+        {/* Gráfico de puntos — ganancia por día - Home */}
         {diasIng.length>1&&(
           <div style={{background:K.card,borderRadius:16,padding:"14px 16px",marginBottom:10}}>
             <div style={{fontSize:13,fontWeight:600,color:K.text,marginBottom:12}}>Ganancia por día</div>
             <GraficoPuntos datos={[...diasIng].reverse()}/>
           </div>
         )}
+        
+        {/* Total de Deuda Home */}
+          <div className="rounded-2xl border border-red-200 bg-red-50 p-4 mb-3">
+          <div className="text-xs font-semibold uppercase tracking-wide text-red-600">
+            Total por cobrar
+          </div>
 
+          <div className="mt-1 text-3xl font-bold text-red-700">
+            {money(totalPorCobrar)}
+          </div>
+
+          <div className="mt-1 text-sm text-red-600">
+            {debenList.length} cliente{debenList.length !== 1 ? "s" : ""} pendiente{debenList.length !== 1 ? "s" : ""}
+          </div>
+        </div>
+        
         {/* Deben cobrar — desplegable */}
         {debenList.length>0&&(
           <div style={{marginBottom:8}}>
