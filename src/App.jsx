@@ -911,7 +911,12 @@ function IngresoBloqueForm({onSave,clientes=[]}){
   );
 }
 
-function IngresoForm({onSave,clientes=[]}){
+function IngresoForm({
+  onSave,
+  clientes = [],
+  proveedores = [],
+}){  
+  
   const [f,setF]=useState({tipo:"VENTA",producto:"",cliente:"",proveedor:"",costo:"",pv:"",debe:false});
   const [saving,setSaving]=useState(false);
   const [ok,setOk]=useState(false);
@@ -940,8 +945,8 @@ function IngresoForm({onSave,clientes=[]}){
         <ChipGroup label="Tipo" options={TIPOS} value={f.tipo} onChange={up("tipo")}/>
         <FInput label="Producto" value={f.producto} onChange={up("producto")} placeholder="ej: NIKE TN, SAMBA..."/>
         <AutocompleteInput label="Cliente" value={f.cliente} onChange={up("cliente")} placeholder="ej: ALEJANDRA" sugerencias={clientes}/>
-        <FInput label="Proveedor" value={f.proveedor} onChange={up("proveedor")} placeholder="ej: LIDER, BOA, FYM..."/>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+        <AutocompleteInput label="Proveedor"value={f.proveedor}onChange={up("proveedor")}placeholder="ej: LIDER, MENORES, FYM..."={proveedores}/>        
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
           <FInput label="Costo" value={f.costo} onChange={up("costo")} type="number" prefix="$" placeholder="0"/>
           <FInput label="Precio venta" value={f.pv} onChange={up("pv")} type="number" prefix="$" placeholder="0"/>
         </div>
