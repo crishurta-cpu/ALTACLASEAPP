@@ -721,15 +721,20 @@ function Home({db,onRefresh,loading,lastSync}){
         
         {/* Total de Deuda Home */}
           <div className="rounded-2xl border border-red-200 bg-red-50 p-4 mb-3">
-          <div className="text-xs font-semibold uppercase tracking-wide text-red-600">
-            Total por cobrar
-          </div>
+          <div class="text-xs font-semibold uppercase tracking-wide text-red-600" style="
+            width: 100%;
+            background: rgb(28, 8, 8);
+            border: 0.5px solid rgba(239, 68, 68, 0.333);
+            border-radius: 12px 12px 0px 0px;
+            padding: 12px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            -webkit-tap-highlight-color: transparent;
+        ">Total Pendiente por Cobrar</div>
 
           <div className="mt-1 text-3xl font-bold text-red-700">
-          {fmt(totalPorCobrar)}
-          </div>
-
-          <div className="mt-1 text-sm text-red-600">
+            {fmt(totalPorCobrar)}
             {debenList.length} cliente{debenList.length !== 1 ? "s" : ""} pendiente{debenList.length !== 1 ? "s" : ""}
           </div>
         </div>
