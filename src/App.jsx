@@ -720,31 +720,52 @@ function Home({db,onRefresh,loading,lastSync}){
         )}
         
         {/* Total de Deuda Home */}
-          <div className="rounded-2xl border border-red-200 bg-red-50 p-4 mb-3">
-          <div className="text-xs font-semibold uppercase tracking-wide text-red-600"
-            style={{
-              width: "100%",
-              background: "rgb(28, 8, 8)",
-              border: "0.5px solid rgba(239, 68, 68, 0.333)",
-              borderRadius: "12px 12px 0 0",
-              padding: "12px 16px",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              WebkitTapHighlightColor: "transparent",
-            }}
-          >
-            Total Pendiente por Cobrar
-          </div>
-
-          <div className="mt-1 text-3xl font-bold text-red-700">
-          {fmt(totalPorCobrar)}
-          </div>
-
-          <div className="mt-1 text-sm text-red-600">
-            {debenList.length} cliente{debenList.length !== 1 ? "s" : ""} pendiente{debenList.length !== 1 ? "s" : ""}
-          </div>
+                <div
+        style={{
+          background: "rgb(30, 30, 42)",
+          borderRadius: "16px",
+          padding: "14px 8px",
+          textAlign: "center",
+          border: "1px solid rgba(255, 255, 255, 0.07)",
+          boxShadow: "0px 1px 3px rgba(0, 0, 0, 0.4)",
+          marginBottom: "12px",
+        }}
+      >
+        <div
+          style={{
+            fontSize: "9px",
+            color: "rgb(107, 114, 128)",
+            fontWeight: 600,
+            marginBottom: "5px",
+            textTransform: "uppercase",
+            letterSpacing: "0.5px",
+          }}
+        >
+          Total Pendiente por Cobrar
         </div>
+
+        <div
+          style={{
+            fontSize: "24px",
+            fontWeight: 700,
+            color: "rgb(239, 68, 68)",
+            marginBottom: "6px",
+          }}
+        >
+          {fmt(totalPorCobrar)}
+        </div>
+
+        <div
+          style={{
+            fontSize: "11px",
+            color: "rgb(107, 114, 128)",
+            fontWeight: 500,
+          }}
+        >
+          {debenList.length} cliente{debenList.length !== 1 ? "s" : ""} pendiente
+          {debenList.length !== 1 ? "s" : ""}
+        </div>
+      </div>
 
         {/* Deben cobrar — desplegable */}
         {debenList.length>0&&(
