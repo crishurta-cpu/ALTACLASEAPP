@@ -95,23 +95,6 @@ const cuentaParaListaClientes=ing=>{
   return ing.tipo==="VENTA"||ing.tipo==="COMISION";
 };
 
-const clientes = [
-  ...new Set(
-    db.ingresos
-      .filter(cuentaParaListaClientes)
-      .map(i => i.cliente?.toUpperCase().trim())
-      .filter(Boolean)
-  ),
-].sort();
-
-const proveedores = [
-  ...new Set(
-    db.ingresos
-      .map(i => i.proveedor?.toUpperCase().trim())
-      .filter(Boolean)
-  ),
-].sort();
-
 
 const fmt=n=>"$"+Number(n||0).toLocaleString("es-CO");
 const mKey=d=>{if(!d)return"";try{const dt=new Date(d);if(isNaN(dt))return"";return`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,"0")}`;}catch{return"";}};
@@ -1286,6 +1269,23 @@ function Historial({db,onEditIngreso,onEditGasto}){
 // Registra un abono en la columna F de CLIENTES buscando por nombre.
 // El valor que se guarda es el TOTAL acumulado de abonos (el que ya había + el nuevo),
 // porque la hoja espera el total, no el incremento.
+
+const clientes = [
+  ...new Set(
+    db.ingresos
+      .filter(cuentaParaListaClientes)
+      .map(i => i.cliente?.toUpperCase().trim())
+      .filter(Boolean)
+  ),
+].sort();
+
+const proveedores = [
+  ...new Set(
+    db.ingresos
+      .map(i => i.proveedor?.toUpperCase().trim())
+      .filter(Boolean)
+  ),
+].sort();
 function AbonoModal({cliente,abonosActuales,onClose,onRegistrar}){
   const [monto,setMonto]=useState("");
   const [saving,setSaving]=useState(false);
