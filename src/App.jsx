@@ -2237,7 +2237,7 @@ export default function App(){
   const proveedores = [
   ...new Set(
     db.ingresos
-      .map(i => i.proveedor?.toUpperCase().trim())
+      .map(i => i.PROVEEDOR?.toUpperCase().trim())
       .filter(Boolean)
   ),
 ].sort();
