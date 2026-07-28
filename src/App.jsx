@@ -1270,22 +1270,7 @@ function Historial({db,onEditIngreso,onEditGasto}){
 // El valor que se guarda es el TOTAL acumulado de abonos (el que ya había + el nuevo),
 // porque la hoja espera el total, no el incremento.
 
-const clientes = [
-  ...new Set(
-    db.ingresos
-      .filter(cuentaParaListaClientes)
-      .map(i => i.cliente?.toUpperCase().trim())
-      .filter(Boolean)
-  ),
-].sort();
 
-const proveedores = [
-  ...new Set(
-    db.ingresos
-      .map(i => i.proveedor?.toUpperCase().trim())
-      .filter(Boolean)
-  ),
-].sort();
 function AbonoModal({cliente,abonosActuales,onClose,onRegistrar}){
   const [monto,setMonto]=useState("");
   const [saving,setSaving]=useState(false);
@@ -2230,6 +2215,21 @@ export default function App(){
   const intervalRef=useRef(null);
   const inactivityRef=useRef(null);
   const INACTIVITY_MS=3*60*1000; // 3 minutos
+  const clientes = [
+  ...new Set(
+    db.ingresos
+      .filter(cuentaParaListaClientes)
+      .map(i => i.cliente?.toUpperCase().trim())
+      .filter(Boolean)
+  ),
+].sort();
+  const proveedores = [
+  ...new Set(
+    db.ingresos
+      .map(i => i.proveedor?.toUpperCase().trim())
+      .filter(Boolean)
+  ),
+].sort();
 
   const cerrarSesion=useCallback(()=>{
     localStorage.removeItem(LS_AUTH_KEY);
