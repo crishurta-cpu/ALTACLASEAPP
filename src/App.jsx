@@ -1701,7 +1701,7 @@ function Clientes({db,onEditIngreso,onMarcarPagado,onRegistrarAbono}){
       )}
     </div>
   );
-}<Tareas />
+}
 
 // ═══ INVENTARIO ════════════════════════════════════════════════
 // Lista simple de compras a proveedor, tal cual la hoja: sin cruzar con ventas.
