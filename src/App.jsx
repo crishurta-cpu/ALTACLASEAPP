@@ -734,7 +734,10 @@ function Home({db,onRefresh,loading,lastSync}){
         ">Total Pendiente por Cobrar</div>
 
           <div className="mt-1 text-3xl font-bold text-red-700">
-            {fmt(totalPorCobrar)}
+          {fmt(totalPorCobrar)}
+          </div>
+
+          <div className="mt-1 text-sm text-red-600">
             {debenList.length} cliente{debenList.length !== 1 ? "s" : ""} pendiente{debenList.length !== 1 ? "s" : ""}
           </div>
         </div>
