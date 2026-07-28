@@ -726,14 +726,14 @@ function Home({db,onRefresh,loading,lastSync}){
           </div>
 
           <div className="mt-1 text-3xl font-bold text-red-700">
-            {money(totalPorCobrar)}
+          {fmt(totalPorCobrar)}
           </div>
 
           <div className="mt-1 text-sm text-red-600">
             {debenList.length} cliente{debenList.length !== 1 ? "s" : ""} pendiente{debenList.length !== 1 ? "s" : ""}
           </div>
         </div>
-        
+
         {/* Deben cobrar — desplegable */}
         {debenList.length>0&&(
           <div style={{marginBottom:8}}>
