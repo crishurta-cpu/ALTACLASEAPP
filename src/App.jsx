@@ -95,6 +95,24 @@ const cuentaParaListaClientes=ing=>{
   return ing.tipo==="VENTA"||ing.tipo==="COMISION";
 };
 
+const clientes = [
+  ...new Set(
+    db.ingresos
+      .filter(cuentaParaListaClientes)
+      .map(i => i.cliente?.toUpperCase().trim())
+      .filter(Boolean)
+  ),
+].sort();
+
+const proveedores = [
+  ...new Set(
+    db.ingresos
+      .map(i => i.proveedor?.toUpperCase().trim())
+      .filter(Boolean)
+  ),
+].sort();
+
+
 const fmt=n=>"$"+Number(n||0).toLocaleString("es-CO");
 const mKey=d=>{if(!d)return"";try{const dt=new Date(d);if(isNaN(dt))return"";return`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,"0")}`;}catch{return"";}};
 const curM=()=>{const d=new Date();return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`;};
@@ -2557,7 +2575,8 @@ export default function App(){
             <NuevoMovimiento
               onSaveIngreso={async r=>{await saveIngreso(r);setShowNuevo(false);}}
               onSaveGasto={async r=>{await saveGasto(r);setShowNuevo(false);}}
-              clientes={[...new Set(db.ingresos.filter(cuentaParaListaClientes).map(i=>i.cliente.toUpperCase().trim()).filter(Boolean))].sort()}
+              clientes={clientes}
+              proveedores={proveedores}
             />
           </div>
         </div>
