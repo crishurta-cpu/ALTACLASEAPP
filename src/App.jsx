@@ -50,30 +50,10 @@ import Card from "./shared/ui/Card";
 import ConfirmDelete from "./shared/ui/ConfirmDelete";
 import Pill from "./shared/ui/Pill";
 import Btn from "./shared/ui/Btn";
+import ChipGroup from "./shared/ui/ChipGroup";
 
 
 // ═══ UI ATOMS ═════════════════════════════════════════════════
-const ChipGroup=({label,options,value,onChange,colorMap={}})=>(
-  <div style={{marginBottom:16}}>
-    {label&&<div style={{fontSize:10,color:K.muted,marginBottom:7,textTransform:"uppercase",letterSpacing:1,fontWeight:600}}>{label}</div>}
-    <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
-      {options.map(o=>{
-        const col=colorMap[o]||K.gold,sel=value===o;
-        return(
-          <button key={o} onClick={()=>onChange(o)} style={{
-            background:sel?`${col}18`:"transparent",
-            border:`1px solid ${sel?col:K.border}`,
-            color:sel?col:K.muted,
-            borderRadius:20,padding:"5px 13px",fontSize:11,
-            fontWeight:sel?600:400,cursor:"pointer",
-            WebkitTapHighlightColor:"transparent",
-            transition:"all .15s",
-          }}>{o}</button>
-        );
-      })}
-    </div>
-  </div>
-);
 const FInput=({label,value,onChange,type="text",placeholder,prefix})=>(
   <div style={{marginBottom:16,minWidth:0}}>
     {label&&<div style={{fontSize:11,color:K.mutedLighter,marginBottom:6,fontWeight:500,letterSpacing:.3,textTransform:"uppercase"}}>{label}</div>}
