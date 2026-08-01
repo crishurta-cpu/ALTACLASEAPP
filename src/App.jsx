@@ -46,25 +46,12 @@ import {
   deudaPersonalToRow,
 } from "./services/parsers";
 import Divider from "./shared/ui/Divider";
+import Card from "./shared/ui/Card";
+import ConfirmDelete from "./shared/ui/ConfirmDelete";
+import Pill from "./shared/ui/Pill";
 
 
 // ═══ UI ATOMS ═════════════════════════════════════════════════
-const Card=({ch,s={}})=><div style={{
-  background:K.card,
-  borderRadius:DS.r.lg,
-  padding:"18px",
-  marginBottom:12,
-  border:`1px solid ${K.border}`,
-  boxShadow:DS.shadow.md,
-  ...s
-}}>{ch}</div>;
-const ConfirmDelete=({onConfirm,onCancel})=>(
-  <div style={{display:"flex",gap:6,marginTop:10}}>
-    <button onClick={onConfirm} style={{flex:1,background:`${K.red}18`,border:`1.5px solid ${K.red}`,color:K.red,borderRadius:DS.r.sm,padding:"8px 0",fontSize:12,fontWeight:700,cursor:"pointer",letterSpacing:.3}}>Sí, borrar</button>
-    <button onClick={onCancel} style={{flex:1,background:"transparent",border:`1.5px solid ${K.border}`,color:K.muted,borderRadius:DS.r.sm,padding:"8px 0",fontSize:12,fontWeight:700,cursor:"pointer"}}>Cancelar</button>
-  </div>
-);
-const Pill=({text,color})=><span style={{background:`${color}18`,color,borderRadius:4,padding:"2px 8px",fontSize:9,fontWeight:700,letterSpacing:.6,textTransform:"uppercase"}}>{text}</span>;
 const Btn=({label,onClick,col=K.gold,dis,outline,sm,loading})=>(
   <button onClick={onClick} disabled={dis||loading} style={{
     width:sm?"auto":"100%",
