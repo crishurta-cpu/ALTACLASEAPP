@@ -51,23 +51,10 @@ import ConfirmDelete from "./shared/ui/ConfirmDelete";
 import Pill from "./shared/ui/Pill";
 import Btn from "./shared/ui/Btn";
 import ChipGroup from "./shared/ui/ChipGroup";
+import FInput from "./shared/ui/FInput";
 
 
 // ═══ UI ATOMS ═════════════════════════════════════════════════
-const FInput=({label,value,onChange,type="text",placeholder,prefix})=>(
-  <div style={{marginBottom:16,minWidth:0}}>
-    {label&&<div style={{fontSize:11,color:K.mutedLighter,marginBottom:6,fontWeight:500,letterSpacing:.3,textTransform:"uppercase"}}>{label}</div>}
-    <div style={{display:"flex",alignItems:"center",background:K.card3,borderRadius:DS.r.md,overflow:"hidden",minWidth:0,border:`1px solid ${K.border}`,transition:"border .15s",boxShadow:DS.shadow.sm}}>
-      {prefix&&<span style={{padding:"0 14px",color:K.muted,fontSize:15,flexShrink:0,fontWeight:500}}>{prefix}</span>}
-      <input type={type} value={value??""} onChange={e=>onChange(e.target.value)} placeholder={placeholder||""} style={{flex:1,minWidth:0,width:"100%",background:"transparent",border:"none",color:K.text,padding:"14px 14px",fontSize:16,outline:"none",boxSizing:"border-box",WebkitAppearance:"none"}}/>
-    </div>
-  </div>
-);
-
-// Confirmación inline de borrado (sin window.confirm, que no anda bien en el artifact)
-
-
-
 // ═══ HOME ═════════════════════════════════════════════════════
 // ═══ GRÁFICO DE PUNTOS ════════════════════════════════════════════
 function GraficoPuntos({datos}){
