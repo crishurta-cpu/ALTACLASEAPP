@@ -10,10 +10,29 @@
 
 | Métrica | Valor |
 |---|---|
-| Fase actual | **0 — Backup + branch** |
-| Última fase completada | Ninguna (preparación) |
+### Fase 0 — Backup + branch ✅
+**Objetivo:** Snapshot del estado actual antes de cualquier cambio.
+**Archivos a tocar:** solo git.
+**Riesgo:** NINGUNO.
+**Pasos:**
+- [x] Branch `refactor/architectural-cleanup` desde `main`.
+- [x] Tag `v1.0-pre-refactor` en `main`.
+- [x] `git status` limpio (de código; `src/components/tareas.jsx` tiene 1 línea modificada pre-existente del usuario, NO incluida).
+- [x] Commit inicial del roadmap con mensaje `docs(refactor): sistema de contexto persistente` (commit `29e84e7`).
+
+**Validación:**
+- Branch creado: `refactor/architectural-cleanup` ✅
+- Tag creado: `v1.0-pre-refactor` (anotado, en commit `21102b3`) ✅
+- Commit `29e84e7`: 3 archivos nuevos, 681 líneas, solo docs ✅
+- Working tree: solo queda `src/components/tareas.jsx` modificado por el usuario (no tocado por mí) ✅
+
+**Notas para Fase 1:**
+- Hay 1 línea sin commitear en `src/components/tareas.jsx` (modificación del usuario).
+- El usuario debe decidir si la commitea aparte, la revierte, o la integra a la Fase 15 (refactor de Tareas).
+- NO interferir con esa modificación.
+| Última fase completada | **0 — Backup + branch** |
 | Próxima fase | **1 — Conectar App.jsx a módulos** |
-| Estado | 🟡 **Pendiente de autorización para iniciar** |
+| Estado | 🟢 **Fase 0 lista. Esperando autorización para Fase 1** |
 
 **Leyenda de estados:**
 - ⏸️ Pendiente de autorización
@@ -50,17 +69,6 @@ Convertir `App.jsx` (2.687 líneas, single-file) en una **feature-based architec
 ---
 
 ## 📋 FASES
-
-### Fase 0 — Backup + branch ⏸️
-**Objetivo:** Snapshot del estado actual antes de cualquier cambio.
-**Archivos a tocar:** solo git.
-**Riesgo:** NINGUNO.
-**Pasos:**
-- [ ] Branch `refactor/architectural-cleanup` desde `main`.
-- [ ] Tag `v1.0-pre-refactor` en `main`.
-- [ ] `git status` limpio.
-- [ ] Commit inicial del roadmap con mensaje `docs: mapa de ruta de refactorización`.
-**Validación:** branch creado, tag pusheado (o al menos local), `git log` muestra el snapshot.
 
 ---
 
