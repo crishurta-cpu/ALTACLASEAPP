@@ -42,6 +42,55 @@
 
 ---
 
+## [2026-08-01] Sesión #3 — Fase 2: Eliminar dead code ✅
+**Estado:** ✅ Completada
+**Branch:** `refactor/architectural-cleanup`
+**Commits generados:**
+- `e65b8f3` — `chore(fase-2a): eliminar ReporteBtn dead code`
+- `a9ebfff` — `chore(fase-2b): eliminar wrappers CliEntesTab e HistorialTab`
+- `1632e48` — `chore(fase-2c): renombrar src/AGENTS.md a .archive/`
+
+### Archivos modificados
+- `src/App.jsx` (**-75 líneas netas**: 2.471 → 2.396)
+- `src/AGENTS.md` → renombrado a `.archive/App.jsx.snapshot-2026-08.md` (preserva historial git)
+- `docs/REFACTOR_ROADMAP.md` (Fase 2 marcada ✅)
+- `docs/REFACTOR_CHANGELOG.md` (esta entrada)
+- `docs/sessions/2026-08-01-sesion-03-fase-2.md` (bitácora nueva)
+
+### Cambios realizados
+
+**3 commits incrementales:**
+
+1. **Commit 2a (`e65b8f3`)**: eliminado `ReporteBtn` de App.jsx (51 líneas). Era componente definido pero nunca usado en el render, confirmado por lint (`no-unused-vars`).
+
+2. **Commit 2b (`a9ebfff`)**: eliminados wrappers `CliEntesTab` y `HistorialTab` (21 líneas netas). Headers movidos inline al call-site del render principal. Visual idéntico, comportamiento idéntico.
+
+3. **Commit 2c (`1632e48`)**: renombrado `src/AGENTS.md` → `.archive/App.jsx.snapshot-2026-08.md` (rename rastreado por git). Era snapshot histórico de App.jsx, no documentación.
+
+### Decisiones tomadas
+
+- **NO eliminar `src/AGENTS.md`**: era snapshot histórico de App.jsx (commit `195b921` lo renombró como backup tras un arreglo fallido). Perderlo sería perder historia. Mejor renombrar y archivar con nombre descriptivo.
+- **Mantener wrappers eliminados en línea**: más simple que crear un componente `<PageWrapper title="...">` para solo 2 usos.
+- **3 commits incrementales**: cada target en su propio commit para rollback quirúrgico si algo falla.
+- **Bundle bajó**: 300.22 kB → 299.96 kB.
+
+### Problemas encontrados
+
+- **Hallazgo crítico**: `src/AGENTS.md` NO era un markdown, era código JavaScript renombrado como backup (2.598 líneas de JSX, empieza con `import { useState }`). Detectado al inicio de esta fase. Resuelto con rename + archivo `.archive/`.
+
+### Validación
+- [x] `npm run build` OK (3 commits, todos verdes)
+- [x] `npm test` 6 tests pasan
+- [x] Lint: 24 → 22 errores (`ReporteBtn` y refs relacionadas resueltas)
+- [x] Working tree limpio (solo `tareas.jsx` del usuario)
+- [x] `git mv` rastreó el rename correctamente
+
+### Próximos pasos
+1. **Esperar autorización** para iniciar **Fase 3: Extraer átomos UI**.
+2. Targets: `Card`, `Btn`, `ChipGroup`, `FInput`, `ConfirmDelete`, `Pill`, `Divider`, `AutocompleteInput` → mover a `src/shared/ui/`.
+
+---
+
 ## [2026-08-01] Sesión #2 — Fase 1: Conectar App.jsx a módulos ✅
 **Estado:** ✅ Completada
 **Branch:** `refactor/architectural-cleanup`
@@ -53,9 +102,6 @@
 ### Archivos modificados
 - `src/App.jsx` (**216 líneas menos**: 2.687 → 2.471)
 - `package.json` (+ scripts `test` y `test:watch`)
-- `docs/REFACTOR_ROADMAP.md` (Fase 1 marcada ✅ con detalle)
-- `docs/REFACTOR_CHANGELOG.md` (esta entrada)
-- `docs/sessions/2026-08-01-sesion-02-fase-1.md` (bitácora nueva)
 
 ### Cambios realizados
 
@@ -68,26 +114,21 @@
 ### Decisiones tomadas
 
 - **3 commits incrementales en lugar de 1 monolítico**: si algo falla, rollback más quirúrgico.
-- **No eliminar imports no usados**: las reglas de negocio (`CLIENTES_ESPECIALES`, `NO_SON_CLIENTES`, etc.) están importadas aunque no se usen directamente en `App.jsx` (se usan vía `cuentaParaTotales` que SÍ se importa). Dejarlas previene errores silenciosos y prepara para Fases futuras.
-- **Agregar script `test`**: era deuda técnica pre-existente (vitest instalado pero sin script).
+- **No eliminar imports no usados**: las reglas de negocio (`CLIENTES_ESPECIALES`, `NO_SON_CLIENTES`, etc.) están importadas aunque no se usen directamente en `App.jsx` (se usan vía `cuentaParaTotales` que SÍ se importa).
+- **Agregar script `test`**: era deuda técnica pre-existente.
 - **No tocar errores de lint pre-existentes**: documentados para Fase 22.
 
 ### Problemas encontrados
 
-- **`K.bg` discrepante entre App.jsx (`#0D0D12`) y `constants/index.js` (`#737380`)**: bug latente pre-existente, no generado por esta fase. No causa impacto visible porque el CSS inline de App.jsx define el background directamente sin pasar por `K.bg`. Documentado para revisión en Fase 22.
-- **24 errores de lint pre-existentes**: variables no usadas (`CLIENTES_ESPECIALES`, `noEsClienteReal`, etc.), `ReporteBtn` dead code, `Buffer is not defined` en `services/api.js`, `setState` en effect. Todos preexistentes, no introducidos. Documentados para Fase 22.
-- **`CLIENTES_ESPECIALES` aparece como "no usado" en lint**: falso positivo del lint porque `cuentaParaTotales` (que sí se importa) lo referencia internamente desde `constants/index.js`, no desde App.jsx. ESLint no rastrea esa cadena de imports. **No eliminar el import de App.jsx**, o se romperá la referencia cuando se haga refactor más adelante.
+- **`K.bg` discrepante** entre App.jsx (`#0D0D12`) y `constants/index.js` (`#737380`): bug latente pre-existente.
+- **24 errores de lint pre-existentes**.
+- **`CLIENTES_ESPECIALES` falso positivo** del lint.
 
 ### Validación
 - [x] `npm run build` sin errores
 - [x] `npm test` 6 tests pasan
-- [ ] `npm run lint` — 24 errores pre-existentes (no introducidos por esta fase)
+- [ ] `npm run lint` — 24 errores pre-existentes
 - [x] `git log` muestra 3 commits limpios y ordenados
-- [x] `App.jsx` pasó de 2.687 a 2.471 líneas (-216, objetivo era -150)
-
-### Próximos pasos
-1. **Esperar autorización** para iniciar **Fase 2: Eliminar dead code**.
-2. Targets: `ReporteBtn` (línea ~283 App.jsx), `src/AGENTS.md` duplicado, wrappers `CliEntesTab` y `HistorialTab`.
 
 ---
 
@@ -99,37 +140,19 @@
 **Commit de cierre:** `46a9bf9` — `docs(refactor): registrar cierre de Fase 0`
 
 ### Archivos modificados
-- `docs/REFACTOR_ROADMAP.md` (+~30 líneas: estado global actualizado, Fase 0 marcada como ✅ con detalle)
+- `docs/REFACTOR_ROADMAP.md` (+~30 líneas)
 - `docs/REFACTOR_CHANGELOG.md` (entrada "Sesión #1")
 - `docs/sessions/2026-08-01-sesion-01-fase-0.md` (bitácora nueva)
-- **NO se tocó ningún archivo de código** (regla de la auditoría respetada).
 
 ### Cambios realizados
 1. Branch `refactor/architectural-cleanup` creado desde `main`.
-2. Tag anotado `v1.0-pre-refactor` creado en `main` apuntando al commit `21102b3`.
-3. Commit `29e84e7`: stageó solo `docs/` (3 archivos, 681 líneas) — sistema de contexto persistente.
-4. Commit `46a9bf9`: stageó actualización post-Fase 0 (3 archivos, 234 líneas).
-5. La modificación pre-existente de `src/components/tareas.jsx` (1 línea) **no se tocó**.
-
-### Decisiones tomadas
-- **Tag anotado** (`-a`) con mensaje descriptivo.
-- **Commit separado** solo para `docs/`, sin mezclar con cambios de código del usuario.
-- **No tocar `src/components/tareas.jsx`**: respeto absoluto al WIP del usuario.
-- **Roadmap corregido**: detectado y eliminado duplicado accidental de "Fase 0".
-
-### Problemas encontrados
-- Detectado y corregido duplicado accidental de "Fase 0" en el roadmap (error de Edit doble).
+2. Tag anotado `v1.0-pre-refactor` creado en `main`.
+3. Commits `29e84e7` y `46a9bf9` con docs de contexto.
 
 ### Validación
-- [x] Branch creado: `refactor/architectural-cleanup`
-- [x] Tag creado: `v1.0-pre-refactor`
-- [x] Commits `29e84e7` y `46a9bf9`
-- [x] Working tree: solo `src/components/tareas.jsx` modificado por el usuario
-- [x] Roadmap sin duplicados
+- [x] Branch + tag creados
+- [x] Working tree: solo `tareas.jsx` modificado por el usuario
 - [x] **CERO archivos de código modificados**
-
-### Próximos pasos
-1. **Fase 1**: conectar `App.jsx` a los módulos.
 
 ---
 

@@ -10,10 +10,10 @@
 
 | Métrica | Valor |
 |---|---|
-| Fase actual | **1 — Conectar App.jsx a módulos** ✅ |
-| Última fase completada | **1 — Conectar App.jsx a módulos** |
-| Próxima fase | **2 — Eliminar dead code** |
-| Estado | 🟢 **Fase 1 lista. Esperando autorización para Fase 2** |
+| Fase actual | **2 — Eliminar dead code** ✅ |
+| Última fase completada | **2 — Eliminar dead code** |
+| Próxima fase | **3 — Extraer átomos UI** |
+| Estado | 🟢 **Fase 2 lista. Esperando autorización para Fase 3** |
 
 ### Fase 0 — Backup + branch ✅
 **Objetivo:** Snapshot del estado actual antes de cualquier cambio.
@@ -119,18 +119,34 @@ Convertir `App.jsx` (2.687 líneas, single-file) en una **feature-based architec
 
 ---
 
-### Fase 2 — Eliminar dead code ⏸️
+### Fase 2 — Eliminar dead code ✅
 **Objetivo:** Limpiar código que no se usa.
 **Archivos a tocar:**
-- `src/App.jsx` — eliminar `ReporteBtn` (líneas ~388–438, dead code, nadie lo importa).
-- `src/AGENTS.md` — eliminar (es duplicado del raíz).
-- `src/App.jsx` — eliminar wrappers `CliEntesTab` y `HistorialTab` (solo agregan padding+header).
+- `src/App.jsx` — eliminar `ReporteBtn` (dead code, nadie lo importa).
+- `src/AGENTS.md` — renombrar a `.archive/App.jsx.snapshot-2026-08.md` (es snapshot histórico de App.jsx, NO docs).
+- `src/App.jsx` — eliminar wrappers `CliEntesTab` y `HistorialTab`.
+
+**Cambios específicos:**
+- [x] Eliminar `ReporteBtn` de `App.jsx` (líneas 280–330 + banner).
+- [x] Renombrar `src/AGENTS.md` → `.archive/App.jsx.snapshot-2026-08.md`.
+- [x] Eliminar wrappers `CliEntesTab` y `HistorialTab`. Header movido inline al call-site en `App.jsx`.
 
 **Validación:**
-- [ ] Build OK.
-- [ ] App funciona idéntica.
+- [x] Build OK.
+- [x] App funciona idéntica.
+- [x] `git mv` rastreó el rename (historial preservado).
+- [x] Lint: 24 → 22 errores (`ReporteBtn` y referencias eliminadas).
 
-**Commit:** `chore(fase-2): eliminar dead code (ReporteBtn, AGENTS.md duplicado, wrappers)`.
+**Commits generados (3 commits incrementales):**
+- `e65b8f3` — `chore(fase-2a): eliminar ReporteBtn dead code` (-51 líneas)
+- `a9ebfff` — `chore(fase-2b): eliminar wrappers CliEntesTab e HistorialTab` (-21 líneas)
+- `1632e48` — `chore(fase-2c): renombrar src/AGENTS.md a .archive/`
+
+**Decisión importante:**
+- `src/AGENTS.md` NO era docs, era código fuente renombrado como backup (commit `195b921`). Detectado en esta fase, **no eliminado** (perdida de historial), sí movido a `.archive/` con nombre descriptivo. El usuario aprobó esta decisión.
+
+**Bonus:**
+- Bundle bajó: 300.22 kB → **299.96 kB** (-260 bytes).
 
 ---
 
