@@ -45,6 +45,7 @@ import {
   inventarioToRow,
   deudaPersonalToRow,
 } from "./services/parsers";
+import Divider from "./shared/ui/Divider";
 
 
 // ═══ UI ATOMS ═════════════════════════════════════════════════
@@ -57,7 +58,6 @@ const Card=({ch,s={}})=><div style={{
   boxShadow:DS.shadow.md,
   ...s
 }}>{ch}</div>;
-const Divider=()=><div style={{height:1,background:K.border,margin:"10px 0"}}/>;
 const ConfirmDelete=({onConfirm,onCancel})=>(
   <div style={{display:"flex",gap:6,marginTop:10}}>
     <button onClick={onConfirm} style={{flex:1,background:`${K.red}18`,border:`1.5px solid ${K.red}`,color:K.red,borderRadius:DS.r.sm,padding:"8px 0",fontSize:12,fontWeight:700,cursor:"pointer",letterSpacing:.3}}>Sí, borrar</button>
