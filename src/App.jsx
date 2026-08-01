@@ -121,9 +121,6 @@ const FInput=({label,value,onChange,type="text",placeholder,prefix})=>(
 
 
 // ═══ HOME ═════════════════════════════════════════════════════
-// ═══ REPORTE BTN ══════════════════════════════════════════════
-// Genera un resumen del mes en texto plano, listo para copiar o compartir
-// por WhatsApp sin abrir otra app ni formatear nada a mano.
 // ═══ GRÁFICO DE PUNTOS ════════════════════════════════════════════
 function GraficoPuntos({datos}){
   if(!datos||datos.length<2)return null;
@@ -278,57 +275,6 @@ function GraficoPuntos({datos}){
       ))}
 
     </svg>
-  );
-}
-function ReporteBtn({mes,ventas,gan,gastos,util,mrg,debenList,top5,ganSem,ventasSem}){
-  const [copiado,setCopiado]=useState(false);
-  const generar=()=>{
-    const fmt2=n=>"$"+Number(n||0).toLocaleString("es-CO");
-    const lineas=[
-      `📊 *REPORTE ALTACLASE BODEGA — ${mes.toUpperCase()}*`,
-      ``,
-      `💰 Utilidad: ${fmt2(util)} (Margen ${mrg}%)`,
-      `📈 Ventas: ${fmt2(ventas)}`,
-      `✅ Ganancia: ${fmt2(gan)}`,
-      `📉 Gastos: ${fmt2(gastos)}`,
-      ``,
-      `📅 *ESTA SEMANA*`,
-      `   Ganancia: ${fmt2(ganSem)} · ${ventasSem} venta${ventasSem!==1?"s":""}`,
-    ];
-    if(top5.length>0){
-      lineas.push(``);
-      lineas.push(`🏆 *TOP CLIENTES*`);
-      top5.forEach(([nom,st],i)=>lineas.push(`   ${i+1}. ${nom} — ${fmt2(st.g)}`));
-    }
-    if(debenList.length>0){
-      lineas.push(``);
-      lineas.push(`⚠️ *COBROS PENDIENTES*`);
-      debenList.forEach(c=>lineas.push(`   • ${c.cliente} — ${fmt2(c.saldo)}`));
-    }
-    lineas.push(``);
-    lineas.push(`_Altaclase Bodega_`);
-    const texto=lineas.join("\n");
-    if(navigator.clipboard?.writeText){
-      navigator.clipboard.writeText(texto).then(()=>{setCopiado(true);setTimeout(()=>setCopiado(false),2500);});
-    }else{
-      // fallback para Safari que a veces bloquea clipboard API
-      const el=document.createElement("textarea");
-      el.value=texto; el.style.position="fixed"; el.style.opacity="0";
-      document.body.appendChild(el); el.select();
-      document.execCommand("copy"); document.body.removeChild(el);
-      setCopiado(true); setTimeout(()=>setCopiado(false),2500);
-    }
-  };
-  return(
-    <div style={{marginBottom:10}}>
-      {meses.length>1&&(
-        <ChipGroup label="Período" options={meses} value={mes} onChange={onChangeMes} colorMap={{todos:K.gold}}/>
-      )}
-      <button onClick={generar} style={{width:"100%",background:copiado?`${K.gold}22`:K.card2,border:`1px solid ${copiado?K.gold:K.border}`,borderRadius:DS.r.sm,padding:"11px 14px",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10,transition:"all .2s"}}>
-        <span style={{fontSize:12,fontWeight:700,color:copiado?K.gold:K.muted,letterSpacing:.5,textTransform:"uppercase"}}>{copiado?"✓ Reporte copiado":"📋 Generar reporte del mes"}</span>
-        <span style={{fontSize:10,color:K.muted}}>Copiar para WhatsApp</span>
-      </button>
-    </div>
   );
 }
 
