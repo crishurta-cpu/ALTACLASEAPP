@@ -1867,28 +1867,7 @@ function DeudaPersonalForm({item,saldoBase=0,onClose,onSave,onDelete}){
 }
 
 // ═══ MÁS ═══════════════════════════════════════════════════════
-// Wrappers de pantalla completa para los nuevos tabs del nav
-function CliEntesTab({db,onEditIngreso,onMarcarPagado,onRegistrarAbono}){
-  return(
-    <div style={{padding:"0 0 0"}}>
-      <div style={{padding:"16px 16px 0"}}>
-        <div style={{fontSize:28,fontWeight:700,letterSpacing:-.5,marginBottom:16,color:K.text}}>Clientes</div>
-        <Clientes db={db} onEditIngreso={onEditIngreso} onMarcarPagado={onMarcarPagado} onRegistrarAbono={onRegistrarAbono}/>
-      </div>
-    </div>
-  );
-}
-function HistorialTab({db,onEditIngreso,onEditGasto}){
-  return(
-    <div style={{padding:"0 0 0"}}>
-      <div style={{padding:"16px 16px 0"}}>
-        <div style={{fontSize:28,fontWeight:700,letterSpacing:-.5,marginBottom:16,color:K.text}}>Historial</div>
-        <Historial db={db} onEditIngreso={onEditIngreso} onEditGasto={onEditGasto}/>
-      </div>
-    </div>
-  );
-}
-
+// Sub-tabs de Más (no es un wrapper, tiene estado y dispatch).
 function Mas({db,onEditIngreso,onEditGasto,onMarcarPagado,onRegistrarAbono,onAddInv,onEditInv,onDeleteInv,onAddDeuda,onEditDeuda,onDeleteDeuda}){
   const [v,setV]=useState("clientes");
   const tabs=[["buscar","🔍","Buscar"],["tareas","🤖","Tareas"],["inv","📦","Inventario"],["personal","📓","Personal"],["config","⚙️","Config"]];
@@ -2327,8 +2306,8 @@ export default function App(){
       {/* Contenido principal — scroll nativo */}
 <div style={{}}>
           {tab==="home"&&<Home db={db} onRefresh={()=>loadData(false)} loading={loading} lastSync={lastSync}/>}
-        {tab==="clientes"&&<CliEntesTab db={db} onEditIngreso={setEditIng} onMarcarPagado={marcarPagado} onRegistrarAbono={registrarAbono}/>}
-        {tab==="historial"&&<HistorialTab db={db} onEditIngreso={setEditIng} onEditGasto={setEditGas}/>}
+        {tab==="clientes"&&<div style={{padding:"0 0 0"}}><div style={{padding:"16px 16px 0"}}><div style={{fontSize:28,fontWeight:700,letterSpacing:-.5,marginBottom:16,color:K.text}}>Clientes</div><Clientes db={db} onEditIngreso={setEditIng} onMarcarPagado={marcarPagado} onRegistrarAbono={registrarAbono}/></div></div>}
+        {tab==="historial"&&<div style={{padding:"0 0 0"}}><div style={{padding:"16px 16px 0"}}><div style={{fontSize:28,fontWeight:700,letterSpacing:-.5,marginBottom:16,color:K.text}}>Historial</div><Historial db={db} onEditIngreso={setEditIng} onEditGasto={setEditGas}/></div></div>}
         {tab==="mas"&&<Mas db={db} onEditIngreso={setEditIng} onEditGasto={setEditGas} onMarcarPagado={marcarPagado} onRegistrarAbono={registrarAbono} onAddInv={addInventario} onEditInv={editInventario} onDeleteInv={removeInventario} onAddDeuda={addDeuda} onEditDeuda={editDeuda} onDeleteDeuda={removeDeuda}/>}
       </div>
 
