@@ -49,29 +49,10 @@ import Divider from "./shared/ui/Divider";
 import Card from "./shared/ui/Card";
 import ConfirmDelete from "./shared/ui/ConfirmDelete";
 import Pill from "./shared/ui/Pill";
+import Btn from "./shared/ui/Btn";
 
 
 // ═══ UI ATOMS ═════════════════════════════════════════════════
-const Btn=({label,onClick,col=K.gold,dis,outline,sm,loading})=>(
-  <button onClick={onClick} disabled={dis||loading} style={{
-    width:sm?"auto":"100%",
-    padding:sm?"10px 20px":"15px",
-    background:outline?"transparent":(dis||loading)?K.card3:col,
-    color:outline?col:(dis||loading)?K.muted:"#000000",
-    border:outline?`1.5px solid ${col}`:"none",
-    borderRadius:sm?DS.r.sm:DS.r.md,
-    fontSize:sm?13:15,
-    fontWeight:600,
-    cursor:(dis||loading)?"not-allowed":"pointer",
-    opacity:(dis||loading)?.35:1,
-    letterSpacing:-.1,
-    WebkitTapHighlightColor:"transparent",
-    boxShadow:(dis||loading||outline)?"none":DS.shadow.glow(col),
-    transition:"opacity .15s, box-shadow .15s, transform .1s",
-  }}>
-    {loading?"Guardando...":label}
-  </button>
-);
 const ChipGroup=({label,options,value,onChange,colorMap={}})=>(
   <div style={{marginBottom:16}}>
     {label&&<div style={{fontSize:10,color:K.muted,marginBottom:7,textTransform:"uppercase",letterSpacing:1,fontWeight:600}}>{label}</div>}
