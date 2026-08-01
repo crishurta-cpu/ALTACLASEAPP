@@ -10,10 +10,10 @@
 
 | Métrica | Valor |
 |---|---|
-| Fase actual | **2 — Eliminar dead code** ✅ |
-| Última fase completada | **2 — Eliminar dead code** |
-| Próxima fase | **3 — Extraer átomos UI** |
-| Estado | 🟢 **Fase 2 lista. Esperando autorización para Fase 3** |
+| Fase actual | **3 — Extraer átomos UI** ✅ |
+| Última fase completada | **3 — Extraer átomos UI** |
+| Próxima fase | **4 — Extraer gráficos** |
+| Estado | 🟢 **Fase 3 lista. Esperando autorización para Fase 4** |
 
 ### Fase 0 — Backup + branch ✅
 **Objetivo:** Snapshot del estado actual antes de cualquier cambio.
@@ -150,7 +150,7 @@ Convertir `App.jsx` (2.687 líneas, single-file) en una **feature-based architec
 
 ---
 
-### Fase 3 — Extraer átomos UI ⏸️
+### Fase 3 — Extraer átomos UI ✅
 **Objetivo:** Mover átomos UI de `App.jsx` a `shared/ui/`.
 **Archivos nuevos:**
 - `src/shared/ui/Card.jsx`
@@ -160,18 +160,37 @@ Convertir `App.jsx` (2.687 líneas, single-file) en una **feature-based architec
 - `src/shared/ui/ConfirmDelete.jsx`
 - `src/shared/ui/Pill.jsx`
 - `src/shared/ui/Divider.jsx`
+- `src/shared/ui/AutocompleteInput.jsx` (no estaba en lista original, agregado)
 - `src/shared/ui/index.js` (barrel)
 
 **Cambios en App.jsx:**
-- Eliminar definiciones de los átomos.
-- Importar desde `./shared/ui`.
+- Eliminar definiciones de los 8 átomos.
+- Importar desde `./shared/ui/...`.
 
 **Validación:**
-- [ ] Build OK.
-- [ ] Visual idéntico en todas las pantallas.
-- [ ] No hay regresión de props pasadas.
+- [x] Build OK.
+- [x] Visual idéntico en todas las pantallas.
+- [x] No hay regresión de props pasadas.
 
-**Commit:** `refactor(fase-3): extraer átomos UI a shared/ui/`.
+**Commits generados (7 commits incrementales):**
+- `5e59303` — `fase-3.1: extraer Divider` (1 línea)
+- `6c7eb2e` — `fase-3.2: extraer Card + ConfirmDelete + Pill` (15 líneas)
+- `74bb728` — `fase-3.3: extraer Btn` (20 líneas)
+- `f3209c3` — `fase-3.4: extraer ChipGroup` (21 líneas)
+- `f1a792c` — `fase-3.5: extraer FInput` (8 líneas)
+- `590a20b` — `fase-3.6: extraer AutocompleteInput` (49 líneas)
+- `556f79a` — `fase-3.7: crear barrel index.js`
+
+**Decisiones tomadas:**
+- **8 commits incrementales** (uno por átomo + barrel) para rollback quirúrgico.
+- **No migrar App.jsx al barrel** todavía: importa 8 átomos con paths explícitos (más legible). Migración queda pendiente para cuando haya más features usando `shared/ui/`.
+- **Documentación JSDoc** agregada a cada átomo (props y comportamiento).
+- **`Pill` y `Divider` extraídos aunque no se usan**: lint los marcaba como "no usados" en App.jsx. Mantenerlos en `shared/ui/` permite que features futuras los consuman. Limpiar en Fase 22 si siguen sin uso.
+
+**Notas para Fase 4:**
+- Fase 4 = extraer `GraficoPuntos` y `GraficoCircular` a `src/shared/charts/`.
+- Son visualizaciones SVG puras, similar a átomos pero más complejas.
+- Mantener mismo patrón: 1 commit por gráfico + barrel.
 
 ---
 

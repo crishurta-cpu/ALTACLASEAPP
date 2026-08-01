@@ -42,6 +42,58 @@
 
 ---
 
+## [2026-08-01] Sesión #4 — Fase 3: Extraer átomos UI ✅
+**Estado:** ✅ Completada
+**Branch:** `refactor/architectural-cleanup`
+**Commits generados:**
+- `5e59303` — `fase-3.1: extraer Divider`
+- `6c7eb2e` — `fase-3.2: extraer Card + ConfirmDelete + Pill`
+- `74bb728` — `fase-3.3: extraer Btn`
+- `f3209c3` — `fase-3.4: extraer ChipGroup`
+- `f1a792c` — `fase-3.5: extraer FInput`
+- `590a20b` — `fase-3.6: extraer AutocompleteInput`
+- `556f79a` — `fase-3.7: crear barrel index.js`
+
+### Archivos modificados
+- `src/App.jsx` (**-109 líneas**: 2.396 → 2.287)
+- 9 archivos nuevos en `src/shared/ui/`:
+  - `Card.jsx`, `Btn.jsx`, `ChipGroup.jsx`, `FInput.jsx`, `ConfirmDelete.jsx`, `Pill.jsx`, `Divider.jsx`, `AutocompleteInput.jsx`, `index.js`
+
+### Cambios realizados
+
+**7 commits incrementales** (uno por átomo + barrel final):
+
+| # | Átomo | Líneas eliminadas | Usos en App.jsx |
+|---|---|---|---|
+| 3.1 | Divider | 1 | 0 (preservado) |
+| 3.2 | Card + ConfirmDelete + Pill | 15 | 21 + 4 + 0 |
+| 3.3 | Btn | 20 | múltiples |
+| 3.4 | ChipGroup | 21 | múltiples |
+| 3.5 | FInput | 8 | múltiples |
+| 3.6 | AutocompleteInput | 49 | múltiples |
+| 3.7 | (barrel) | 0 | n/a |
+
+### Decisiones tomadas
+
+- **7 commits incrementales** (uno por átomo + barrel final) para rollback quirúrgico.
+- **No migrar App.jsx al barrel** todavía: imports individuales explícitos. Migración futura.
+- **Documentación JSDoc** agregada a cada átomo (props, comportamiento, ejemplos).
+- **`Pill` y `Divider` preservados aunque no usados**: lint los marcó como "no usados" en App.jsx. Mantenerlos permite uso futuro. Limpiar en Fase 22.
+
+### Validación
+- [x] `npm run build` OK (todos los commits verdes)
+- [x] `npm test` 6 tests pasan
+- [x] Bundle: 299.96 → 299.97 kB (cambio mínimo, esperado)
+- [x] Lint: 22 errores (sin cambios nuevos)
+- [x] Visual idéntico (sin cambios de estilo, solo movimiento de código)
+- [x] Working tree limpio (solo `tareas.jsx` del usuario)
+
+### Próximos pasos
+1. **Esperar autorización** para iniciar **Fase 4: Extraer gráficos**.
+2. Targets: `GraficoPuntos`, `GraficoCircular` → `src/shared/charts/`.
+
+---
+
 ## [2026-08-01] Sesión #3 — Fase 2: Eliminar dead code ✅
 **Estado:** ✅ Completada
 **Branch:** `refactor/architectural-cleanup`
