@@ -54,6 +54,7 @@ import ChipGroup from "./shared/ui/ChipGroup";
 import FInput from "./shared/ui/FInput";
 import AutocompleteInput from "./shared/ui/AutocompleteInput";
 import GraficoPuntos from "./shared/charts/GraficoPuntos";
+import GraficoCircular from "./shared/charts/GraficoCircular";
 
 
 // ═══ UI ATOMS ═════════════════════════════════════════════════
@@ -641,43 +642,7 @@ function EditGasto({item,onClose,onSave,onDelete}){
   );
 }
 
-// ═══ HISTORIAL ═════════════════════════════════════════════════
-// ═══ GRÁFICO CIRCULAR ═════════════════════════════════════════════
-// SVG puro — gastos por categoría como pie chart.
-function GraficoCircular({datos,colores,total}){
-  if(!datos||datos.length===0||total===0)return null;
-  const R=40,CX=50,CY=50;
-  let ang=-Math.PI/2;
-  const slices=datos.map(([cat,val],i)=>{
-    const pct=val/total;
-    const startAng=ang;
-    ang+=pct*2*Math.PI;
-    const x1=CX+R*Math.cos(startAng),y1=CY+R*Math.sin(startAng);
-    const x2=CX+R*Math.cos(ang),y2=CY+R*Math.sin(ang);
-    const large=pct>0.5?1:0;
-    return{cat,val,pct,x1,y1,x2,y2,large,col:colores[i%colores.length]};
-  });
-  return(
-    <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:12,background:K.bg,borderRadius:DS.r.md,padding:10}}>
-      <svg viewBox="0 0 100 100" width={80} height={80} style={{flexShrink:0}}>
-        {slices.map((s,i)=>(
-          <path key={i} d={`M ${CX} ${CY} L ${s.x1.toFixed(2)} ${s.y1.toFixed(2)} A ${R} ${R} 0 ${s.large} 1 ${s.x2.toFixed(2)} ${s.y2.toFixed(2)} Z`} fill={s.col} stroke={K.bg} strokeWidth="1"/>
-        ))}
-      </svg>
-      <div style={{flex:1,minWidth:0}}>
-        {slices.map((s,i)=>(
-          <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
-            <div style={{display:"flex",alignItems:"center",gap:6}}>
-              <div style={{width:8,height:8,borderRadius:"50%",background:s.col,flexShrink:0}}/>
-              <span style={{fontSize:10,color:K.grafico,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:80}}>{s.cat}</span>
-            </div>
-            <span style={{fontSize:10,color:K.grafico,flexShrink:0}}>{(s.pct*100).toFixed(0)}%</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
+// GraficoCircular: ver ./shared/charts/GraficoCircular.jsx
 
 function Historial({db,onEditIngreso,onEditGasto}){
   const [open,setOpen]=useState(curM());
