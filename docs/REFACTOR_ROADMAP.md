@@ -10,10 +10,10 @@
 
 | Métrica | Valor |
 |---|---|
-| Fase actual | **3 — Extraer átomos UI** ✅ |
-| Última fase completada | **3 — Extraer átomos UI** |
-| Próxima fase | **4 — Extraer gráficos** |
-| Estado | 🟢 **Fase 3 lista. Esperando autorización para Fase 4** |
+| Fase actual | **4 — Extraer gráficos** ✅ |
+| Última fase completada | **4 — Extraer gráficos** |
+| Próxima fase | **5 — Extraer feature Settings** |
+| Estado | 🟢 **Fase 4 lista. Esperando autorización para Fase 5** |
 
 ### Fase 0 — Backup + branch ✅
 **Objetivo:** Snapshot del estado actual antes de cualquier cambio.
@@ -194,7 +194,7 @@ Convertir `App.jsx` (2.687 líneas, single-file) en una **feature-based architec
 
 ---
 
-### Fase 4 — Extraer gráficos ⏸️
+### Fase 4 — Extraer gráficos ✅
 **Objetivo:** Aislar visualizaciones SVG.
 **Archivos nuevos:**
 - `src/shared/charts/GraficoPuntos.jsx`
@@ -202,10 +202,25 @@ Convertir `App.jsx` (2.687 líneas, single-file) en una **feature-based architec
 - `src/shared/charts/index.js`
 
 **Validación:**
-- [ ] Gráfico de puntos en Home se renderiza idéntico.
-- [ ] Gráfico circular en Historial se renderiza idéntico.
+- [x] Gráfico de puntos en Home se renderiza idéntico.
+- [x] Gráfico circular en Historial se renderiza idéntico.
 
-**Commit:** `refactor(fase-4): extraer gráficos a shared/charts/`.
+**Commits generados (3 commits incrementales):**
+- `3dc1e43` — `fase-4.1: extraer GraficoPuntos` (-156 líneas)
+- `f69fc94` — `fase-4.2: extraer GraficoCircular` (-36 líneas)
+- `c3a6d40` — `fase-4.3: crear barrel index.js`
+
+**Issues durante extracción:**
+- `sed '645,680d'` borró 1 línea de más (un `}` huérfano que venía del bloque de banners eliminado en Fase 2). Build falló, detectado y corregido con `Edit` manual. Build verde tras el fix.
+- `K.grafico` redundante con `K.muted` (mismo valor `#6b7280`). No bloqueante, registrado para Fase 22.
+
+**Decisiones:**
+- Mismo patrón que Fase 3: 1 archivo por componente + barrel. JSDoc en cada uno.
+
+**Notas para Fase 5:**
+- Fase 5 = primera feature en carpeta propia (`src/features/settings/`).
+- `Configuracion` no usa ningún átomo de `shared/ui/` actualmente. Mantendrá su JSX sin formato porque está en su propio archivo (no compite con nadie).
+- Mantener consistencia con barrels (crear `features/settings/index.js` aunque nadie lo use).
 
 ---
 

@@ -42,6 +42,55 @@
 
 ---
 
+## [2026-08-01] Sesión #5 — Fase 4: Extraer gráficos ✅
+**Estado:** ✅ Completada
+**Branch:** `refactor/architectural-cleanup`
+**Commits generados:**
+- `3dc1e43` — `refactor(fase-4.1): extraer GraficoPuntos a shared/charts/`
+- `f69fc94` — `refactor(fase-4.2): extraer GraficoCircular a shared/charts/`
+- `c3a6d40` — `refactor(fase-4.3): crear barrel shared/charts/index.js`
+
+### Archivos modificados
+- `src/App.jsx` (**-190 líneas**: 2.287 → 2.097)
+- 3 archivos nuevos en `src/shared/charts/`:
+  - `GraficoPuntos.jsx` (SVG line chart)
+  - `GraficoCircular.jsx` (SVG pie chart)
+  - `index.js` (barrel)
+
+### Cambios realizados
+
+**3 commits incrementales**:
+
+| # | Componente | Líneas eliminadas |
+|---|---|---|
+| 4.1 | GraficoPuntos | -156 |
+| 4.2 | GraficoCircular | -36 |
+| 4.3 | (barrel) | 0 |
+
+### Decisiones tomadas
+
+- **3 commits incrementales** (uno por gráfico + barrel final).
+- **No migrar App.jsx al barrel** (consistente con Fase 3): imports individuales son más explícitos.
+- **Documentación JSDoc** en cada gráfico.
+
+### Problemas encontrados
+
+- **Build roto durante extracción de GraficoCircular**: el `sed '645,680d'` borró 1 línea de más (un `}` huérfano del banner HISTORIAL eliminado en Fase 2). Detectado por `npm run build`, corregido manualmente con `Edit`. Build verde tras el fix.
+- **`K.grafico` redundante con `K.muted`**: ambos tienen valor `#6b7280`. Detectado durante extracción. No bloqueante, registrado para Fase 22 (Limpieza final).
+
+### Validación
+- [x] `npm run build` OK (3 commits, todos verdes tras fix manual)
+- [x] `npm test` 6 tests pasan
+- [x] Lint: 22 → 20 (variables locales eliminadas al mover funciones)
+- [x] Bundle: 299.97 → 299.96 kB (cambio mínimo)
+- [x] Working tree limpio
+
+### Próximos pasos
+1. **Esperar autorización** para iniciar **Fase 5: Extraer feature Settings**.
+2. Targets: `Configuracion`, `AccentPicker` → `src/features/settings/`.
+
+---
+
 ## [2026-08-01] Sesión #4 — Fase 3: Extraer átomos UI ✅
 **Estado:** ✅ Completada
 **Branch:** `refactor/architectural-cleanup`
