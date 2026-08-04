@@ -42,6 +42,48 @@
 
 ---
 
+## [2026-08-01] Sesión #6 — Fase 5: Extraer feature Settings ✅
+**Estado:** ✅ Completada
+**Branch:** `refactor/architectural-cleanup`
+**Commit:** `af94ff3` — `refactor(fase-5): extraer Configuracion a features/settings/`
+
+### Archivos modificados
+- `src/App.jsx` (**-77 líneas**: 2.097 → 2.020)
+- 3 archivos nuevos en `src/features/settings/`:
+  - `Configuracion.jsx` (info + sesiones + datos + cerrar sesión)
+  - `AccentPicker.jsx` (selector de 8 colores con localStorage)
+  - `index.js` (barrel)
+
+### Cambios realizados
+
+Configuracion se dividió en 2 piezas:
+- **`Configuracion`**: orquestador con secciones (App info, AccentPicker, Sesión, Datos, Cerrar sesión).
+- **`AccentPicker`**: sub-componente que encapsula estado local + persistencia localStorage + dispatch de evento "accentchange".
+
+### Decisiones tomadas
+
+- **Sub-componente extraído** para reducir tamaño de Configuracion y aislar lógica de accent.
+- **`Configuracion` consume `Card` de `shared/ui/`** (primer feature que usa átomos de Fases 3–4).
+- **Barrel creado** siguiendo el patrón establecido.
+- **JSDoc agregado** a ambos archivos.
+
+### Problemas encontrados
+
+- **`sed` borró 1 línea de más** (mismo patrón que en Fase 4). Detectado por build fallido, corregido con `Edit` manual. Build verde.
+
+### Validación
+- [x] `npm run build` OK
+- [x] `npm test` 6 tests pasan
+- [x] Tab "Config" funciona (no probado en navegador, pero compila)
+- [x] Visual idéntico
+- [x] Working tree limpio
+
+### Próximos pasos
+1. **Esperar autorización** para iniciar **Fase 6: Extraer feature Auth**.
+2. Targets: `LoginScreen` → `src/features/auth/`.
+
+---
+
 ## [2026-08-01] Sesión #5 — Fase 4: Extraer gráficos ✅
 **Estado:** ✅ Completada
 **Branch:** `refactor/architectural-cleanup`

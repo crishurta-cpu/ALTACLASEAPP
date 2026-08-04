@@ -10,10 +10,10 @@
 
 | Métrica | Valor |
 |---|---|
-| Fase actual | **4 — Extraer gráficos** ✅ |
-| Última fase completada | **4 — Extraer gráficos** |
-| Próxima fase | **5 — Extraer feature Settings** |
-| Estado | 🟢 **Fase 4 lista. Esperando autorización para Fase 5** |
+| Fase actual | **5 — Extraer feature Settings** ✅ |
+| Última fase completada | **5 — Extraer feature Settings** |
+| Próxima fase | **6 — Extraer feature Auth** |
+| Estado | 🟢 **Fase 5 lista. Esperando autorización para Fase 6** |
 
 ### Fase 0 — Backup + branch ✅
 **Objetivo:** Snapshot del estado actual antes de cualquier cambio.
@@ -224,18 +224,33 @@ Convertir `App.jsx` (2.687 líneas, single-file) en una **feature-based architec
 
 ---
 
-### Fase 5 — Extraer feature Settings ⏸️
+### Fase 5 — Extraer feature Settings ✅
 **Objetivo:** Mover Configuracion a su carpeta.
 **Archivos nuevos:**
 - `src/features/settings/Configuracion.jsx`
-- `src/features/settings/AccentPicker.jsx`
+- `src/features/settings/AccentPicker.jsx` (sub-componente extraído)
 - `src/features/settings/index.js`
 
 **Validación:**
-- [ ] Tab "Config" en Más sigue funcionando.
-- [ ] Cambio de color de acento se refleja en toda la app.
+- [x] Tab "Config" en Más sigue funcionando.
+- [x] Cambio de color de acento se refleja en toda la app.
+- [x] build OK, 6 tests pasan.
 
-**Commit:** `refactor(fase-5): extraer feature settings/`.
+**Commit generado:**
+- `af94ff3` — `refactor(fase-5): extraer Configuracion a features/settings/`
+
+**Decisiones:**
+- **Sub-componente `AccentPicker` extraído** para reducir tamaño de `Configuracion` y aislar lógica de persistencia de accent.
+- **`Configuracion` usa `Card` de `shared/ui/`** (primer feature que consume átomos extraídos en Fases anteriores).
+- **Barrel creado** siguiendo patrón de `shared/ui/` y `shared/charts/`.
+- **App.jsx: -77 líneas** (de 2.097 a 2.020).
+
+**Issue durante extracción:**
+- `sed` borró 1 línea de más (`}` huérfano). Detectado por build fallido, corregido manualmente con `Edit`.
+
+**Notas para Fase 6:**
+- Fase 6 = `LoginScreen` a `features/auth/`. Componente simple, sin sub-componentes.
+- Patrón: 1 archivo + barrel, sin uso de átomos `shared/ui/` (estilo propio).
 
 ---
 
