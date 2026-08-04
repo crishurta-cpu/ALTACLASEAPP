@@ -55,6 +55,7 @@ import FInput from "./shared/ui/FInput";
 import AutocompleteInput from "./shared/ui/AutocompleteInput";
 import GraficoPuntos from "./shared/charts/GraficoPuntos";
 import GraficoCircular from "./shared/charts/GraficoCircular";
+import Configuracion from "./features/settings/Configuracion";
 
 
 // ═══ UI ATOMS ═════════════════════════════════════════════════
@@ -1135,85 +1136,7 @@ function Clientes({db,onEditIngreso,onMarcarPagado,onRegistrarAbono}){
 }
 
 // ═══ INVENTARIO ════════════════════════════════════════════════
-// Lista simple de compras a proveedor, tal cual la hoja: sin cruzar con ventas.
-// ═══ CONFIGURACIÓN ════════════════════════════════════════════════
-// Panel de ajustes dentro de Más. Por ahora: info de la app, cerrar sesión.
-// Diseñado para crecer: aquí irán preferencias de diseño, notificaciones, etc.
-function Configuracion(){
-  const [accentId,setAccentId]=useState(()=>localStorage.getItem(ACCENT_KEY)||"gold");
-  const cerrar=()=>{localStorage.removeItem(LS_AUTH_KEY);window.location.reload();};
-  const cambiarAccent=(id)=>{
-    setAccentId(id);
-    localStorage.setItem(ACCENT_KEY,id);
-    // Forzar re-render sin recargar página completa
-    window.dispatchEvent(new Event("accentchange"));
-  };
-  return(
-    <div style={{padding:"0 0 16px"}}>
-      {/* App info */}
-      <Card s={{marginBottom:8}} ch={<>
-        <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:12}}>
-          <div style={{width:52,height:52,background:getAccentColor(),borderRadius:DS.r.lg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:26,fontWeight:700,color:"#000",flexShrink:0}}>A</div>
-          <div>
-            <div style={{fontSize:17,fontWeight:700,color:K.text}}>Altaclase Bodega</div>
-            <div style={{fontSize:13,color:K.muted}}>Control financiero B2B</div>
-          </div>
-        </div>
-        <div style={{height:"0.5px",background:K.border,margin:"0 -16px 12px"}}/>
-        <div style={{display:"flex",justifyContent:"space-between"}}>
-          <span style={{fontSize:13,color:K.muted}}>Versión</span>
-          <span style={{fontSize:13,color:K.text,fontWeight:500}}>2.1</span>
-        </div>
-      </>}/>
-
-      {/* Color de acento */}
-      <Card s={{marginBottom:8}} ch={<>
-        <div style={{fontSize:12,color:K.muted,textTransform:"uppercase",letterSpacing:.5,fontWeight:600,marginBottom:12}}>Color de acento</div>
-        <div style={{display:"flex",flexWrap:"wrap",gap:10}}>
-          {ACCENTS.map(a=>(
-            <button key={a.id} onClick={()=>cambiarAccent(a.id)} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4,background:"none",border:"none",cursor:"pointer",WebkitTapHighlightColor:"transparent",padding:0}}>
-              <div style={{width:36,height:36,borderRadius:"50%",background:a.color,border:accentId===a.id?`3px solid ${K.white}`:`3px solid transparent`,boxSizing:"border-box",transition:"border .15s"}}/>
-              <span style={{fontSize:9,color:accentId===a.id?K.text:K.muted,fontWeight:accentId===a.id?600:400}}>{a.label}</span>
-            </button>
-          ))}
-        </div>
-      </>}/>
-
-      {/* Sesión */}
-      <Card s={{marginBottom:8}} ch={<>
-        <div style={{fontSize:12,color:K.muted,textTransform:"uppercase",letterSpacing:.5,fontWeight:600,marginBottom:10}}>Sesión</div>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-          <span style={{fontSize:15,color:K.text}}>Auto-cierre por inactividad</span>
-          <span style={{fontSize:13,color:K.muted,fontWeight:500}}>3 min</span>
-        </div>
-        <div style={{height:"0.5px",background:K.border,margin:"0 -16px 10px"}}/>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          <span style={{fontSize:15,color:K.text}}>Cerrar al cerrar navegador</span>
-          <span style={{fontSize:13,color:K.green,fontWeight:600}}>Activo</span>
-        </div>
-      </>}/>
-
-      {/* Datos */}
-      <Card s={{marginBottom:8}} ch={<>
-        <div style={{fontSize:12,color:K.muted,textTransform:"uppercase",letterSpacing:.5,fontWeight:600,marginBottom:10}}>Datos</div>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-          <span style={{fontSize:15,color:K.text}}>Sincronización automática</span>
-          <span style={{fontSize:13,color:K.muted}}>Cada 2 min</span>
-        </div>
-        <div style={{height:"0.5px",background:K.border,margin:"0 -16px 10px"}}/>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          <span style={{fontSize:15,color:K.text}}>Fuente de datos</span>
-          <span style={{fontSize:13,color:K.muted}}>Google Sheets</span>
-        </div>
-      </>}/>
-
-      {/* Cerrar sesión */}
-      <button onClick={cerrar} style={{width:"100%",background:"transparent",border:"none",color:K.red,fontSize:17,fontWeight:500,padding:"14px 0",cursor:"pointer",WebkitTapHighlightColor:"transparent"}}>
-        Cerrar sesión
-      </button>
-    </div>
-  );
-}
+// Configuracion + AccentPicker: ver ./features/settings/
 
 // ═══ REPORTE POR CLIENTE ══════════════════════════════════════════
 // Genera un resumen de un cliente específico filtrado por mes,
