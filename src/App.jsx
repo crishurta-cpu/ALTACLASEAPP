@@ -57,6 +57,9 @@ import GraficoPuntos from "./shared/charts/GraficoPuntos";
 import GraficoCircular from "./shared/charts/GraficoCircular";
 import Configuracion from "./features/settings/Configuracion";
 import LoginScreen from "./features/auth/LoginScreen";
+import IngresoForm from "./features/ingresos/IngresoForm";
+import IngresoBloqueForm from "./features/ingresos/IngresoBloqueForm";
+import EditIngreso from "./features/ingresos/EditIngreso";
 
 
 // ═══ UI ATOMS ═════════════════════════════════════════════════
@@ -360,143 +363,6 @@ function NuevoMovimiento({
   );
 }
 
-// ═══ INGRESO BLOQUE FORM ══════════════════════════════════════════
-// Registro rápido de múltiples ventas en una sola entrada.
-// Cada fila = un producto vendido a un cliente por un proveedor.
-function IngresoBloqueForm({onSave,clientes=[]}){
-  const [filas,setFilas]=useState([{id:1,producto:"",cliente:"",proveedor:"",costo:"",precio:""}]);
-  const [saving,setSaving]=useState(false);
-  const [ok,setOk]=useState(false);
-  const [err,setErr]=useState(null);
-  const nextId=Math.max(...filas.map(f=>f.id||0))+1;
-  
-  const updateFila=(id,k,v)=>{
-    setFilas(f=>f.map(f=>f.id===id?{...f,[k]:v}:f));
-  };
-  const addFila=()=>setFilas(f=>[...f,{id:nextId,producto:"",cliente:"",proveedor:"",costo:"",precio:""}]);
-  const removeFila=(id)=>setFilas(f=>f.filter(f=>f.id!==id));
-  
-  const guardar=async()=>{
-    const validas=filas.filter(f=>f.producto&&f.cliente&&f.precio);
-    if(validas.length===0){setErr("Agrega al menos una venta completa");return;}
-    setSaving(true);setErr(null);
-    try{
-      for(const f of validas){
-        const costo=Number(f.costo)||0;
-        const pv=Number(f.precio)||0;
-        const gan=pv-costo;
-        const mrg=pv>0?(gan/pv*100).toFixed(1):0;
-        const trim=s=>String(s||"").toUpperCase().trim();
-        const item={fecha:new Date().toISOString(),tipo:"VENTA",producto:trim(f.producto),cliente:trim(f.cliente),proveedor:trim(f.proveedor),costo,precioVenta:pv,debe:"NO",ganancia:gan,margen:mrg+"%"};
-        await onSave(item);
-      }
-      setFilas([{id:nextId+1,producto:"",cliente:"",proveedor:"",costo:"",precio:""}]);
-      setOk(true);setTimeout(()=>setOk(false),2500);
-    }catch(e){setErr("Error: "+e.message);}finally{setSaving(false);}
-  };
-  
-  const total=filas.reduce((s,f)=>{const p=Number(f.precio)||0;const c=Number(f.costo)||0;return s+(p-c);},0);
-  
-  return(
-    <div>
-      {ok&&<div style={{textAlign:"center",color:K.gold,fontWeight:700,marginBottom:12,fontSize:14}}>✓ Lote guardado en Google Sheets!</div>}
-      {err&&<div style={{color:K.red,fontSize:13,marginBottom:12}}>{err}</div>}
-      
-      <div style={{background:K.card2,borderRadius:DS.r.lg,overflow:"hidden",marginBottom:12}}>
-        {filas.map((f,i)=>(
-          <div key={f.id} style={{borderBottom:i<filas.length-1?`0.5px solid ${K.border}`:"none",padding:"12px"}}>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
-              <FInput value={f.producto} onChange={v=>updateFila(f.id,"producto",v)} placeholder="Producto" />
-              <FInput value={f.cliente} onChange={v=>updateFila(f.id,"cliente",v)} placeholder="Cliente" />
-            </div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
-              <FInput value={f.proveedor} onChange={v=>updateFila(f.id,"proveedor",v)} placeholder="Proveedor" />
-              <FInput type="number" value={f.costo} onChange={v=>updateFila(f.id,"costo",v)} placeholder="Costo" prefix="$" />
-            </div>
-            <div style={{display:"flex",gap:8,alignItems:"flex-end"}}>
-              <div style={{flex:1,minWidth:0}}>
-                <FInput type="number" value={f.precio} onChange={v=>updateFila(f.id,"precio",v)} placeholder="Precio venta" prefix="$" />
-              </div>
-              <button onClick={()=>removeFila(f.id)} style={{background:"transparent",border:"none",color:K.red,fontSize:18,cursor:"pointer",padding:"0 8px",WebkitTapHighlightColor:"transparent"}}>×</button>
-            </div>
-          </div>
-        ))}
-      </div>
-      
-      <button onClick={addFila} style={{width:"100%",background:"transparent",border:`1.5px dashed ${K.gold}`,borderRadius:DS.r.sm,padding:"10px",fontSize:13,fontWeight:600,color:K.gold,cursor:"pointer",marginBottom:12,WebkitTapHighlightColor:"transparent"}}>+ Agregar otra venta</button>
-      
-      {total!==0&&(
-        <Card ch={<div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          <span style={{fontSize:13,fontWeight:600,color:K.muted}}>Ganancia total del lote</span>
-          <span style={{fontSize:18,fontWeight:700,color:total>0?K.green:K.red}}>{total>0?"+":""}{fmt(total)}</span>
-        </div>}/>
-      )}
-      
-      <Btn label={`GUARDAR LOTE (${filas.filter(f=>f.producto&&f.cliente&&f.precio).length} ventas)`} onClick={guardar} loading={saving} dis={filas.length===0}/>
-    </div>
-  );
-}
-
-function IngresoForm({
-  onSave,
-  clientes = [],
-  proveedores = [],
-}){  
-  
-  const [f,setF]=useState({tipo:"VENTA",producto:"",cliente:"",proveedor:"",costo:"",pv:"",debe:false});
-  const [saving,setSaving]=useState(false);
-  const [ok,setOk]=useState(false);
-  const [err,setErr]=useState(null);
-  const up=k=>v=>setF(p=>({...p,[k]:v}));
-  const gan=Number(f.pv||0)-Number(f.costo||0);
-  const mrg=Number(f.pv)>0?Math.round(gan/Number(f.pv)*100):0;
-  const go=async()=>{
-    setSaving(true);setErr(null);
-    try{
-      const trim=s=>String(s||"").toUpperCase().trim();
-      const item={fecha:new Date().toISOString(),tipo:f.tipo,producto:trim(f.producto),cliente:trim(f.cliente),proveedor:trim(f.proveedor),costo:Number(f.costo)||0,precioVenta:Number(f.pv)||0,debe:f.debe?"SI":"NO",ganancia:gan,margen:mrg+"%"};
-      await onSave(ingresoToRow(item));
-      setF({tipo:"VENTA",producto:"",cliente:"",proveedor:"",costo:"",pv:"",debe:false});
-      setOk(true);setTimeout(()=>setOk(false),3000);
-    }catch(e){setErr("Error al guardar: "+e.message);}
-    finally{setSaving(false);}
-  };
-  return(
-    <div>
-      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:18}}>
-        <span style={{fontSize:26}}>⬆️</span>
-        <div><div style={{fontSize:10,color:K.muted}}>NUEVO · SE GUARDA EN SHEETS</div><div style={{fontSize:20,fontWeight:700,color:K.gold}}>Ingreso</div></div>
-      </div>
-      <Card ch={<>
-        <ChipGroup label="Tipo" options={TIPOS} value={f.tipo} onChange={up("tipo")}/>
-        <FInput label="Producto" value={f.producto} onChange={up("producto")} placeholder="ej: NIKE TN, SAMBA..."/>
-        <AutocompleteInput label="Cliente" value={f.cliente} onChange={up("cliente")} placeholder="ej: ALEJANDRA" sugerencias={clientes}/>
-<AutocompleteInput
-  label="Proveedor"
-  value={f.proveedor}
-  onChange={up("proveedor")}
-  placeholder="ej: LIDER, MENORES, FYM..."
-  sugerencias={proveedores}
-/>      
-<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
-          <FInput label="Costo" value={f.costo} onChange={up("costo")} type="number" prefix="$" placeholder="0"/>
-          <FInput label="Precio venta" value={f.pv} onChange={up("pv")} type="number" prefix="$" placeholder="0"/>
-        </div>
-        {(f.costo||f.pv)&&<div style={{background:K.bg,borderRadius:DS.r.sm,padding:"10px 12px",marginBottom:12,display:"flex",justifyContent:"space-between",border:`1px solid ${K.border}`}}>
-          <div><div style={{fontSize:9,color:K.muted,marginBottom:1}}>GANANCIA</div><div style={{fontSize:17,fontWeight:700,color:gan>=0?K.green:K.red}}>{fmt(gan)}</div></div>
-          <div style={{textAlign:"right"}}><div style={{fontSize:9,color:K.muted,marginBottom:1}}>MARGEN</div><div style={{fontSize:17,fontWeight:700,color:gan>=0?K.green:K.red}}>{mrg}%</div></div>
-        </div>}
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-          <span style={{fontSize:11,color:K.muted,textTransform:"uppercase",letterSpacing:.8}}>¿El cliente debe?</span>
-          <button onClick={()=>up("debe")(!f.debe)} style={{background:f.debe?K.red:"transparent",border:`2px solid ${f.debe?K.red:K.border}`,color:f.debe?"#0A0A0A":K.muted,borderRadius:DS.r.sm,padding:"8px 20px",fontSize:12,fontWeight:700,cursor:"pointer",letterSpacing:.5,transition:"all .15s"}}>{f.debe?"SÍ — DEBE ✓":"NO DEBE"}</button>
-        </div>
-      </>}/>
-      {ok&&<div style={{textAlign:"center",color:K.gold,fontWeight:700,marginBottom:8,fontSize:14}}>✓ Guardado en Google Sheets!</div>}
-      {err&&<div style={{textAlign:"center",color:K.red,fontWeight:700,marginBottom:8,fontSize:13}}>{err}</div>}
-      <Btn label="REGISTRAR INGRESO" onClick={go} dis={!f.producto||!f.pv} loading={saving}/>
-    </div>
-  );
-}
 
 // ═══ GASTO FORM ════════════════════════════════════════════════
 function GastoForm({onSave}){
@@ -539,64 +405,6 @@ function GastoForm({onSave}){
   );
 }
 
-// ═══ EDITAR INGRESO (modal inline) ══════════════════════════════
-function EditIngreso({item,onClose,onSave,onDelete}){
-  const [f,setF]=useState({tipo:item.tipo,producto:item.producto,cliente:item.cliente,proveedor:item.proveedor,costo:String(item.costo),pv:String(item.precioVenta),debe:item.debe==="SI"});
-  const [saving,setSaving]=useState(false);
-  const [confirmDel,setConfirmDel]=useState(false);
-  const [err,setErr]=useState(null);
-  const up=k=>v=>setF(p=>({...p,[k]:v}));
-  const gan=Number(f.pv||0)-Number(f.costo||0);
-  const mrg=Number(f.pv)>0?Math.round(gan/Number(f.pv)*100):0;
-  const guardar=async()=>{
-    setSaving(true);setErr(null);
-    try{
-      const updated={...item,tipo:f.tipo,producto:f.producto,cliente:f.cliente,proveedor:f.proveedor,costo:Number(f.costo)||0,precioVenta:Number(f.pv)||0,debe:f.debe?"SI":"NO",ganancia:gan,margen:mrg+"%"};
-      await onSave(updated);
-      onClose();
-    }catch(e){setErr("Error: "+e.message);setSaving(false);}
-  };
-  const borrar=async()=>{
-    setSaving(true);setErr(null);
-    try{await onDelete(item);onClose();}
-    catch(e){setErr("Error: "+e.message);setSaving(false);}
-  };
-  return(
-    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.7)",zIndex:1000,display:"flex",alignItems:"flex-end"}} onClick={onClose}>
-      <div onClick={e=>e.stopPropagation()} style={{background:K.bg,width:"100%",maxWidth:430,margin:"0 auto",borderRadius:"20px 20px 0 0",padding:"18px 16px",maxHeight:"85vh",overflowY:"auto"}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-          <div style={{fontSize:17,fontWeight:700}}>Editar ingreso</div>
-          <button onClick={onClose} style={{background:"none",border:"none",color:K.muted,fontSize:22,cursor:"pointer"}}>✕</button>
-        </div>
-        <Card ch={<>
-          <ChipGroup label="Tipo" options={TIPOS} value={f.tipo} onChange={up("tipo")}/>
-          <FInput label="Producto" value={f.producto} onChange={up("producto")}/>
-          <FInput label="Cliente" value={f.cliente} onChange={up("cliente")}/>
-          <FInput label="Proveedor" value={f.proveedor} onChange={up("proveedor")}/>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
-            <FInput label="Costo" value={f.costo} onChange={up("costo")} type="number" prefix="$"/>
-            <FInput label="Precio venta" value={f.pv} onChange={up("pv")} type="number" prefix="$"/>
-          </div>
-          <div style={{background:K.bg,borderRadius:DS.r.sm,padding:"10px 12px",marginBottom:12,display:"flex",justifyContent:"space-between",border:`1px solid ${K.border}`}}>
-            <div><div style={{fontSize:9,color:K.muted}}>GANANCIA</div><div style={{fontSize:17,fontWeight:700,color:gan>=0?K.green:K.red}}>{fmt(gan)}</div></div>
-            <div style={{textAlign:"right"}}><div style={{fontSize:9,color:K.muted}}>MARGEN</div><div style={{fontSize:17,fontWeight:700,color:gan>=0?K.green:K.red}}>{mrg}%</div></div>
-          </div>
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-            <span style={{fontSize:11,color:K.muted,textTransform:"uppercase",letterSpacing:.8}}>¿El cliente debe?</span>
-            <button onClick={()=>up("debe")(!f.debe)} style={{background:f.debe?K.red:"transparent",border:`2px solid ${f.debe?K.red:K.border}`,color:f.debe?"#0A0A0A":K.muted,borderRadius:DS.r.sm,padding:"8px 20px",fontSize:12,fontWeight:700,cursor:"pointer",letterSpacing:.5,transition:"all .15s"}}>{f.debe?"SÍ — DEBE ✓":"NO DEBE"}</button>
-          </div>
-        </>}/>
-        {err&&<div style={{textAlign:"center",color:K.red,fontWeight:700,marginBottom:8,fontSize:13}}>{err}</div>}
-        <Btn label="GUARDAR CAMBIOS" onClick={guardar} loading={saving} dis={!f.producto}/>
-        {!confirmDel?
-          <button onClick={()=>setConfirmDel(true)} style={{width:"100%",background:"none",border:"none",color:K.red,fontSize:13,fontWeight:700,padding:"12px 0 4px",cursor:"pointer"}}>🗑️ Borrar este registro</button>
-          :<ConfirmDelete onConfirm={borrar} onCancel={()=>setConfirmDel(false)}/>}
-      </div>
-    </div>
-  );
-}
-
-// ═══ EDITAR GASTO (modal inline) ════════════════════════════════
 function EditGasto({item,onClose,onSave,onDelete}){
   const [f,setF]=useState({concepto:item.concepto,costo:String(item.costo),ref:item.referencia});
   const [saving,setSaving]=useState(false);
