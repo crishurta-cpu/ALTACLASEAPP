@@ -42,6 +42,49 @@
 
 ---
 
+## [2026-08-04] Sesión #7 — Fase 6: Extraer feature Auth ✅
+**Estado:** ✅ Completada
+**Branch:** `refactor/architectural-cleanup`
+**Commit:** `fd310a4` — `refactor(fase-6): extraer LoginScreen a features/auth/`
+
+### Archivos modificados
+- `src/App.jsx` (**-86 líneas**: 2.020 → ~1.934)
+- 2 archivos nuevos en `src/features/auth/`:
+  - `LoginScreen.jsx` (197 líneas con JSDoc) — validación de clave + persistencia localStorage + estilos glassmorphism
+  - `index.js` (4 líneas) — barrel
+
+### Cambios realizados
+
+**LoginScreen** se movió completo de `App.jsx` a su propia carpeta. Bloques eliminados de App.jsx:
+- Banner `ROOT` (early return si no hay usuario)
+- Banner `LOGIN` (early return si `!user`)
+- Definición completa del componente `LoginScreen` con sus 3 estados (clave, error, entrando)
+
+### Decisiones tomadas
+
+- **Sin sub-componente**: a diferencia de Fase 5 (donde `AccentPicker` se aisló), `LoginScreen` no tiene cohesión separable — todo el JSX es el formulario de login.
+- **Sin consumo de `shared/ui/`**: estilo propio (gradiente radial, blur, glassmorphism) que no encaja con átomos extraídos. No se abstrae prematuramente.
+- **Props mínimas**: solo `onSuccess`. Estado (clave, error, entrando) y persistencia localStorage permanecen dentro del componente.
+- **JSDoc completa** documentando props, comportamiento y aclaración de que auto-cierre se maneja en App.
+
+### Problemas encontrados
+
+- **Ninguno.** `sed` no borró líneas de más (el bloque terminaba en un `}` válido). Commit pasó directo a verde en build, sin necesidad de fix manual.
+
+### Validación
+- [x] `npm run build` OK
+- [x] `npm test` 6 tests pasan
+- [x] Sin cambios visuales (movimiento puro)
+- [x] Lint sin cambios nuevos (20 errores pre-existentes)
+- [x] Working tree limpio
+
+### Próximos pasos
+1. **Esperar autorización** para iniciar **Fase 7: Extraer feature Ingresos**.
+2. Targets: `IngresoForm`, `IngresoBloqueForm`, `EditIngreso`, `NuevoMovimiento` + `hooks/useIngresoForm` → `src/features/ingresos/`.
+3. Riesgo: MEDIO (primer feature con lógica de negocio de formularios).
+
+---
+
 ## [2026-08-01] Sesión #6 — Fase 5: Extraer feature Settings ✅
 **Estado:** ✅ Completada
 **Branch:** `refactor/architectural-cleanup`

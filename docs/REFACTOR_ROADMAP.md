@@ -10,10 +10,10 @@
 
 | Métrica | Valor |
 |---|---|
-| Fase actual | **5 — Extraer feature Settings** ✅ |
-| Última fase completada | **5 — Extraer feature Settings** |
-| Próxima fase | **6 — Extraer feature Auth** |
-| Estado | 🟢 **Fase 5 lista. Esperando autorización para Fase 6** |
+| Fase actual | **6 — Extraer feature Auth** ✅ |
+| Última fase completada | **6 — Extraer feature Auth** |
+| Próxima fase | **7 — Extraer feature Ingresos** |
+| Estado | 🟢 **Fase 6 lista. Esperando autorización para Fase 7** |
 
 ### Fase 0 — Backup + branch ✅
 **Objetivo:** Snapshot del estado actual antes de cualquier cambio.
@@ -254,17 +254,17 @@ Convertir `App.jsx` (2.687 líneas, single-file) en una **feature-based architec
 
 ---
 
-### Fase 6 — Extraer feature Auth ⏸️
+### Fase 6 — Extraer feature Auth ✅
 **Objetivo:** Mover LoginScreen.
 **Archivos nuevos:**
 - `src/features/auth/LoginScreen.jsx`
 - `src/features/auth/index.js`
 
 **Validación:**
-- [ ] Login funciona con clave "ClaudeAlta".
-- [ ] Cerrar sesión desde Config funciona.
+- [x] Login funciona con clave "ClaudeAlta".
+- [x] Cerrar sesión desde Config funciona.
 
-**Commit:** `refactor(fase-6): extraer feature auth/`.
+**Commit:** `fd310a4` — `refactor(fase-6): extraer feature auth/`.
 
 ---
 
