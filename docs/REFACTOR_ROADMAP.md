@@ -10,10 +10,10 @@
 
 | Métrica | Valor |
 |---|---|
-| Fase actual | **6 — Extraer feature Auth** ✅ |
-| Última fase completada | **6 — Extraer feature Auth** |
-| Próxima fase | **7 — Extraer feature Ingresos** |
-| Estado | 🟢 **Fase 6 lista. Esperando autorización para Fase 7** |
+| Fase actual | **7 — Extraer feature Ingresos** ✅ |
+| Última fase completada | **7 — Extraer feature Ingresos** |
+| Próxima fase | **8 — Extraer feature Gastos** |
+| Estado | 🟢 **Fase 7 lista. Esperando autorización para Fase 8** |
 
 ### Fase 0 — Backup + branch ✅
 **Objetivo:** Snapshot del estado actual antes de cualquier cambio.
@@ -268,23 +268,28 @@ Convertir `App.jsx` (2.687 líneas, single-file) en una **feature-based architec
 
 ---
 
-### Fase 7 — Extraer feature Ingresos ⏸️
+### Fase 7 — Extraer feature Ingresos ✅
 **Objetivo:** Mover formularios de ingresos y crear hook compartido.
 **Archivos nuevos:**
 - `src/features/ingresos/IngresoForm.jsx`
 - `src/features/ingresos/IngresoBloqueForm.jsx`
 - `src/features/ingresos/EditIngreso.jsx`
-- `src/features/ingresos/NuevoMovimiento.jsx`
-- `src/features/ingresos/hooks/useIngresoForm.js`
+- `src/features/ingresos/NuevoMovimiento.jsx` *(no creado, ver notas)*
+- `src/features/ingresos/hooks/useIngresoForm.js` *(no creado, ver notas)*
 - `src/features/ingresos/index.js`
 
 **Validación:**
-- [ ] Crear ingreso individual guarda en Sheets.
-- [ ] Crear ingreso por lote guarda todas las filas.
-- [ ] Editar ingreso guarda cambios.
-- [ ] Borrar ingreso pide confirmación.
+- [x] Crear ingreso individual guarda en Sheets.
+- [x] Crear ingreso por lote guarda todas las filas.
+- [x] Editar ingreso guarda cambios.
+- [x] Borrar ingreso pide confirmación.
 
-**Commit:** `refactor(fase-7): extraer feature ingresos/`.
+**Commit:** `8d03a89` — `refactor(fase-7): extraer feature ingresos`.
+
+**Notas de implementación (desviaciones del plan original):**
+- **`NuevoMovimiento.jsx` NO se creó**: este componente es el orquestador de tabs (Ingreso/Lote/Gasto) y todavía envuelve `GastoForm`, que pertenece a Fase 8. Moverlo ahora crearía una dependencia cruzada. `App.jsx` sigue siendo el dueño de `NuevoMovimiento` y los 3 formularios de ingresos se importan individualmente.
+- **`useIngresoForm.js` NO se creó**: la lógica de `useState` está acoplada al JSX del formulario. Refactorizar a hook sin un consumidor real (Fase 16 con Context API podría beneficiarlo) sería abstracción prematura. Se reservó la carpeta `hooks/` vacía para futuro uso.
+- **`IngresoBloqueForm` pasa `onSave(item)` con shape de negocio (no fila Sheets)**: mantiene el comportamiento original donde cada fila del lote se transforma y guarda individualmente. Si en Fase 19 se centraliza la transformación en un servicio, este componente también cambiará.
 
 ---
 

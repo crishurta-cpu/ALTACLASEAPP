@@ -42,6 +42,57 @@
 
 ---
 
+## [2026-08-13] Sesión #8 — Fase 7: Extraer feature Ingresos ✅
+**Estado:** ✅ Completada
+**Branch:** `refactor/architectural-cleanup`
+**Commit:** `8d03a89` — `refactor(fase-7): extraer feature ingresos`
+
+### Archivos modificados
+- `src/App.jsx` (**-195 líneas**: 1.939 → 1.744)
+- 4 archivos nuevos en `src/features/ingresos/`:
+  - `IngresoForm.jsx` (140 líneas con JSDoc) — formulario de venta individual
+  - `IngresoBloqueForm.jsx` (143 líneas con JSDoc) — registro batch
+  - `EditIngreso.jsx` (152 líneas con JSDoc) — modal de edición con ConfirmDelete
+  - `index.js` (5 líneas) — barrel
+  - `hooks/` (carpeta vacía, reservada)
+
+### Cambios realizados
+
+**3 componentes movidos** de `App.jsx` a `src/features/ingresos/`:
+
+| # | Componente | Líneas eliminadas |
+|---|---|---|
+| 7.1 | IngresoForm | ~60 |
+| 7.2 | IngresoBloqueForm | ~75 |
+| 7.3 | EditIngreso | ~60 |
+| Total | — | **-195** |
+
+### Decisiones tomadas (desviaciones del plan original)
+
+- **`NuevoMovimiento.jsx` NO se creó**: es orquestador de tabs (Ingreso/Lote/Gasto) y todavía envuelve `GastoForm` (Fase 8). Moverlo crearía dependencia cruzada. `App.jsx` sigue siendo el dueño.
+- **`useIngresoForm.js` NO se creó**: lógica de `useState` acoplada al JSX. Refactorizar a hook sin consumidor real sería abstracción prematura. Carpeta `hooks/` reservada vacía.
+- **`IngresoBloqueForm` pasa `onSave(item)` con shape de negocio** (no fila Sheets). Mantiene comportamiento original. Pendiente revisar en Fase 19 cuando se centralice la transformación en servicio.
+- **Imports con paths explícitos** en `App.jsx` (no del barrel). Mismo patrón que Fases 5–6.
+
+### Problemas encontrados
+
+- **Ninguno.** `sed` borró rangos exactos sin generar huérfanos. Build pasó verde al primer intento, sin necesidad de fix manual (a diferencia de Fases 4 y 5).
+
+### Validación
+- [x] `npm run build` OK (299.98 kB, sin crecimiento)
+- [x] `npm test` 6 tests pasan
+- [x] Sin cambios visuales (movimiento puro)
+- [x] Lint sin cambios nuevos (20 errores pre-existentes)
+- [x] Working tree limpio (excepto `tareas.jsx` del usuario y archivos no trackeados)
+- [x] `IngresoForm`, `IngresoBloqueForm`, `EditIngreso` con JSDoc
+
+### Próximos pasos
+1. **Esperar autorización** para iniciar **Fase 8: Extraer feature Gastos**.
+2. Targets: `GastoForm`, `EditGasto` → `src/features/gastos/`.
+3. Decisión pendiente: ¿se mueve `NuevoMovimiento` cuando exista `GastoForm` aislado? Posiblemente quede en `App.jsx` o se cree un shell compartido en `app/`.
+
+---
+
 ## [2026-08-04] Sesión #7 — Fase 6: Extraer feature Auth ✅
 **Estado:** ✅ Completada
 **Branch:** `refactor/architectural-cleanup`
