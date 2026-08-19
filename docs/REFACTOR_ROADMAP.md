@@ -10,10 +10,10 @@
 
 | Métrica | Valor |
 |---|---|
-| Fase actual | **7 — Extraer feature Ingresos** ✅ |
-| Última fase completada | **7 — Extraer feature Ingresos** |
-| Próxima fase | **8 — Extraer feature Gastos** |
-| Estado | 🟢 **Fase 7 lista. Esperando autorización para Fase 8** |
+| Fase actual | **8 — Extraer feature Gastos** ✅ |
+| Última fase completada | **8 — Extraer feature Gastos** |
+| Próxima fase | **9 — Extraer feature Inventario** |
+| Estado | 🟢 **Fase 8 lista. Esperando autorización para Fase 9** |
 
 ### Fase 0 — Backup + branch ✅
 **Objetivo:** Snapshot del estado actual antes de cualquier cambio.
@@ -293,15 +293,26 @@ Convertir `App.jsx` (2.687 líneas, single-file) en una **feature-based architec
 
 ---
 
-### Fase 8 — Extraer feature Gastos ⏸️
-**Objetivo:** Idem ingresos.
+### Fase 8 — Extraer feature Gastos ✅
+**Objetivo:** Mover formularios de gastos a su carpeta.
 **Archivos nuevos:**
-- `src/features/gastos/GastoForm.jsx`
-- `src/features/gastos/EditGasto.jsx`
-- `src/features/gastos/hooks/useGastoForm.js`
-- `src/features/gastos/index.js`
+- `src/features/gastos/GastoForm.jsx` ✅
+- `src/features/gastos/EditGasto.jsx` ✅
+- `src/features/gastos/index.js` ✅
+- `src/features/gastos/hooks/useGastoForm.js` ⏸️ *(no creado, ver notas)*
+
+**Validación:**
+- [x] Crear gasto guarda en Sheets.
+- [x] Editar gasto guarda cambios.
+- [x] Borrar gasto pide confirmación en 2 pasos.
+- [x] Build OK, 6 tests pasan.
 
 **Commit:** `refactor(fase-8): extraer feature gastos/`.
+
+**Notas de implementación (desviaciones del plan original):**
+- **`useGastoForm.js` NO se creó**: idéntica razón que en Fase 7 con `useIngresoForm.js`. La lógica de `useState` está acoplada al JSX. Refactorizar a hook sin un consumidor real sería abstracción prematura. La carpeta `hooks/` se reservó vacía para futuro uso (Fase 16 con Context API podría beneficiarla).
+- **`GastoForm` e `EditGasto` usan `CONCS` y `CCAT`** desde `./constants`. Idéntico patrón que `IngresoForm` con `TIPOS`.
+- **`NuevoMovimiento` (orquestador de tabs Ingreso/Lote/Gasto) sigue en App.jsx**: ahora importa los 3 formularios de sus respectivas features (`features/ingresos/IngresoForm`, `features/ingresos/IngresoBloqueForm`, `features/gastos/GastoForm`). Sigue sin moverse a feature propia porque requiere coordinación cross-feature; podría moverse a `app/` en Fase 17.
 
 ---
 

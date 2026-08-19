@@ -42,6 +42,55 @@
 
 ---
 
+## [2026-08-18] Sesión #9 — Fase 8: Extraer feature Gastos ✅
+**Estado:** ✅ Completada
+**Branch:** `refactor/architectural-cleanup`
+**Commit:** `refactor(fase-8): extraer feature gastos/`
+
+### Archivos modificados
+- `src/App.jsx` (**-86 líneas**: 1.744 → 1.658)
+- 3 archivos nuevos en `src/features/gastos/`:
+  - `GastoForm.jsx` (95 líneas con JSDoc) — formulario de gasto individual con `ChipGroup` (CONCS) + input numérico inline + `FInput` referencia
+  - `EditGasto.jsx` (138 líneas con JSDoc) — modal de edición con `ConfirmDelete`
+  - `index.js` (4 líneas) — barrel
+  - `hooks/` (carpeta vacía, reservada para Fase 16)
+
+### Cambios realizados
+
+**2 componentes movidos** de `App.jsx` a `src/features/gastos/`:
+
+| # | Componente | Líneas eliminadas |
+|---|---|---|
+| 8.1 | GastoForm | ~40 |
+| 8.2 | EditGasto | ~46 |
+| Total | — | **-86** |
+
+### Decisiones tomadas (desviaciones del plan original)
+
+- **`useGastoForm.js` NO se creó**: idéntica razón que `useIngresoForm.js` en Fase 7. Lógica de `useState` acoplada al JSX. Carpeta `hooks/` reservada vacía.
+- **`GastoForm` e `EditGasto` usan `CONCS` y `CCAT`** desde `./constants` (no `CONCS` reimportado desde App.jsx). Consistente con cómo `IngresoForm` importa `TIPOS`.
+- **Input numérico inline** (no `FInput`) en ambos componentes: prefijo `$` con padding fijo requiere markup custom que `FInput` no soporta. Consistente con código histórico.
+- **`NuevoMovimiento` (orquestador de tabs)** sigue en App.jsx. Sigue siendo cross-feature (Ingreso + Lote + Gasto). Posible candidato a `app/` en Fase 17.
+- **Imports con paths explícitos** en App.jsx (no del barrel). Mismo patrón que Fases 5–7.
+
+### Problemas encontrados
+
+- **Ninguno.** `sed`/Edit borró rangos exactos sin generar huérfanos. Build pasó verde al primer intento.
+
+### Validación
+- [x] `npm run build` OK (299.98 kB, sin crecimiento)
+- [x] `npm test` 6 tests pasan
+- [x] Sin cambios visuales (movimiento puro)
+- [x] Lint sin cambios nuevos en `features/gastos/` (28 errores pre-existentes, 0 nuevos)
+- [x] Working tree limpio en archivos del refactor
+
+### Próximos pasos
+1. **Esperar autorización** para iniciar **Fase 9: Extraer feature Inventario**.
+2. Targets: `Inventario`, `InventarioForm` → `src/features/inventario/`.
+3. Riesgo: BAJO (feature aislada con su propia hoja de Sheets, sin dependencias cross-feature).
+
+---
+
 ## [2026-08-13] Sesión #8 — Fase 7: Extraer feature Ingresos ✅
 **Estado:** ✅ Completada
 **Branch:** `refactor/architectural-cleanup`
