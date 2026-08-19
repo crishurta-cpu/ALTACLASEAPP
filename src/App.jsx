@@ -62,6 +62,8 @@ import IngresoBloqueForm from "./features/ingresos/IngresoBloqueForm";
 import EditIngreso from "./features/ingresos/EditIngreso";
 import GastoForm from "./features/gastos/GastoForm";
 import EditGasto from "./features/gastos/EditGasto";
+import Inventario from "./features/inventario/Inventario";
+import InventarioForm from "./features/inventario/InventarioForm";
 
 
 // ═══ UI ATOMS ═════════════════════════════════════════════════
@@ -1052,77 +1054,6 @@ function BusquedaGlobal({db,onEditIngreso,onEditGasto}){
           </>}/>
         </div>
       )}
-    </div>
-  );
-}
-
-function Inventario({db,onAdd,onEdit,onDelete}){
-  const items=[...(db.inventario||[])].sort((a,b)=>new Date(b.fecha)-new Date(a.fecha));
-  const total=items.reduce((s,i)=>s+i.costo,0);
-  const [agregar,setAgregar]=useState(false);
-  const [editar,setEditar]=useState(null);
-  return(
-    <div>
-      <Card ch={<>
-        <div style={{fontSize:11,color:K.muted,textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Total invertido</div>
-        <div style={{fontSize:24,fontWeight:700,color:K.purple}}>{fmt(total)}</div>
-        <div style={{fontSize:11,color:K.muted,marginTop:2}}>{items.length} compra{items.length!==1?"s":""} registradas</div>
-      </>}/>
-      <Btn label="+ AGREGAR AL INVENTARIO" onClick={()=>setAgregar(true)} col={K.purple}/>
-      <div style={{height:10}}/>
-      {items.length===0&&<div style={{textAlign:"center",color:K.muted,padding:24,fontSize:13}}>Sin compras registradas en Inventario</div>}
-      {items.length>0&&<Card ch={<>
-        <div style={{fontSize:11,color:K.muted,textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>Toca para editar o borrar</div>
-        {items.map((it,i,arr)=>(
-          <button key={it.id} onClick={()=>setEditar(it)} style={{width:"100%",background:"none",border:"none",textAlign:"left",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",paddingBottom:i<arr.length-1?10:0,marginBottom:i<arr.length-1?10:0,borderBottom:i<arr.length-1?`1px solid ${K.border}`:"none"}}>
-            <div><div style={{fontSize:13,fontWeight:700,color:K.text}}>{it.producto}</div><div style={{fontSize:10,color:K.muted}}>{it.proveedor} · {fDate(it.fecha)}</div></div>
-            <div style={{fontSize:13,fontWeight:700,color:K.purple}}>{fmt(it.costo)}</div>
-          </button>
-        ))}
-      </>}/>}
-      {agregar&&<InventarioForm onClose={()=>setAgregar(false)} onSave={onAdd}/>}
-      {editar&&<InventarioForm item={editar} onClose={()=>setEditar(null)} onSave={async(data)=>{await onEdit({...editar,...data});}} onDelete={async()=>{await onDelete(editar);}}/>}
-    </div>
-  );
-}
-
-// Modal compartido para agregar/editar un item de Inventario.
-function InventarioForm({item,onClose,onSave,onDelete}){
-  const [f,setF]=useState({producto:item?.producto||"",proveedor:item?.proveedor||"",costo:String(item?.costo||"")});
-  const [saving,setSaving]=useState(false);
-  const [confirmDel,setConfirmDel]=useState(false);
-  const [err,setErr]=useState(null);
-  const up=k=>v=>setF(p=>({...p,[k]:v}));
-  const guardar=async()=>{
-    setSaving(true);setErr(null);
-    try{
-      await onSave({producto:f.producto,proveedor:f.proveedor,costo:Number(f.costo)||0,fecha:item?.fecha||new Date().toISOString()});
-      onClose();
-    }catch(e){setErr("Error: "+e.message);setSaving(false);}
-  };
-  const borrar=async()=>{
-    setSaving(true);setErr(null);
-    try{await onDelete();onClose();}
-    catch(e){setErr("Error: "+e.message);setSaving(false);}
-  };
-  return(
-    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.7)",zIndex:1000,display:"flex",alignItems:"flex-end"}} onClick={onClose}>
-      <div onClick={e=>e.stopPropagation()} style={{background:K.bg,width:"100%",maxWidth:430,margin:"0 auto",borderRadius:"20px 20px 0 0",padding:"18px 16px",maxHeight:"85vh",overflowY:"auto"}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-          <div style={{fontSize:17,fontWeight:700}}>{item?"Editar inventario":"Agregar al inventario"}</div>
-          <button onClick={onClose} style={{background:"none",border:"none",color:K.muted,fontSize:22,cursor:"pointer"}}>✕</button>
-        </div>
-        <Card ch={<>
-          <FInput label="Producto" value={f.producto} onChange={up("producto")} placeholder="ej: NIKE TN"/>
-          <FInput label="Proveedor" value={f.proveedor} onChange={up("proveedor")} placeholder="ej: LIDER, BOA..."/>
-          <FInput label="Costo" value={f.costo} onChange={up("costo")} type="number" prefix="$"/>
-        </>}/>
-        {err&&<div style={{textAlign:"center",color:K.red,fontWeight:700,marginBottom:8,fontSize:13}}>{err}</div>}
-        <Btn label={item?"GUARDAR CAMBIOS":"AGREGAR"} onClick={guardar} col={K.purple} loading={saving} dis={!f.producto||!f.costo}/>
-        {item&&onDelete&&(!confirmDel?
-          <button onClick={()=>setConfirmDel(true)} style={{width:"100%",background:"none",border:"none",color:K.red,fontSize:13,fontWeight:700,padding:"12px 0 4px",cursor:"pointer"}}>🗑️ Borrar este registro</button>
-          :<ConfirmDelete onConfirm={borrar} onCancel={()=>setConfirmDel(false)}/>)}
-      </div>
     </div>
   );
 }

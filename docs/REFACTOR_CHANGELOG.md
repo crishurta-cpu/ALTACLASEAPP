@@ -42,6 +42,52 @@
 
 ---
 
+## [2026-08-18] Sesión #10 — Fase 9: Extraer feature Inventario ✅
+**Estado:** ✅ Completada
+**Branch:** `refactor/architectural-cleanup`
+**Commit:** `refactor(fase-9): extraer feature inventario/`
+
+### Archivos modificados
+- `src/App.jsx` (**-69 líneas**: 1.658 → 1.589)
+- 3 archivos nuevos en `src/features/inventario/`:
+  - `Inventario.jsx` (90 líneas con JSDoc) — vista principal con total invertido + lista ordenada
+  - `InventarioForm.jsx` (113 líneas con JSDoc) — modal compartido agregar/editar con `ConfirmDelete`
+  - `index.js` (4 líneas) — barrel
+
+### Cambios realizados
+
+**2 componentes movidos** de `App.jsx` a `src/features/inventario/`:
+
+| # | Componente | Líneas eliminadas |
+|---|---|---|
+| 9.1 | Inventario | ~30 |
+| 9.2 | InventarioForm | ~39 |
+| Total | — | **-69** |
+
+### Decisiones tomadas
+
+- **`Inventario` (lista)**: encapsula el cálculo del `total` invertido (`items.reduce((s,i)=>s+i.costo,0)`) y la lista ordenada por fecha descendente. Antes este cálculo vivía dentro del JSX en App.jsx.
+- **`InventarioForm` modal compartido**: usa el mismo patrón que `EditGasto`/`EditIngreso` (backdrop + `Card` + `ConfirmDelete` + `FInput`). El flag `item` distingue modo creación vs edición.
+- **NO normaliza texto con `toUpperCase().trim()`** al guardar: preserva comportamiento histórico. En Inventario los nombres de producto/proveedor mantienen case original (a diferencia de Ingreso/Gasto).
+- **Imports con paths explícitos** desde App.jsx (no del barrel).
+
+### Problemas encontrados
+
+- **Duplicación menor del banner `═══ PERSONAL`**: tras eliminar el bloque de Inventario, quedó un banner duplicado (2 líneas idénticas consecutivas). Detectado y corregido manualmente con `Edit`. Build verde tras el fix.
+
+### Validación
+- [x] `npm run build` OK (299.98 kB, sin crecimiento)
+- [x] `npm test` 6 tests pasan
+- [x] Sin errores de lint nuevos en `features/inventario/`
+- [x] Working tree limpio en archivos del refactor
+
+### Próximos pasos
+1. **Esperar autorización** para iniciar **Fase 10: Extraer feature Personal**.
+2. Targets: `Personal`, `DeudaPersonalForm` → `src/features/personal/`.
+3. Riesgo: BAJO (feature aislada con su propia hoja "DEUDA_VALEN" en Sheets).
+
+---
+
 ## [2026-08-18] Sesión #9 — Fase 8: Extraer feature Gastos ✅
 **Estado:** ✅ Completada
 **Branch:** `refactor/architectural-cleanup`

@@ -10,10 +10,10 @@
 
 | Métrica | Valor |
 |---|---|
-| Fase actual | **8 — Extraer feature Gastos** ✅ |
-| Última fase completada | **8 — Extraer feature Gastos** |
-| Próxima fase | **9 — Extraer feature Inventario** |
-| Estado | 🟢 **Fase 8 lista. Esperando autorización para Fase 9** |
+| Fase actual | **9 — Extraer feature Inventario** ✅ |
+| Última fase completada | **9 — Extraer feature Inventario** |
+| Próxima fase | **10 — Extraer feature Personal** |
+| Estado | 🟢 **Fase 9 lista. Esperando autorización para Fase 10** |
 
 ### Fase 0 — Backup + branch ✅
 **Objetivo:** Snapshot del estado actual antes de cualquier cambio.
@@ -316,13 +316,28 @@ Convertir `App.jsx` (2.687 líneas, single-file) en una **feature-based architec
 
 ---
 
-### Fase 9 — Extraer feature Inventario ⏸️
+### Fase 9 — Extraer feature Inventario ✅
+**Objetivo:** Mover vista y formulario de inventario a su carpeta.
 **Archivos nuevos:**
-- `src/features/inventario/Inventario.jsx`
-- `src/features/inventario/InventarioForm.jsx`
-- `src/features/inventario/index.js`
+- `src/features/inventario/Inventario.jsx` ✅
+- `src/features/inventario/InventarioForm.jsx` ✅
+- `src/features/inventario/index.js` ✅
+
+**Validación:**
+- [x] Lista de items ordenada por fecha descendente.
+- [x] Crear item guarda en Sheets.
+- [x] Editar item guarda cambios.
+- [x] Borrar item pide confirmación en 2 pasos.
+- [x] Total invertido se calcula correctamente.
+- [x] Build OK, 6 tests pasan.
 
 **Commit:** `refactor(fase-9): extraer feature inventario/`.
+
+**Notas de implementación:**
+- **`Inventario` (lista/vista)**: encapsula el estado local (`agregar`, `editar`), el cálculo del `total` invertido, y la lista ordenada por fecha. Mantiene comportamiento histórico.
+- **`InventarioForm` (modal compartido agregar/editar)**: usa el patrón estándar (backdrop, `Card`, `ConfirmDelete`, `FInput`). El flag `item` distingue modo creación vs edición.
+- **NO normaliza texto con `toUpperCase().trim()`** al guardar (a diferencia de Ingreso/Gasto). Decisión histórica preservada — los nombres de producto/proveedor en Inventario mantienen case original.
+- **Imports con paths explícitos** en App.jsx (no del barrel). Mismo patrón que Fases 5–8.
 
 ---
 
