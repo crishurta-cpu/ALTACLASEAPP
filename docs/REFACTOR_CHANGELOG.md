@@ -42,6 +42,53 @@
 
 ---
 
+## [2026-08-22] Sesión #11 — Fase 10: Extraer feature Personal ✅
+**Estado:** ✅ Completada
+**Branch:** `refactor/architectural-cleanup`
+**Commit:** `refactor(fase-10): extraer feature personal/`
+
+### Archivos modificados
+- `src/App.jsx` (**-82 líneas**: 1.589 → 1.507)
+- 3 archivos nuevos en `src/features/personal/`:
+  - `Personal.jsx` (108 líneas con JSDoc) — vista del libro Deuda Valen con saldo actual + lista
+  - `DeudaPersonalForm.jsx` (133 líneas con JSDoc) — modal compartido agregar/editar con recalculo de saldo en tiempo real
+  - `index.js` (6 líneas) — barrel con comentario recordando que está separada del negocio
+
+### Cambios realizados
+
+**2 componentes movidos** de `App.jsx` a `src/features/personal/`:
+
+| # | Componente | Líneas eliminadas |
+|---|---|---|
+| 10.1 | Personal | ~36 |
+| 10.2 | DeudaPersonalForm | ~46 |
+| Total | — | **-82** |
+
+### Decisiones tomadas
+
+- **`Personal` encapsula el cálculo del saldo actual**: `items.length > 0 ? items[items.length-1].saldo : 0`. Antes vivía inline en App.jsx.
+- **`DeudaPersonalForm` encapsula la lógica de recálculo**: el `base` se calcula distinto en modo edición (`item.saldo - item.presto + item.pago`) vs creación (`saldoBase`). Esto estaba disperso entre App.jsx y el modal; ahora vive en el modal.
+- **Card con color custom `#1d0909`**: para distinguir visualmente del negocio. Decisión preservada.
+- **NO usa parsers ni servicios**: Deuda Valen es local-only en esta versión. La migración futura a Supabase (ver `docs/ALTACLASE_DATABASE_ARCHITECTURE.md`) agregará servicios.
+- **Barrel con comentario explicativo**: documenta en el header que está separada del negocio a propósito.
+
+### Problemas encontrados
+
+- **Ninguno.** Edit limpio, build verde al primer intento.
+
+### Validación
+- [x] `npm run build` OK (299.98 kB, sin crecimiento)
+- [x] `npm test` 6 tests pasan
+- [x] Sin errores de lint nuevos en `features/personal/`
+- [x] Working tree limpio en archivos del refactor
+
+### Próximos pasos
+1. **Esperar autorización** para iniciar **Fase 11: Extraer feature Search**.
+2. Targets: `BusquedaGlobal` → `src/features/search/`.
+3. Riesgo: BAJO (componente aislado, sin estado compartido).
+
+---
+
 ## [2026-08-18] Sesión #10 — Fase 9: Extraer feature Inventario ✅
 **Estado:** ✅ Completada
 **Branch:** `refactor/architectural-cleanup`

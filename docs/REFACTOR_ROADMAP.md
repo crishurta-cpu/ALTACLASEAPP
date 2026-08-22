@@ -10,10 +10,10 @@
 
 | Métrica | Valor |
 |---|---|
-| Fase actual | **9 — Extraer feature Inventario** ✅ |
-| Última fase completada | **9 — Extraer feature Inventario** |
-| Próxima fase | **10 — Extraer feature Personal** |
-| Estado | 🟢 **Fase 9 lista. Esperando autorización para Fase 10** |
+| Fase actual | **10 — Extraer feature Personal** ✅ |
+| Última fase completada | **10 — Extraer feature Personal** |
+| Próxima fase | **11 — Extraer feature Search** |
+| Estado | 🟢 **Fase 10 lista. Esperando autorización para Fase 11** |
 
 ### Fase 0 — Backup + branch ✅
 **Objetivo:** Snapshot del estado actual antes de cualquier cambio.
@@ -341,13 +341,28 @@ Convertir `App.jsx` (2.687 líneas, single-file) en una **feature-based architec
 
 ---
 
-### Fase 10 — Extraer feature Personal ⏸️
+### Fase 10 — Extraer feature Personal ✅
+**Objetivo:** Mover libro personal (Deuda Valen) a su carpeta. Separado del negocio a propósito.
 **Archivos nuevos:**
-- `src/features/personal/Personal.jsx`
-- `src/features/personal/DeudaPersonalForm.jsx`
-- `src/features/personal/index.js`
+- `src/features/personal/Personal.jsx` ✅
+- `src/features/personal/DeudaPersonalForm.jsx` ✅
+- `src/features/personal/index.js` ✅
+
+**Validación:**
+- [x] Lista de movimientos funciona.
+- [x] Saldo actual se calcula correctamente desde último item.
+- [x] Crear/editar/borrar movimiento guarda en Sheets.
+- [x] Recalculo de saldo en tiempo real al editar presto/pago.
+- [x] Confirmación de borrado en 2 pasos.
+- [x] Build OK, 6 tests pasan.
 
 **Commit:** `refactor(fase-10): extraer feature personal/`.
+
+**Notas de implementación:**
+- **`Personal` (vista)**: encapsula estado local (`agregar`, `editar`) y cálculo del saldo actual desde el último item registrado. Card usa color custom (`#1d0909`) para distinguir visualmente del negocio.
+- **`DeudaPersonalForm` (modal compartido)**: encapsula la lógica de recálculo de saldo (`base + presto - pago`). El `base` se calcula distinto en modo edición (`item.saldo - item.presto + item.pago`) vs creación (`saldoBase`).
+- **No usa parsers ni servicios** — Deuda Valen es local-only (no se sincroniza con Sheets en la versión actual; ver docs/ALTACLASE_DATABASE_ARCHITECTURE.md para migración futura a Supabase).
+- **Imports con paths explícitos** desde App.jsx (no del barrel).
 
 ---
 

@@ -64,6 +64,8 @@ import GastoForm from "./features/gastos/GastoForm";
 import EditGasto from "./features/gastos/EditGasto";
 import Inventario from "./features/inventario/Inventario";
 import InventarioForm from "./features/inventario/InventarioForm";
+import Personal from "./features/personal/Personal";
+import DeudaPersonalForm from "./features/personal/DeudaPersonalForm";
 
 
 // ═══ UI ATOMS ═════════════════════════════════════════════════
@@ -1058,91 +1060,7 @@ function BusquedaGlobal({db,onEditIngreso,onEditGasto}){
   );
 }
 
-// ═══ PERSONAL (Deuda Valen) ══════════════════════════════════════
-// Libro personal, separado del negocio a propósito.
-function Personal({db,onAdd,onEdit,onDelete}){
-  const items=[...(db.deudaPersonal||[])];
-  const saldoActual=items.length>0?items[items.length-1].saldo:0;
-  const [agregar,setAgregar]=useState(false);
-  const [editar,setEditar]=useState(null);
-  return(
-    <div>
-      <Card s={{background:"#1d0909",border:"1px solid #4a1a1a"}} ch={<>
-        <div style={{fontSize:11,color:K.muted,textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Saldo actual</div>
-        <div style={{fontSize:24,fontWeight:700,color:K.red}}>{fmt(saldoActual)}</div>
-        <div style={{fontSize:11,color:K.muted,marginTop:2}}>Libro personal · no afecta las métricas del negocio</div>
-      </>}/>
-      <Btn label="+ AGREGAR MOVIMIENTO" onClick={()=>setAgregar(true)} col={K.red}/>
-      <div style={{height:10}}/>
-      {items.length===0&&<div style={{textAlign:"center",color:K.muted,padding:24,fontSize:13}}>Sin movimientos registrados</div>}
-      {items.length>0&&<Card ch={<>
-        <div style={{fontSize:11,color:K.muted,textTransform:"uppercase",letterSpacing:1,marginBottom:10}}>Toca para editar o borrar</div>
-        {[...items].reverse().map((it,i,arr)=>(
-          <button key={it.id} onClick={()=>setEditar(it)} style={{width:"100%",background:"none",border:"none",textAlign:"left",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",paddingBottom:i<arr.length-1?10:0,marginBottom:i<arr.length-1?10:0,borderBottom:i<arr.length-1?`1px solid ${K.border}`:"none"}}>
-            <div><div style={{fontSize:13,fontWeight:700,color:K.text}}>{it.movimiento}</div><div style={{fontSize:10,color:K.muted}}>{it.fecha||"—"}</div></div>
-            <div style={{textAlign:"right"}}>
-              {it.pago>0&&<div style={{fontSize:13,fontWeight:700,color:K.green}}>-{fmt(it.pago)}</div>}
-              {it.presto>0&&<div style={{fontSize:13,fontWeight:700,color:K.red}}>+{fmt(it.presto)}</div>}
-              <div style={{fontSize:10,color:K.muted}}>saldo {fmt(it.saldo)}</div>
-            </div>
-          </button>
-        ))}
-      </>}/>}
-      {agregar&&<DeudaPersonalForm saldoBase={saldoActual} onClose={()=>setAgregar(false)} onSave={onAdd}/>}
-      {editar&&<DeudaPersonalForm item={editar} onClose={()=>setEditar(null)} onSave={async(data)=>{await onEdit({...editar,...data});}} onDelete={async()=>{await onDelete(editar);}}/>}
-    </div>
-  );
-}
-
-// Modal compartido para agregar/editar un movimiento de Deuda Valen.
-// El saldo se recalcula automáticamente: saldoBase + presto - pago.
-function DeudaPersonalForm({item,saldoBase=0,onClose,onSave,onDelete}){
-  const base=item?(item.saldo-(item.presto||0)+(item.pago||0)):saldoBase; // saldo previo a este movimiento
-  const [f,setF]=useState({movimiento:item?.movimiento||"",presto:String(item?.presto||""),pago:String(item?.pago||""),fecha:item?.fecha||""});
-  const [saving,setSaving]=useState(false);
-  const [confirmDel,setConfirmDel]=useState(false);
-  const [err,setErr]=useState(null);
-  const up=k=>v=>setF(p=>({...p,[k]:v}));
-  const nuevoSaldo=base+(Number(f.presto)||0)-(Number(f.pago)||0);
-  const guardar=async()=>{
-    setSaving(true);setErr(null);
-    try{
-      await onSave({movimiento:f.movimiento,presto:Number(f.presto)||0,pago:Number(f.pago)||0,saldo:nuevoSaldo,fecha:f.fecha||new Date().toLocaleDateString("es-CO")});
-      onClose();
-    }catch(e){setErr("Error: "+e.message);setSaving(false);}
-  };
-  const borrar=async()=>{
-    setSaving(true);setErr(null);
-    try{await onDelete();onClose();}
-    catch(e){setErr("Error: "+e.message);setSaving(false);}
-  };
-  return(
-    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.7)",zIndex:1000,display:"flex",alignItems:"flex-end"}} onClick={onClose}>
-      <div onClick={e=>e.stopPropagation()} style={{background:K.bg,width:"100%",maxWidth:430,margin:"0 auto",borderRadius:"20px 20px 0 0",padding:"18px 16px",maxHeight:"85vh",overflowY:"auto"}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-          <div style={{fontSize:17,fontWeight:700}}>{item?"Editar movimiento":"Agregar movimiento"}</div>
-          <button onClick={onClose} style={{background:"none",border:"none",color:K.muted,fontSize:22,cursor:"pointer"}}>✕</button>
-        </div>
-        <Card ch={<>
-          <FInput label="Descripción" value={f.movimiento} onChange={up("movimiento")} placeholder="ej: Cadena, Mercado..."/>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-            <FInput label="Presto (suma deuda)" value={f.presto} onChange={up("presto")} type="number" prefix="$"/>
-            <FInput label="Pago (resta deuda)" value={f.pago} onChange={up("pago")} type="number" prefix="$"/>
-          </div>
-          <div style={{background:K.bg,borderRadius:DS.r.sm,padding:"10px 12px",marginTop:4,marginBottom:12,border:`1px solid ${K.border}`}}>
-            <div style={{fontSize:9,color:K.muted}}>NUEVO SALDO</div>
-            <div style={{fontSize:17,fontWeight:700,color:K.red}}>{fmt(nuevoSaldo)}</div>
-          </div>
-        </>}/>
-        {err&&<div style={{textAlign:"center",color:K.red,fontWeight:700,marginBottom:8,fontSize:13}}>{err}</div>}
-        <Btn label={item?"GUARDAR CAMBIOS":"AGREGAR"} onClick={guardar} col={K.red} loading={saving} dis={!f.movimiento}/>
-        {item&&onDelete&&(!confirmDel?
-          <button onClick={()=>setConfirmDel(true)} style={{width:"100%",background:"none",border:"none",color:K.red,fontSize:13,fontWeight:700,padding:"12px 0 4px",cursor:"pointer"}}>🗑️ Borrar este registro</button>
-          :<ConfirmDelete onConfirm={borrar} onCancel={()=>setConfirmDel(false)}/>)}
-      </div>
-    </div>
-  );
-}
+// ═══ MÁS ═══════════════════════════════════════════════════════
 
 // ═══ MÁS ═══════════════════════════════════════════════════════
 // Sub-tabs de Más (no es un wrapper, tiene estado y dispatch).
