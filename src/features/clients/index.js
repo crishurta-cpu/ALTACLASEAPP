@@ -1,0 +1,12 @@
+export { default } from "./Clientes";
+export { default as Clientes } from "./Clientes";
+export { default as ClienteDetail } from "./ClienteDetail";
+export { default as ClientesListItem } from "./ClientesListItem";
+export { default as ClienteStats } from "./ClienteStats";
+export { default as ClienteHistorial } from "./ClienteHistorial";
+export { default as DebenCobrarPanel } from "./DebenCobrarPanel";
+export { default as SwipeableVenta } from "./SwipeableVenta";
+export { default as MarcarPagadoBtn } from "./MarcarPagadoBtn";
+export { default as AbonoModal } from "./AbonoModal";
+export { default as DeudaFactura } from "./DeudaFactura";
+export { default as ReporteClienteBtn } from "./ReporteClienteBtn";

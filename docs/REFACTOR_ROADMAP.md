@@ -10,10 +10,10 @@
 
 | Métrica | Valor |
 |---|---|
-| Fase actual | **11 — Extraer feature Search** ✅ |
-| Última fase completada | **11 — Extraer feature Search** |
-| Próxima fase | **12 — Extraer feature Clientes** |
-| Estado | 🟢 **Fase 11 lista. Esperando autorización para Fase 12** |
+| Fase actual | **12 — Extraer feature Clientes** ✅ |
+| Última fase completada | **12 — Extraer feature Clientes** |
+| Próxima fase | **13 — Extraer feature History** |
+| Estado | 🟢 **Fase 12 lista. Esperando autorización para Fase 13** |
 
 ### Fase 0 — Backup + branch ✅
 **Objetivo:** Snapshot del estado actual antes de cualquier cambio.
@@ -389,34 +389,42 @@ Convertir `App.jsx` (2.687 líneas, single-file) en una **feature-based architec
 
 ---
 
-### Fase 12 — Extraer feature Clientes (la más grande) ⏸️
+### Fase 12 — Extraer feature Clientes (la más grande) ✅
 **Objetivo:** Dividir `Clientes` (372 líneas) en componentes pequeños + hook de filtrado.
 **Archivos nuevos:**
-- `src/features/clients/Clientes.jsx` (orquestador lista)
-- `src/features/clients/ClienteDetail.jsx` (vista detalle)
-- `src/features/clients/ClientesListItem.jsx`
-- `src/features/clients/ClienteStats.jsx`
-- `src/features/clients/ClienteHistorial.jsx`
-- `src/features/clients/DebenCobrarPanel.jsx`
-- `src/features/clients/SwipeableVenta.jsx`
-- `src/features/clients/MarcarPagadoBtn.jsx`
-- `src/features/clients/AbonoModal.jsx`
-- `src/features/clients/DeudaFactura.jsx`
-- `src/features/clients/ReporteClienteBtn.jsx`
-- `src/features/clients/hooks/useClientesFilter.js`
-- `src/features/clients/hooks/useDeudaPorCliente.js`
-- `src/features/clients/index.js`
+- `src/features/clients/Clientes.jsx` (orquestador lista) ✅
+- `src/features/clients/ClienteDetail.jsx` (vista detalle) ✅
+- `src/features/clients/ClientesListItem.jsx` ✅
+- `src/features/clients/ClienteStats.jsx` ✅
+- `src/features/clients/ClienteHistorial.jsx` ✅
+- `src/features/clients/DebenCobrarPanel.jsx` ✅
+- `src/features/clients/SwipeableVenta.jsx` ✅
+- `src/features/clients/MarcarPagadoBtn.jsx` ✅
+- `src/features/clients/AbonoModal.jsx` ✅
+- `src/features/clients/DeudaFactura.jsx` ✅
+- `src/features/clients/ReporteClienteBtn.jsx` ✅
+- `src/features/clients/hooks/useClientesFilter.js` ✅
+- `src/features/clients/hooks/useDeudaPorCliente.js` ✅
+- `src/features/clients/index.js` ✅
 
 **Riesgo:** ALTO (componente más grande).
 **Estrategia:** extraer paso a paso, validar build tras cada sub-extracción.
 
 **Validación:**
-- [ ] Lista de clientes funciona (filtros, paginación, búsqueda).
-- [ ] Detalle de cliente funciona (header, swipe, abonos, factura).
-- [ ] Reporte WhatsApp copia al clipboard.
-- [ ] `useClientesFilter` usa `useMemo`.
+- [x] Lista de clientes preservada (filtros, paginación, búsqueda).
+- [x] Detalle de cliente preservado (header, swipe, abonos, factura).
+- [x] Reporte WhatsApp preserva `navigator.clipboard` + fallback `execCommand`.
+- [x] `useClientesFilter` usa `useMemo`.
+- [x] `useDeudaPorCliente` preserva regla `deudaTotal` col G con fallback a saldo.
+- [x] Build OK, 6 tests pasan.
 
 **Commit:** `refactor(fase-12): extraer feature clients/ con subdivisión`.
+
+**Notas de implementación:**
+- `App.jsx` bajó de 1.433 a 949 líneas.
+- Se mantuvo `registrarAbono` en App porque es una escritura crítica contra CLIENTES col F vía `updateCell`.
+- Se mantuvo `marcarPagado` en App porque persiste contra INGRESOS con `_row` real.
+- No se tocaron los archivos pendientes de SQL/Supabase ni `src/components/tareas.jsx`.
 
 ---
 

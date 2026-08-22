@@ -42,6 +42,60 @@
 
 ---
 
+## [2026-08-22] Sesión #13 — Fase 12: Extraer feature Clientes ✅
+**Estado:** ✅ Completada
+**Branch:** `refactor/architectural-cleanup`
+**Commit:** `refactor(fase-12): extraer feature clients`
+
+### Archivos modificados
+- `src/App.jsx` (**-484 líneas**: 1.433 → 949)
+- 14 archivos nuevos en `src/features/clients/`:
+  - `Clientes.jsx` — orquestador de lista/detalle
+  - `ClienteDetail.jsx` — vista detalle
+  - `ClientesListItem.jsx` — item de lista
+  - `ClienteStats.jsx` — tarjetas de total ventas/ganancia
+  - `ClienteHistorial.jsx` — historial paginado con swipe
+  - `DebenCobrarPanel.jsx` — panel de clientes con deuda
+  - `SwipeableVenta.jsx` — swipe bidireccional `"SI"`/`"NO"`
+  - `MarcarPagadoBtn.jsx` — confirmación de pago total
+  - `AbonoModal.jsx` — abono acumulado
+  - `DeudaFactura.jsx` — detalle visual de deuda
+  - `ReporteClienteBtn.jsx` — reporte WhatsApp
+  - `hooks/useClientesFilter.js` — mapa, filtro y paginación con `useMemo`
+  - `hooks/useDeudaPorCliente.js` — deuda real desde `deudaTotal`
+  - `index.js` — barrel
+
+### Cambios realizados
+- Movida la feature Clientes completa fuera de `App.jsx`.
+- Separada la lógica de deuda en `useDeudaPorCliente`.
+- Separada la lógica de lista/filtro/paginación en `useClientesFilter`.
+- Preservados los flujos críticos:
+  - `cuentaParaListaClientes` para construir la lista.
+  - `deudaTotal` como deuda real con fallback a `saldo`.
+  - `onMarcarPagado([v], "SI"|"NO")` desde swipe.
+  - `onRegistrarAbono(cliente, nuevoTotal)` como total acumulado.
+
+### Decisiones tomadas
+- `registrarAbono` se quedó en `App.jsx`: sigue siendo escritura crítica a CLIENTES col F vía `updateCell`.
+- `marcarPagado` se quedó en `App.jsx`: sigue usando `_row` real de INGRESOS.
+- `pagH`, `mesSel` y `abonoAbierto` siguen en el orquestador `Clientes` para preservar comportamiento al navegar dentro del detalle.
+- No se tocaron `src/components/tareas.jsx`, SQL ni Supabase porque pertenecen a otra fase.
+
+### Problemas encontrados
+- `npm run lint` sigue fallando por deuda técnica pre-existente y archivos fuera de Fase 12. No hay errores reportados en `src/features/clients/`.
+
+### Validación
+- [x] `npm run build` OK (301.01 kB)
+- [x] `npm test` 6 tests pasan
+- [ ] `npm run lint` sin errores — falla por 25 errores + 1 warning pre-existentes/no relacionados.
+- [x] Sin errores de lint en `src/features/clients/`
+
+### Próximos pasos
+1. **Esperar autorización** para iniciar **Fase 13: Extraer feature History**.
+2. Mantener fuera del refactor actual los archivos SQL/Supabase hasta cerrar la refactorización.
+
+---
+
 ## [2026-08-22] Sesión #12 — Fase 11: Extraer feature Search ✅
 **Estado:** ✅ Completada
 **Branch:** `refactor/architectural-cleanup`
