@@ -42,6 +42,51 @@
 
 ---
 
+## [2026-08-22] Sesión #12 — Fase 11: Extraer feature Search ✅
+**Estado:** ✅ Completada
+**Branch:** `refactor/architectural-cleanup`
+**Commit:** `refactor(fase-11): extraer feature search/`
+
+### Archivos modificados
+- `src/App.jsx` (**-74 líneas**: 1.507 → 1.433)
+- 2 archivos nuevos en `src/features/search/`:
+  - `BusquedaGlobal.jsx` (162 líneas con JSDoc) — búsqueda en tiempo real con filtrado lineal O(n)
+  - `index.js` (4 líneas) — barrel
+
+### Cambios realizados
+
+**1 componente movido** de `App.jsx` a `src/features/search/`:
+
+| # | Componente | Líneas eliminadas |
+|---|---|---|
+| 11.1 | BusquedaGlobal | ~74 |
+| Total | — | **-74** |
+
+### Decisiones tomadas
+
+- **Filtrado lineal O(n) preservado**: aceptable para datasets <1000 items. JSDoc documenta que si crece, considerar `useDeferredValue` en Fase 21.
+- **No se movió la lógica a un hook** (`useSearch`): no hay consumidor real. La función se ejecuta en cada render.
+- **Input custom** (no `FInput`): mantiene `autoFocus`, botón "×" inline, padding custom.
+- **Cap de resultados**: 20 ingresos, 10 gastos (comportamiento original).
+- **Imports con paths explícitos** desde App.jsx.
+
+### Problemas encontrados
+
+- **Typo en path al crear `index.js`**: el archivo se creó inicialmente en `AltaRefactorizado/src/features/search/` (sin la "a" final). Detectado al verificar el filesystem, corregido con `mv` y limpieza del directorio huérfano. Sin impacto en el commit final.
+
+### Validación
+- [x] `npm run build` OK (299.98 kB, sin crecimiento)
+- [x] `npm test` 6 tests pasan
+- [x] Sin errores de lint nuevos en `features/search/`
+- [x] Working tree limpio en archivos del refactor
+
+### Próximos pasos
+1. **Esperar autorización** para iniciar **Fase 12: Extraer feature Clientes**.
+2. **Riesgo: ALTO** — la feature más grande del proyecto (372 líneas en App.jsx, se subdivide en 12 archivos).
+3. Estrategia: extracción paso a paso, validar build tras cada sub-extracción.
+
+---
+
 ## [2026-08-22] Sesión #11 — Fase 10: Extraer feature Personal ✅
 **Estado:** ✅ Completada
 **Branch:** `refactor/architectural-cleanup`

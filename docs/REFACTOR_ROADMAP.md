@@ -10,10 +10,10 @@
 
 | Métrica | Valor |
 |---|---|
-| Fase actual | **10 — Extraer feature Personal** ✅ |
-| Última fase completada | **10 — Extraer feature Personal** |
-| Próxima fase | **11 — Extraer feature Search** |
-| Estado | 🟢 **Fase 10 lista. Esperando autorización para Fase 11** |
+| Fase actual | **11 — Extraer feature Search** ✅ |
+| Última fase completada | **11 — Extraer feature Search** |
+| Próxima fase | **12 — Extraer feature Clientes** |
+| Estado | 🟢 **Fase 11 lista. Esperando autorización para Fase 12** |
 
 ### Fase 0 — Backup + branch ✅
 **Objetivo:** Snapshot del estado actual antes de cualquier cambio.
@@ -366,12 +366,26 @@ Convertir `App.jsx` (2.687 líneas, single-file) en una **feature-based architec
 
 ---
 
-### Fase 11 — Extraer feature Search ⏸️
+### Fase 11 — Extraer feature Search ✅
+**Objetivo:** Mover búsqueda global a su carpeta.
 **Archivos nuevos:**
-- `src/features/search/BusquedaGlobal.jsx`
-- `src/features/search/index.js`
+- `src/features/search/BusquedaGlobal.jsx` ✅
+- `src/features/search/index.js` ✅
+
+**Validación:**
+- [x] Búsqueda case-insensitive en ingresos (producto, cliente, proveedor) y gastos (referencia, concepto).
+- [x] Resultados limitados: 20 ingresos, 10 gastos.
+- [x] Click en resultado abre modal de edición correspondiente.
+- [x] Botón "×" limpia la búsqueda.
+- [x] Hint "Escribe al menos 2 caracteres" cuando query < 2.
+- [x] Build OK, 6 tests pasan.
 
 **Commit:** `refactor(fase-11): extraer feature search/`.
+
+**Notas de implementación:**
+- **`BusquedaGlobal`**: componente puro sin sub-componentes ni hooks. Filtrado lineal O(n) sobre ingresos/gastos (aceptable para <1000 items).
+- **Performance**: documentado en JSDoc que si el dataset crece, considerar `useDeferredValue` en Fase 21.
+- **Imports con paths explícitos** desde App.jsx (no del barrel).
 
 ---
 
