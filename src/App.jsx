@@ -10,20 +10,13 @@ import {
   getAccentColor,
   DS,
   K,
-  CCAT,
   TIPOS,
   CONCS,
   CLIENTES_ESPECIALES,
-  esClienteEspecial,
   NO_SON_CLIENTES,
   noEsClienteReal,
-  cuentaParaTotales,
   cuentaParaListaClientes,
   fmt,
-  mKey,
-  curM,
-  mLabel,
-  fDate,
 } from "./constants";
 import {
   callApi,
@@ -52,7 +45,6 @@ import Pill from "./shared/ui/Pill";
 import Btn from "./shared/ui/Btn";
 import ChipGroup from "./shared/ui/ChipGroup";
 import AutocompleteInput from "./shared/ui/AutocompleteInput";
-import GraficoPuntos from "./shared/charts/GraficoPuntos";
 import GraficoCircular from "./shared/charts/GraficoCircular";
 import Configuracion from "./features/settings/Configuracion";
 import LoginScreen from "./features/auth/LoginScreen";
@@ -65,281 +57,13 @@ import Inventario from "./features/inventario/Inventario";
 import Personal from "./features/personal/Personal";
 import BusquedaGlobal from "./features/search/BusquedaGlobal";
 import Clientes from "./features/clients/Clientes";
+import Home from "./features/home/Home";
 
 
 // ═══ UI ATOMS ═════════════════════════════════════════════════
-// GraficoPuntos: ver ./shared/charts/GraficoPuntos.jsx
+// GraficoPuntos: ver ./features/home/GraficoGananciaDiaria.jsx
 
-function Home({db,onRefresh,loading,lastSync}){
-  const m=curM();
-  // cuentaParaTotales aplica la regla: Bayron/Marco solo cuentan si TIPO=VENTA o COMISION.
-  const ingTodos=db.ingresos.filter(i=>mKey(i.fecha)===m);
-  const ing=ingTodos.filter(cuentaParaTotales);
-  const gas=db.gastos.filter(g=>mKey(g.fecha)===m);
-  const ventas=ing.reduce((s,i)=>s+i.precioVenta,0);
-  const gan=ing.reduce((s,i)=>s+i.ganancia,0);
-  const gastos=gas.reduce((s,g)=>s+g.costo,0);
-  const ahorro=gas.filter(g=>g.concepto==="AHORRO").reduce((s,g)=>s+g.costo,0);
-  const util=gan-gastos;
-  const mrg=ventas>0?(util/ventas*100).toFixed(1):0;
-  // ── Resumen semanal ──────────────────────────────────────────
-  const hoy=new Date();
-  const dow=(hoy.getDay()+6)%7; // lunes=0 ... domingo=6
-  const inicioSem=new Date(hoy); inicioSem.setDate(hoy.getDate()-dow); inicioSem.setHours(0,0,0,0);
-  const inicioSemAnt=new Date(inicioSem); inicioSemAnt.setDate(inicioSem.getDate()-7);
-  const semActual=db.ingresos.filter(i=>cuentaParaTotales(i)&&new Date(i.fecha)>=inicioSem);
-  const semAnt=db.ingresos.filter(i=>cuentaParaTotales(i)&&new Date(i.fecha)>=inicioSemAnt&&new Date(i.fecha)<inicioSem);
-  const ganSem=semActual.reduce((s,i)=>s+i.ganancia,0);
-  const ganSemAnt=semAnt.reduce((s,i)=>s+i.ganancia,0);
-  const tendSem=ganSemAnt>0?Math.round((ganSem-ganSemAnt)/ganSemAnt*100):null;
-  const ventasSem=semActual.length;
-  const gasSem=db.gastos.filter(g=>new Date(g.fecha)>=inicioSem).reduce((s,g)=>s+g.costo,0);
-  const cmap={};
-  ing.filter(i=>i.tipo==="VENTA"&&i.cliente).forEach(i=>{
-    const k=i.cliente.toUpperCase().trim();
-    if(!cmap[k])cmap[k]={g:0,n:0};
-    cmap[k].g+=i.ganancia;cmap[k].n++;
-  });
-  const top5=Object.entries(cmap).sort((a,b)=>b[1].g-a[1].g).slice(0,5);
-  // La deuda real viene de la hoja CLIENTES (columna DEBE?). Se combinan duplicados
-  // por espacios extra en el nombre (ej. "ALEJANDRA" vs "ALEJANDRA ") para no
-  // mostrar al mismo cliente dos veces ni perder su deuda real.
-  const debenMap={};
-  (db.clientesResumen||[]).forEach(c=>{
-    if(esClienteEspecial(c.cliente))return;
-    const k=c.cliente.toUpperCase().trim();
-    if(!debenMap[k])debenMap[k]={cliente:k,saldo:0,abonos:0,debe:false};
-    // Usar deudaTotal (col G = saldo bruto - abonos) si existe; si no, saldo bruto
-    const neto=c.deudaTotal!=null&&c.deudaTotal>0?c.deudaTotal:(c.saldo-(c.abonos||0));
-    debenMap[k].saldo+=Math.max(0,neto);
-    debenMap[k].abonos+=(c.abonos||0);
-    debenMap[k].debe=debenMap[k].debe||c.debe==="SI";
-  });
-  const debenList=Object.values(debenMap).filter(c=>c.debe);
-  const totalPorCobrar = debenList.reduce(
-  (total, cliente) => total + (cliente.saldo || 0),
-  0
-);  
-  // Mapa nombre -> saldo que debe, para marcar con ⚠️ en el Top Clientes si debe más de $1.000.000.
-  const deudaPorNombre={};
-  Object.values(debenMap).forEach(c=>{deudaPorNombre[c.cliente]=c.saldo;});
-  // Últimos movimientos, separados en dos listas como pediste, cada una con su propio top 5.
-  // Últimos 5 días con movimiento, agrupados por día (total + cantidad de ventas).
-  // Usa TODOS los ingresos/gastos (no solo el mes actual) para que funcione bien
-  // incluso los primeros días del mes, cuando el mes en curso aún no tiene 5 días de datos.
-  const agruparPorDia=(lista,campoMonto)=>{
-    const dias={};
-    lista.forEach(item=>{
-      const dk=new Date(item.fecha).toDateString();
-      if(!dias[dk])dias[dk]={fecha:item.fecha,total:0,n:0};
-      dias[dk].total+=item[campoMonto];
-      dias[dk].n++;
-    });
-    return Object.values(dias).sort((a,b)=>new Date(b.fecha)-new Date(a.fecha)).slice(0,5);
-  };
-  const [debenAbierto,setDebenAbierto]=useState(false);
-  const [gastosAbierto,setGastosAbierto]=useState(false);
-  const diasIng=agruparPorDia(db.ingresos.filter(cuentaParaTotales),"ganancia");
-  const ultimosGastos=[...db.gastos].sort((a,b)=>new Date(b.fecha)-new Date(a.fecha)).slice(0,5);
-  const syncTxt=lastSync?lastSync.toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit"}):"—";
-  return(
-    <div style={{padding:"0"}}>
-      {/* Header — gradiente premium */}
-      <div style={{
-        padding:"56px 20px 20px",
-        background:`linear-gradient(160deg, #16161F 0%, #0D0D12 100%)`,
-        borderBottom:`1px solid ${K.border}`,
-        position:"relative",
-        overflow:"hidden",
-      }}>
-        {/* Glow decoration */}
-        <div style={{position:"absolute",top:-40,right:-20,width:160,height:160,borderRadius:"50%",background:`${K.gold}08`,filter:"blur(40px)",pointerEvents:"none"}}/>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",position:"relative"}}>
-          <div>
-            <div style={{fontSize:10,color:K.gold,letterSpacing:2,textTransform:"uppercase",fontWeight:700,marginBottom:4,opacity:.8}}>Altaclase Bodega</div>
-            <div style={{fontSize:32,fontWeight:700,color:K.white,letterSpacing:-.8,lineHeight:1}}>{mLabel(m)}</div>
-            <div style={{fontSize:11,color:K.muted,marginTop:4}}>Sync {syncTxt}</div>
-          </div>
-          <button onClick={onRefresh} disabled={loading} style={{background:K.card3,border:`1px solid ${K.border}`,borderRadius:DS.r.sm,padding:"8px 14px",color:loading?K.muted:K.gold,fontSize:12,fontWeight:600,cursor:loading?"not-allowed":"pointer",WebkitTapHighlightColor:"transparent",boxShadow:DS.shadow.sm}}>
-            {loading?"···":"↻ Sync"}
-          </button>
-        </div>
-      </div>
-      <div style={{padding:"14px 16px 0"}}>
-        {/* Utilidad — card premium con glow */}
-        <div style={{
-          background:util>=0?`linear-gradient(135deg,#1A1810 0%,${K.card} 100%)`:`linear-gradient(135deg,#1A0E0E 0%,${K.card} 100%)`,
-          borderRadius:DS.r.xl,padding:"24px 20px 20px",marginBottom:12,textAlign:"center",
-          border:`1px solid ${util>=0?K.gold+"22":K.red+"22"}`,
-          boxShadow:util>=0?`0 4px 32px ${K.gold}18`:`0 4px 32px ${K.red}12`,
-          position:"relative",overflow:"hidden",
-        }}>
-          <div style={{position:"absolute",top:-30,left:"50%",transform:"translateX(-50%)",width:200,height:100,borderRadius:"50%",background:util>=0?`${K.gold}06`:`${K.red}06`,filter:"blur(30px)"}}/>
-          <div style={{fontSize:11,color:K.muted,textTransform:"uppercase",letterSpacing:1.5,fontWeight:600,marginBottom:8}}>Utilidad Neta del Mes Actual</div>
-          <div style={{fontSize:48,fontWeight:700,color:util>=0?K.gold:K.red,letterSpacing:-2,lineHeight:1,marginBottom:8}}>{fmt(util)}</div>
-          <div style={{fontSize:12,color:K.muted}}>Margen <span style={{color:util>=0?K.gold:K.red,fontWeight:700}}>{mrg}%</span>{ahorro>0&&<span style={{marginLeft:8}}>· Ahorro <span style={{color:K.blue,fontWeight:600}}>{fmt(ahorro)}</span></span>}</div>
-        </div>
-        {/* Stats grid */}
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:12}}>
-          {[["Ventas",ventas,K.gold],["Ganancia",gan,K.green],["Gastos",gastos,K.red]].map(([l,v,col])=>(
-            <div key={l} style={{background:K.card2,borderRadius:DS.r.md,padding:"14px 8px",textAlign:"center",border:`1px solid ${K.border}`,boxShadow:DS.shadow.sm}}>
-              <div style={{fontSize:9,color:K.muted,fontWeight:600,marginBottom:5,textTransform:"uppercase",letterSpacing:.5}}>{l}</div>
-              <div style={{fontSize:15,fontWeight:700,color:col}}>{fmt(v)}</div>
-            </div>
-          ))}
-        </div>
-        {/* Resumen semanal */}
-        <div style={{background:K.card,borderRadius:16,padding:"14px 16px",marginBottom:10}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-            <div style={{fontSize:13,fontWeight:600,color:K.text}}>Esta semana</div>
-            {tendSem!==null&&<span style={{fontSize:12,fontWeight:600,color:tendSem>=0?K.green:K.red}}>{tendSem>=0?"↑":"↓"} {Math.abs(tendSem)}%</span>}
-          </div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6}}>
-            {[["Ganancia",fmt(ganSem),K.gold],["Ventas",ventasSem,K.text],["Gastos",fmt(gasSem),K.red]].map(([l,v,col])=>(
-              <div key={l} style={{textAlign:"center"}}>
-                <div style={{fontSize:10,color:K.muted,fontWeight:500,marginBottom:3}}>{l}</div>
-                <div style={{fontSize:15,fontWeight:700,color:col}}>{v}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-
-        {/* === INICIO 2 COLUMNAS EN DESKTOP === */}
-        <div className="ac-desktop-2col">
-        {/* Top Clientes del Mes */}
-        {top5.length>0&&(
-          <div style={{marginBottom:10}}>
-            <div style={{fontSize:13,fontWeight:600,color:K.text,marginBottom:10}}>Top Clientes del Mes</div>
-            <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:6,scrollSnapType:"x mandatory",WebkitOverflowScrolling:"touch"}}>
-              {top5.map(([nom,st],i)=>{
-                const debeMucho=(deudaPorNombre[nom]||0)>1000000;
-                const medals=["#C9A84C","#A8A8A8","#8B6914","#38383A","#38383A"];
-                return(
-                  <div key={nom} style={{flexShrink:0,scrollSnapAlign:"start",width:88,background:K.card,borderRadius:DS.r.lg,padding:10,display:"flex",flexDirection:"column",justifyContent:"space-between",minHeight:88}}>
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-                      <div style={{width:18,height:18,borderRadius:"50%",background:medals[i],display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,color:i<3?"#000":K.muted}}>{i+1}</div>
-                      {debeMucho&&<span style={{fontSize:11}}>⚠️</span>}
-                    </div>
-                    <div>
-                      <div style={{fontSize:11,fontWeight:600,color:K.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",marginBottom:2}}>{nom}</div>
-                      <div style={{fontSize:13,fontWeight:700,color:i===0?K.gold:K.green}}>{fmt(st.g)}</div>
-                      <div style={{fontSize:9,color:K.muted}}>{st.n} vta{st.n!==1?"s":""}</div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Gráfico de puntos — ganancia por día - Home */}
-        {diasIng.length>1&&(
-          <div style={{background:K.card,borderRadius:16,padding:"14px 16px",marginBottom:10}}>
-            <div style={{fontSize:13,fontWeight:600,color:K.text,marginBottom:12}}>Ganancia por día</div>
-            <GraficoPuntos datos={[...diasIng].reverse()}/>
-          </div>
-        )}
-        
-        {/* Total de Deuda Home */}
-                <div
-        style={{
-          background: "rgb(30, 30, 42)",
-          borderRadius: "16px",
-          padding: "14px 8px",
-          textAlign: "center",
-          border: "1px solid rgba(255, 255, 255, 0.07)",
-          boxShadow: "0px 1px 3px rgba(0, 0, 0, 0.4)",
-          marginBottom: "12px",
-        }}
-      >
-        <div
-          style={{
-            fontSize: "9px",
-            color: "rgb(107, 114, 128)",
-            fontWeight: 600,
-            marginBottom: "5px",
-            textTransform: "uppercase",
-            letterSpacing: "0.5px",
-          }}
-        >
-          Total Pendiente por Cobrar
-        </div>
-
-        <div
-          style={{
-            fontSize: "24px",
-            fontWeight: 700,
-            color: "rgb(239, 68, 68)",
-            marginBottom: "6px",
-          }}
-        >
-          {fmt(totalPorCobrar)}
-        </div>
-
-        <div
-          style={{
-            fontSize: "11px",
-            color: "rgb(107, 114, 128)",
-            fontWeight: 500,
-          }}
-        >
-          {debenList.length} cliente{debenList.length !== 1 ? "s" : ""} pendiente
-          {debenList.length !== 1 ? "s" : ""}
-        </div>
-      </div>
-
-        {/* Deben cobrar — desplegable */}
-        {debenList.length>0&&(
-          <div style={{marginBottom:8}}>
-            <button onClick={()=>setDebenAbierto(v=>!v)} style={{width:"100%",background:"#1C0808",border:`0.5px solid ${K.red}55`,borderRadius:debenAbierto?"12px 12px 0 0":12,padding:"12px 16px",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",WebkitTapHighlightColor:"transparent"}}>
-              <span style={{fontSize:13,color:K.red,fontWeight:600}}>⚠ Deben cobrar <span style={{background:K.red,color:"#fff",borderRadius:4,padding:"1px 6px",fontSize:10,fontWeight:700,marginLeft:4}}>{debenList.length}</span></span>
-              <span style={{color:K.muted,fontSize:12}}>{debenAbierto?"▲":"▼"}</span>
-            </button>
-            {debenAbierto&&(
-              <div style={{background:"#160606",border:`0.5px solid ${K.red}55`,borderTop:"none",borderRadius:`0 0 ${DS.r.md}px ${DS.r.md}px`,padding:"10px 14px"}}>
-                {debenList.map((c,i)=>(
-                  <div key={c.cliente} style={{display:"flex",justifyContent:"space-between",paddingBottom:i<debenList.length-1?8:0,marginBottom:i<debenList.length-1?8:0,borderBottom:i<debenList.length-1?`0.5px solid ${K.red}22`:"none"}}>
-                    <span style={{fontSize:13,color:K.text}}>{c.cliente}</span>
-                    <span style={{fontSize:13,fontWeight:700,color:K.red}}>{fmt(c.saldo)}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Últimos gastos — desplegable */}
-        {ultimosGastos.length>0&&(
-          <div style={{marginBottom:10}}>
-            <button onClick={()=>setGastosAbierto(v=>!v)} style={{width:"100%",background:K.card,border:`0.5px solid ${K.border}`,borderRadius:gastosAbierto?"12px 12px 0 0":12,padding:"12px 16px",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center",WebkitTapHighlightColor:"transparent"}}>
-              <span style={{fontSize:13,color:K.muted,fontWeight:600}}>Últimos gastos</span>
-              <span style={{color:K.muted,fontSize:12}}>{gastosAbierto?"▲":"▼"}</span>
-            </button>
-            {gastosAbierto&&(
-              <div style={{background:K.card,border:`0.5px solid ${K.border}`,borderTop:"none",borderRadius:`0 0 ${DS.r.md}px ${DS.r.md}px`,padding:"10px 14px"}}>
-                {ultimosGastos.map((g,i)=>(
-                  <div key={g.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingBottom:i<ultimosGastos.length-1?9:0,marginBottom:i<ultimosGastos.length-1?9:0,borderBottom:i<ultimosGastos.length-1?`0.5px solid ${K.border}`:"none"}}>
-                    <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontSize:13,fontWeight:500,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",color:K.text}}>{g.referencia}</div>
-                      <div style={{fontSize:11,color:K.muted}}>{g.concepto} · {fDate(g.fecha)}</div>
-                    </div>
-                    <div style={{fontSize:14,fontWeight:700,color:CCAT[g.concepto]||K.red,marginLeft:8}}>-{fmt(g.costo)}</div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        </div>{/* fin ac-desktop-2col */}
-        <div style={{textAlign:"center",fontSize:10,color:K.muted,paddingBottom:8,marginTop:4}}>
-          {db.ingresos.length} ingresos · {db.gastos.length} gastos
-        </div>
-      </div>
-    </div>
-  );
-}
+// Home: ver ./features/home/Home.jsx
 
 // ═══ AUTOCOMPLETE INPUT ══════════════════════════════════════════
 // Ver: ./shared/ui/AutocompleteInput.jsx
