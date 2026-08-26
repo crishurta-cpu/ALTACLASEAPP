@@ -669,6 +669,58 @@ Configuracion se dividió en 2 piezas:
 
 ---
 
+## [2026-08-26] Sesión #14 — Fase 13: Extraer feature History ✅
+**Estado:** ✅ Completada
+**Branch:** `refactor/architectural-cleanup`
+**Commit:** `4d479ed` — `refactor(fase-13): extraer feature history`
+
+### Archivos modificados
+- `src/App.jsx` (**-112 líneas**: 949 → 837)
+- 5 archivos nuevos en `src/features/history/`:
+  - `Historial.jsx` (45 líneas con JSDoc) — orquestador con 5 estados (open, filter, buscar, categFiltro, orden)
+  - `MesAccordion.jsx` (91 líneas con JSDoc) — acordeón mensual con reset centralizado
+  - `FiltrosHistorial.jsx` (56 líneas con JSDoc) — UI de búsqueda, tabs y filtros de gastos
+  - `hooks/useHistorialFilter.js` (62 líneas con JSDoc) — `useMemo` doble: months por separado del resto
+  - `index.js` (5 líneas) — barrel
+
+### Cambios realizados
+
+**1 componente movido** de `App.jsx` a `src/features/history/`, subdividido en 3 + 1 hook:
+
+| # | Pieza | Responsabilidad |
+|---|---|---|
+| 13.1 | `Historial` | Estados + orquesta `MesAccordion` |
+| 13.2 | `MesAccordion` | Header del mes con stats + lista filtrada |
+| 13.3 | `FiltrosHistorial` | Input búsqueda, tabs ingresos/gastos, gráfico circular, selects categoría/orden |
+| 13.4 | `useHistorialFilter` | `months`, totales (ventas/gan/gastos/ahorro/util), `catEntries`, `categDisponibles`, `filtered` |
+
+### Decisiones tomadas
+
+- **`Historial` encapsula los 5 estados locales** (antes vivían inline en App.jsx): open, filter, buscar, categFiltro, orden.
+- **`MesAccordion` recibe los estados por props** (no los replica) — patrón "lift state up". `resetAndToggle` centraliza el reset al abrir/cerrar.
+- **`FiltrosHistorial` recibe valores ya calculados** (`gastos`, `catEntries`, `categDisponibles`) — solo renderiza UI, no recalcula.
+- **`useHistorialFilter` con dos `useMemo`** separados:
+  - `months` (depende solo de `db.ingresos`/`db.gastos`).
+  - El resto (depende de mes + filtros + búsqueda + orden).
+  - Evita recalcular `months` en cada keystroke.
+- **`GraficoCircular` reusado directo** desde `shared/charts/` (ya extraído en Fase 4).
+- **Imports con paths explícitos** desde App.jsx — mismo patrón que Fases 5–12.
+
+### Problemas encontrados
+
+- **Codex dejó la fase incompleta** (archivos creados pero `App.jsx` sin integrar y sin commit) y modificó sin querer el color del botón en `src/components/tareas.jsx` (de `#2563eb` a `rgb(156 125 57)`). Detectado al inicio, revertido el color del botón (preservando la "modificación del usuario" registrada en Fase 0), completada la integración de `Historial` y commit.
+
+### Validación
+- [x] `npm run build` OK (302.05 kB)
+- [x] `npm test` 6 tests pasan
+- [x] Comportamiento idéntico preservado
+
+### Próximos pasos
+1. **Esperar autorización** para iniciar **Fase 14: Extraer feature Home** (Fase más grande: Home.jsx + 8 sub-componentes + useHomeStats).
+2. Riesgo: MEDIO — Home tiene bastante lógica pero menos subdivisión que Clientes.
+
+---
+
 ## [Placeholder para entradas futuras]
 
 > Cada nueva sesión que toques código del proyecto agrega su entrada arriba de este placeholder.

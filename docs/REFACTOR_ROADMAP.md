@@ -10,10 +10,10 @@
 
 | Métrica | Valor |
 |---|---|
-| Fase actual | **12 — Extraer feature Clientes** ✅ |
-| Última fase completada | **12 — Extraer feature Clientes** |
-| Próxima fase | **13 — Extraer feature History** |
-| Estado | 🟢 **Fase 12 lista. Esperando autorización para Fase 13** |
+| Fase actual | **13 — Extraer feature History** ✅ |
+| Última fase completada | **13 — Extraer feature History** |
+| Próxima fase | **14 — Extraer feature Home** |
+| Estado | 🟢 **Fase 13 lista. Esperando autorización para Fase 14** |
 
 ### Fase 0 — Backup + branch ✅
 **Objetivo:** Snapshot del estado actual antes de cualquier cambio.
@@ -428,15 +428,30 @@ Convertir `App.jsx` (2.687 líneas, single-file) en una **feature-based architec
 
 ---
 
-### Fase 13 — Extraer feature History ⏸️
+### Fase 13 — Extraer feature History ✅
+**Objetivo:** Mover `Historial` de App.jsx a su carpeta, separando orquestador / acordeón / filtros y aislando el cálculo en un hook.
 **Archivos nuevos:**
-- `src/features/history/Historial.jsx` (orquestador)
-- `src/features/history/MesAccordion.jsx`
-- `src/features/history/FiltrosHistorial.jsx`
-- `src/features/history/hooks/useHistorialFilter.js`
-- `src/features/history/index.js`
+- `src/features/history/Historial.jsx` (orquestador con estado: open, filter, buscar, categFiltro, orden)
+- `src/features/history/MesAccordion.jsx` (acordeón mensual con stats y lista filtrada)
+- `src/features/history/FiltrosHistorial.jsx` (input búsqueda, tabs ingresos/gastos, gráfico circular + selects)
+- `src/features/history/hooks/useHistorialFilter.js` (cálculo de months + totales + listas filtradas con `useMemo`)
+- `src/features/history/index.js` (barrel)
 
-**Commit:** `refactor(fase-13): extraer feature history/`.
+**Validación:**
+- [x] Build OK (302.05 kB).
+- [x] 6 tests pasan.
+- [x] App.jsx: 949 → 837 líneas (**-112 líneas**).
+- [x] Comportamiento idéntico: tabs ingresos/gastos, búsqueda, filtro por categoría, orden por fecha/monto, gráfico circular, reset al toggle.
+
+**Commit:** `4d479ed` — `refactor(fase-13): extraer feature history`.
+
+**Notas de implementación:**
+- **`Historial`** encapsula los 5 estados locales. Antes vivían inline en App.jsx.
+- **`MesAccordion`** recibe estados por props (no se replica estado localmente). `resetAndToggle` centraliza el reset al abrir/cerrar.
+- **`FiltrosHistorial`** recibe `gastos`, `catEntries` y `categDisponibles` ya calculados. Solo renderiza UI.
+- **`useHistorialFilter`**: dos `useMemo` separados — uno para `months` (depende solo de db) y otro para el resto (depende de mes + filtros). Esto evita recalcular `months` en cada keystroke.
+- **`GraficoCircular` ya estaba extraído** en `shared/charts/` desde Fase 4. Se reusa directo.
+- **Imports con paths explícitos** desde App.jsx (`./features/history/Historial`), no del barrel. Mismo patrón que Fases 5–12.
 
 ---
 
