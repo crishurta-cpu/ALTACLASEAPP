@@ -33,6 +33,7 @@ import {
   updateRow,
   deleteRow,
 } from "./services/api";
+import Historial from "./features/history/Historial";
 import {
   parseIngresos,
   parseGastos,
@@ -370,120 +371,7 @@ function NuevoMovimiento({
 
 // GraficoCircular: ver ./shared/charts/GraficoCircular.jsx
 
-function Historial({db,onEditIngreso,onEditGasto}){
-  const [open,setOpen]=useState(curM());
-  const [filter,setFilter]=useState("ingresos");
-  const [buscar,setBuscar]=useState("");
-  const [categFiltro,setCategFiltro]=useState(null);
-  const [orden,setOrden]=useState("fecha"); // "fecha" | "monto"
-  const months=[...new Set([...db.ingresos.map(i=>mKey(i.fecha)),...db.gastos.map(g=>mKey(g.fecha))].filter(Boolean))].sort().reverse();
-  return(
-    <div style={{padding:"24px 16px 0"}}>
-      <div style={{fontSize:26,fontWeight:700,letterSpacing:-.5,color:K.text}}>Historial Anual</div>
-      <div style={{fontSize:13,color:K.muted,marginTop:2,marginBottom:16}}>2026</div>
-      {months.map(m=>{
-        const ing=db.ingresos.filter(i=>mKey(i.fecha)===m&&cuentaParaTotales(i));
-        const gas=db.gastos.filter(g=>mKey(g.fecha)===m);
-        const ventas=ing.reduce((s,i)=>s+i.precioVenta,0);
-        const gan=ing.reduce((s,i)=>s+i.ganancia,0);
-        const gastos=gas.reduce((s,g)=>s+g.costo,0);
-        const ahorro=gas.filter(g=>g.concepto==="AHORRO").reduce((s,g)=>s+g.costo,0);
-        const util=gan-gastos;
-        const isOpen=open===m;
-
-        // Gastos por categoría para filtro y gráfico circular
-        const catMap={};
-        gas.forEach(g=>{const cat=g.concepto||"OTRO";catMap[cat]=(catMap[cat]||0)+g.costo;});
-        const catEntries=Object.entries(catMap).sort((a,b)=>b[1]-a[1]);
-        const categDisponibles=catEntries.map(([k])=>k);
-        const PIE_COLORS=[K.red,K.blue,K.orange,K.purple,K.teal,K.green,"#FF6B6B","#4ECDC4"];
-
-        let gasFiltered=gas;
-        if(categFiltro)gasFiltered=gas.filter(g=>g.concepto===categFiltro);
-        if(buscar.trim()){const q=buscar.toUpperCase().trim();gasFiltered=gasFiltered.filter(g=>(g.referencia||"").toUpperCase().includes(q)||(g.concepto||"").toUpperCase().includes(q));}
-        gasFiltered=[...gasFiltered].sort((a,b)=>orden==="monto"?b.costo-a.costo:new Date(b.fecha)-new Date(a.fecha));
-
-        let ingFiltered=ing;
-        if(buscar.trim()){const q=buscar.toUpperCase().trim();ingFiltered=ing.filter(x=>(x.producto||"").toUpperCase().includes(q)||(x.cliente||"").toUpperCase().includes(q)||(x.proveedor||"").toUpperCase().includes(q));}
-        ingFiltered=[...ingFiltered].sort((a,b)=>new Date(b.fecha)-new Date(a.fecha));
-
-        const filtered=filter==="ingresos"?ingFiltered:gasFiltered;
-
-        return(
-          <div key={m} style={{marginBottom:8}}>
-            <button onClick={()=>{setOpen(isOpen?null:m);setFilter("ingresos");setBuscar("");setCategFiltro(null);setOrden("fecha");}} style={{width:"100%",background:K.card,border:`1px solid ${isOpen?K.gold+"44":K.border}`,borderRadius:isOpen?"14px 14px 0 0":14,padding:14,cursor:"pointer",textAlign:"left",WebkitTapHighlightColor:"transparent"}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-                <div style={{fontWeight:700,fontSize:16,color:K.text}}>{mLabel(m)}</div>
-                <div style={{display:"flex",alignItems:"center",gap:8}}>
-                  <div style={{fontWeight:700,fontSize:17,color:util>=0?K.gold:K.red}}>{fmt(util)}</div>
-                  <span style={{color:K.muted,fontSize:12}}>{isOpen?"▲":"▼"}</span>
-                </div>
-              </div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:4}}>
-                {[["Ventas",ventas,K.gold],["Gan.",gan,K.green],["Gastos",gastos,K.red],["Ahorro",ahorro,K.blue]].map(([l,v,col])=>(
-                  <div key={l} style={{background:K.bg,borderRadius:DS.r.sm,padding:"5px 4px",textAlign:"center"}}>
-                    <div style={{fontSize:8,color:K.muted,textTransform:"uppercase"}}>{l}</div>
-                    <div style={{fontSize:11,fontWeight:700,color:col}}>{fmt(v)}</div>
-                  </div>
-                ))}
-              </div>
-            </button>
-            {isOpen&&(
-              <div style={{background:K.card2,border:`1px solid ${K.border}`,borderTop:"none",borderRadius:`0 0 ${DS.r.lg}px ${DS.r.lg}px`,padding:12}}>
-                <input value={buscar} onChange={e=>setBuscar(e.target.value)} placeholder="🔍 Buscar..." style={{width:"100%",background:K.bg,border:`1px solid ${K.border}`,borderRadius:DS.r.sm,color:K.text,padding:"9px 12px",fontSize:13,outline:"none",boxSizing:"border-box",marginBottom:10}}/>
-                <div style={{display:"flex",gap:6,marginBottom:10}}>
-                  {[["ingresos","Ingresos",K.gold],["gastos","Gastos",K.red]].map(([v,l,col])=>(
-                    <button key={v} onClick={()=>{setFilter(v);setCategFiltro(null);}} style={{flex:1,background:filter===v?`${col}22`:"transparent",border:`1px solid ${filter===v?col:K.border}`,color:filter===v?col:K.muted,borderRadius:DS.r.sm,padding:"6px 0",fontSize:11,fontWeight:600,cursor:"pointer",WebkitTapHighlightColor:"transparent"}}>{l}</button>
-                  ))}
-                </div>
-                {/* Controles extra para gastos */}
-                {filter==="gastos"&&gastos>0&&(
-                  <>
-                    <GraficoCircular datos={catEntries} colores={PIE_COLORS} total={gastos}/>
-                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
-                      <div style={{position:"relative"}}>
-                        <select value={categFiltro||""} onChange={e=>setCategFiltro(e.target.value||null)} style={{width:"100%",background:K.card3,border:`1px solid ${categFiltro?K.gold:K.border}`,borderRadius:DS.r.sm,color:categFiltro?K.gold:K.text,padding:"9px 28px 9px 10px",fontSize:12,outline:"none",WebkitAppearance:"none",appearance:"none",cursor:"pointer"}}>
-                          <option value="">Todas las categorías</option>
-                          {categDisponibles.map(cat=><option key={cat} value={cat} style={{background:K.card,color:K.text}}>{cat}</option>)}
-                        </select>
-                        <span style={{position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",color:K.muted,pointerEvents:"none",fontSize:10}}>▾</span>
-                      </div>
-                      <div style={{position:"relative"}}>
-                        <select value={orden} onChange={e=>setOrden(e.target.value)} style={{width:"100%",background:K.card3,border:`1px solid ${K.border}`,borderRadius:DS.r.sm,color:K.text,padding:"9px 28px 9px 10px",fontSize:12,outline:"none",WebkitAppearance:"none",appearance:"none",cursor:"pointer"}}>
-                          <option value="fecha">Más reciente</option>
-                          <option value="monto">Mayor monto</option>
-                        </select>
-                        <span style={{position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",color:K.muted,pointerEvents:"none",fontSize:10}}>▾</span>
-                      </div>
-                    </div>
-                  </>
-                )}
-
-                {filtered.length===0&&<div style={{textAlign:"center",color:K.muted,padding:16,fontSize:13}}>Sin registros</div>}
-                {filtered.map((item,i)=>{
-                  const isI=filter==="ingresos";
-                  const val=isI?item.ganancia:item.costo;
-                  const col=isI?(val>=0?K.gold:K.muted):CCAT[item.concepto]||K.red;
-                  return(
-                    <button key={i} onClick={()=>isI?onEditIngreso(item):onEditGasto(item)} style={{width:"100%",background:"none",border:"none",display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 0",borderBottom:i<filtered.length-1?`0.5px solid ${K.border}`:"none",cursor:"pointer",textAlign:"left",WebkitTapHighlightColor:"transparent"}}>
-                      <div style={{flex:1,minWidth:0}}>
-                        <div style={{fontSize:13,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",color:K.text}}>{isI?(item.producto||item.tipo):item.referencia}</div>
-                        <div style={{fontSize:11,color:K.muted}}>{isI?`${item.tipo}${item.cliente?" · "+item.cliente:""}`:item.concepto} · {fDate(item.fecha)}</div>
-                      </div>
-                      <div style={{textAlign:"right",marginLeft:8}}>
-                        <div style={{fontSize:13,fontWeight:700,color:col}}>{isI?(val>=0?"+":"")+fmt(val):"-"+fmt(val)}</div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
+// Historial: ver ./features/history/Historial.jsx
 
 // ═══ CLIENTES ══════════════════════════════════════════════════
 // ═══ MARCAR PAGADO ═══════════════════════════════════════════════
