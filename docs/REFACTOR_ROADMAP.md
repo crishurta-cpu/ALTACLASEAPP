@@ -10,10 +10,10 @@
 
 | Métrica | Valor |
 |---|---|
-| Fase actual | **13 — Extraer feature History** ✅ |
-| Última fase completada | **13 — Extraer feature History** |
-| Próxima fase | **14 — Extraer feature Home** |
-| Estado | 🟢 **Fase 13 lista. Esperando autorización para Fase 14** |
+| Fase actual | **14 — Extraer feature Home** ✅ |
+| Última fase completada | **14 — Extraer feature Home** |
+| Próxima fase | **15 — Refactorizar feature Tareas** |
+| Estado | 🟢 **Fase 14 lista. Esperando autorización para Fase 15** |
 
 ### Fase 0 — Backup + branch ✅
 **Objetivo:** Snapshot del estado actual antes de cualquier cambio.
@@ -455,25 +455,46 @@ Convertir `App.jsx` (2.687 líneas, single-file) en una **feature-based architec
 
 ---
 
-### Fase 14 — Extraer feature Home ⏸️
-**Archivos nuevos:**
-- `src/features/home/Home.jsx` (orquestador)
-- `src/features/home/HomeHeader.jsx`
-- `src/features/home/UtilidadCard.jsx`
-- `src/features/home/StatsGrid.jsx`
-- `src/features/home/ResumenSemanal.jsx`
-- `src/features/home/TopClientes.jsx`
-- `src/features/home/GraficoGananciaDiaria.jsx`
-- `src/features/home/DebenCobrarPanel.jsx`
-- `src/features/home/UltimosGastosPanel.jsx`
-- `src/features/home/hooks/useHomeStats.js`
-- `src/features/home/index.js`
+### Fase 14 — Extraer feature Home ✅
+**Objetivo:** Mover la vista Home (líneas 66-335 de App.jsx) a `src/features/home/`, la fase más grande de todas.
+**Archivos nuevos (9 sub-componentes):**
+- `src/features/home/Home.jsx` (orquestador, 2 estados lift-up: `debenAbierto`, `gastosAbierto`)
+- `src/features/home/Header.jsx` (gradiente premium + título mes + botón sync)
+- `src/features/home/UtilidadCard.jsx` (card grande con util, mrg, ahorro)
+- `src/features/home/StatsGrid.jsx` (3 columnas Ventas/Ganancia/Gastos)
+- `src/features/home/ResumenSemanal.jsx` (ganSem, ventasSem, gasSem, tendSem)
+- `src/features/home/TopClientes.jsx` (top 5 con medals y ⚠️ si deuda > 1M)
+- `src/features/home/GraficoGananciaDiaria.jsx` (wrapper de `GraficoPuntos`)
+- `src/features/home/TotalDeudaCard.jsx` (Total Pendiente por Cobrar) *(no estaba en el plan original, agregado)*
+- `src/features/home/DebenCobrarAcordeon.jsx` (acordeón con debenList) *(renombrado de `DebenCobrarPanel`)*
+- `src/features/home/UltimosGastosAcordeon.jsx` (acordeón con ultimosGastos) *(renombrado de `UltimosGastosPanel`)*
+- `src/features/home/index.js` (barrel)
+
+**Archivos nuevos (5 hooks, no solo `useHomeStats`):**
+- `src/features/home/hooks/useHomeStats.js` (ventas, gan, gastos, ahorro, util, mrg del mes)
+- `src/features/home/hooks/useResumenSemanal.js` (ganSem, ganSemAnt, tendSem, ventasSem, gasSem)
+- `src/features/home/hooks/useTopClientes.js` (top5 + deudaPorNombre)
+- `src/features/home/hooks/useDeudaResumen.js` (debenList, totalPorCobrar, deudaPorNombre — excluye `esClienteEspecial`)
+- `src/features/home/hooks/useUltimosMovimientos.js` (diasIng, ultimosGastos — encapsula `agruparPorDia`)
 
 **Validación:**
-- [ ] Home renderiza idéntico.
-- [ ] `useHomeStats` con `useMemo` reduce renders.
+- [x] Home renderiza idéntico.
+- [x] Los 5 hooks usan `useMemo` para aislar cálculos y reducir renders.
+- [x] Build OK (303.65 kB).
+- [x] 6 tests pasan.
+- [x] `App.jsx`: 837 → 561 líneas (**-276 líneas**).
+- [x] Limpieza de imports no usados en App.jsx (`cuentaParaTotales`, `mKey`, `curM`, `mLabel`, `esClienteEspecial`, `fDate`, `CCAT`).
 
-**Commit:** `refactor(fase-14): extraer feature home/`.
+**Commit:** `884b32e` — `refactor(fase-14): extraer feature home`.
+
+**Decisiones tomadas (desviaciones del plan original):**
+- **9 sub-componentes en lugar de 8**: se agregó `TotalDeudaCard.jsx` como card independiente, separado del acordeón `DebenCobrarAcordeon.jsx`.
+- **5 hooks en lugar de 1**: en vez de un único `useHomeStats` monolítico, se separó el cálculo en 5 hooks por responsabilidad (stats del mes, resumen semanal, top clientes, deuda, últimos movimientos). Cada uno usa `useMemo` de forma independiente, evitando recalcular todo cuando solo cambia una parte de los datos.
+- **Nombres ajustados al patrón "Acordeón"** (`DebenCobrarAcordeon`, `UltimosGastosAcordeon`) en vez de "Panel", para reflejar mejor el comportamiento UI (igual que `MesAccordion` en Fase 13).
+
+**Notas para Fase 15:**
+- Fase 15 = estandarizar `Tareas` (mover servicio a `services/sheets/tareas.service.js`, usar tokens `K`/`DS`).
+- `src/components/tareas.jsx` sigue con la modificación pendiente del usuario detectada en Fase 0 — coordinar antes de tocarlo.
 
 ---
 

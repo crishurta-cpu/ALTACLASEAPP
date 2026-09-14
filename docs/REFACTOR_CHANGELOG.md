@@ -42,6 +42,56 @@
 
 ---
 
+## [2026-08-26] Sesión #15 — Fase 14: Extraer feature Home ✅
+**Estado:** ✅ Completada
+**Branch:** `refactor/architectural-cleanup`
+**Commit:** `884b32e` — `refactor(fase-14): extraer feature home`
+
+### Archivos modificados
+- `src/App.jsx` (**-276 líneas**: 837 → 561)
+- 11 archivos nuevos en `src/features/home/`:
+  - `Home.jsx` — orquestador (2 estados lift-up: `debenAbierto`, `gastosAbierto`)
+  - `Header.jsx` — gradiente premium + título mes + botón sync
+  - `UtilidadCard.jsx` — card grande con util, mrg, ahorro
+  - `StatsGrid.jsx` — 3 columnas Ventas/Ganancia/Gastos
+  - `ResumenSemanal.jsx` — ganSem, ventasSem, gasSem, tendSem
+  - `TopClientes.jsx` — top 5 con medals y ⚠️ si deuda > 1M
+  - `GraficoGananciaDiaria.jsx` — wrapper de `GraficoPuntos`
+  - `TotalDeudaCard.jsx` — Total Pendiente por Cobrar
+  - `DebenCobrarAcordeon.jsx` — acordeón con debenList
+  - `UltimosGastosAcordeon.jsx` — acordeón con ultimosGastos
+  - `index.js` — barrel
+- 5 hooks nuevos en `src/features/home/hooks/`:
+  - `useHomeStats.js` — ventas, gan, gastos, ahorro, util, mrg del mes
+  - `useResumenSemanal.js` — ganSem, ganSemAnt, tendSem, ventasSem, gasSem
+  - `useTopClientes.js` — top5 + deudaPorNombre
+  - `useDeudaResumen.js` — debenList, totalPorCobrar, deudaPorNombre (excluye `esClienteEspecial`)
+  - `useUltimosMovimientos.js` — diasIng, ultimosGastos (encapsula `agruparPorDia`)
+
+### Cambios realizados
+- Movida la vista Home completa (líneas 66-335 de App.jsx) a `src/features/home/`.
+- Separado el cálculo en 5 hooks independientes con `useMemo` en vez de un único hook monolítico.
+- Limpieza de imports no usados en App.jsx (`cuentaParaTotales`, `mKey`, `curM`, `mLabel`, `esClienteEspecial`, `fDate`, `CCAT`).
+
+### Decisiones tomadas
+- **9 sub-componentes en lugar de los 8 planeados**: se agregó `TotalDeudaCard.jsx` como card independiente del acordeón `DebenCobrarAcordeon.jsx`.
+- **5 hooks en lugar de 1 `useHomeStats`**: separación por responsabilidad (stats del mes, resumen semanal, top clientes, deuda, últimos movimientos) para evitar recalcular todo cuando cambia solo una parte de los datos.
+- **Nombres ajustados al patrón "Acordeón"** (`DebenCobrarAcordeon`, `UltimosGastosAcordeon`) en vez de "Panel", coherente con `MesAccordion` de Fase 13.
+
+### Problemas encontrados
+- Ninguno bloqueante.
+
+### Validación
+- [x] `npm run build` OK (303.65 kB)
+- [x] `npm test` 6 tests pasan
+- [x] Home renderiza idéntico (visual)
+
+### Próximos pasos
+1. **Esperar autorización** para iniciar **Fase 15: Refactorizar feature Tareas**.
+2. Coordinar con el usuario la línea modificada pendiente en `src/components/tareas.jsx` (detectada en Fase 0) antes de tocar ese archivo.
+
+---
+
 ## [2026-08-22] Sesión #13 — Fase 12: Extraer feature Clientes ✅
 **Estado:** ✅ Completada
 **Branch:** `refactor/architectural-cleanup`
