@@ -42,6 +42,47 @@
 
 ---
 
+## [2026-09-14] Sesión #16 — Fase 15: Refactorizar feature Tareas ✅
+**Estado:** ✅ Completada
+**Branch:** `refactor/architectural-cleanup`
+**Commit:** `refactor(fase-15): estandarizar feature tareas con servicio dedicado y tokens`
+
+### Archivos modificados
+- `src/App.jsx` (import actualizado: `./components/tareas` → `./features/tareas/Tareas`)
+- `src/components/tareas.jsx` — eliminado (movido y reescrito)
+- `src/services/tareasServices.js` — eliminado (movido y reescrito)
+- 3 archivos nuevos en `src/features/tareas/`:
+  - `Tareas.jsx` — vista restilizada con `Card`/`Btn` de `shared/ui` y tokens `K`/`DS`
+  - `hooks/useTareas.js` — estado (`tareas`, `texto`, `cargando`) y acciones (`handleCrear`, `handleEliminar`)
+  - `index.js` — barrel
+- 1 archivo nuevo: `src/services/sheets/tareas.service.js`
+
+### Cambios realizados
+- Separada la vista de la lógica: `Tareas.jsx` (solo JSX) + `useTareas.js` (estado/efectos).
+- Servicio movido a `services/sheets/` siguiendo la convención de carpetas de Fase 19 (adelantada solo la ubicación, no el patrón de funciones).
+- `json.ok` ahora se valida en las 4 acciones del servicio (`obtenerTareas`, `crearTarea`, `actualizarTarea`, `eliminarTarea`) — antes solo `crearTarea` lo hacía.
+- Eliminada la constante `API` duplicada en el servicio viejo; ahora importa la única fuente de verdad desde `constants/index.js`.
+- Restilizado completo con `K`/`DS`/`Card`/`Btn` en vez de estilos inline hardcodeados (`#1e1e2a`, `#2563eb`, etc.).
+
+### Decisiones tomadas
+- El plan original mencionaba `api/client.js`, que no existe en el proyecto real (el cliente es `services/api.js`, patrón GET). El servicio de Tareas usa POST porque así lo exige el Apps Script de esa hoja — se preservó tal cual en vez de forzar unificación prematura (eso es Fase 19).
+- No se renombraron las funciones al patrón `readAll/append/update/remove` (eso también es alcance de Fase 19).
+- No se agregó confirmación de borrado en 2 pasos: el objetivo era estandarizar visualmente, no cambiar comportamiento funcional.
+- `src/components/` quedó vacío tras el movimiento y se eliminó.
+
+### Problemas encontrados
+- `react-hooks/set-state-in-effect` en `useTareas.js` — mismo patrón que ya tenía el componente original antes de esta fase (llamar función async con `setState` dentro de `useEffect`). No introducido por esta fase, queda documentado para la limpieza de lint de Fase 22.
+
+### Validación
+- [x] `npm run build` OK (303.30 kB)
+- [x] `npm test` 6 tests pasan
+- [x] Sin nuevas referencias a `components/tareas` o `tareasServices` en el código
+
+### Próximos pasos
+1. **Esperar autorización** para iniciar **Fase 16: Introducir Context API**.
+
+---
+
 ## [2026-08-26] Sesión #15 — Fase 14: Extraer feature Home ✅
 **Estado:** ✅ Completada
 **Branch:** `refactor/architectural-cleanup`

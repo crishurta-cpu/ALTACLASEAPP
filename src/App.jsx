@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import Tareas from "./components/tareas";
+import Tareas from "./features/tareas/Tareas";
 import {
   API,
   SYNC_INTERVAL_MS,

@@ -10,10 +10,10 @@
 
 | Métrica | Valor |
 |---|---|
-| Fase actual | **14 — Extraer feature Home** ✅ |
-| Última fase completada | **14 — Extraer feature Home** |
-| Próxima fase | **15 — Refactorizar feature Tareas** |
-| Estado | 🟢 **Fase 14 lista. Esperando autorización para Fase 15** |
+| Fase actual | **15 — Refactorizar feature Tareas** ✅ |
+| Última fase completada | **15 — Refactorizar feature Tareas** |
+| Próxima fase | **16 — Introducir Context API** |
+| Estado | 🟢 **Fase 15 lista. Esperando autorización para Fase 16** |
 
 ### Fase 0 — Backup + branch ✅
 **Objetivo:** Snapshot del estado actual antes de cualquier cambio.
@@ -498,22 +498,33 @@ Convertir `App.jsx` (2.687 líneas, single-file) en una **feature-based architec
 
 ---
 
-### Fase 15 — Refactorizar feature Tareas ⏸️
+### Fase 15 — Refactorizar feature Tareas ✅
 **Objetivo:** Estandarizar Tareas con el resto (usar tokens `K`/`DS`, normalizar campos).
 **Archivos nuevos:**
 - `src/features/tareas/Tareas.jsx`
 - `src/features/tareas/hooks/useTareas.js`
 - `src/features/tareas/index.js`
-
-**Archivos a modificar:**
-- `src/services/tareasServices.js` → mover a `src/services/sheets/tareas.service.js`. Debe usar `api/client.js`. Validar `json.ok` en TODAS las acciones (incluyendo `actualizarTarea` y `eliminarTarea`).
+- `src/services/sheets/tareas.service.js` (reemplaza a `src/services/tareasServices.js`, eliminado)
 
 **Validación:**
-- [ ] Crear tarea guarda.
-- [ ] Eliminar tarea guarda.
-- [ ] Estilos visuales coherentes con el resto (usar `K.card`, `K.border`, `DS.r.md`).
+- [x] Crear tarea guarda.
+- [x] Eliminar tarea guarda.
+- [x] Estilos visuales coherentes con el resto (`Card`/`Btn` de `shared/ui`, tokens `K`/`DS`).
+- [x] Build OK (303.30 kB).
+- [x] 6 tests pasan.
+- [x] `json.ok` validado en TODAS las acciones del servicio (`obtenerTareas`, `crearTarea`, `actualizarTarea`, `eliminarTarea`) — antes `actualizarTarea` y `eliminarTarea` no lo validaban.
 
-**Commit:** `refactor(fase-15): estandarizar feature tareas con api client y tokens`.
+**Commit:** `refactor(fase-15): estandarizar feature tareas con servicio dedicado y tokens`.
+
+**Decisiones tomadas (desviaciones del plan original):**
+- **No existe `src/services/api/client.js`** como suponía el plan original — el cliente real del proyecto es `src/services/api.js` (patrón GET + query string + `rowB64`). El servicio de Tareas usa POST con `Content-Type: text/plain` porque así lo requiere el Apps Script desplegado para esa hoja; se preservó ese comportamiento en `tareas.service.js` en lugar de forzarlo a `callApi` (que es GET-only) y romper el backend real. Unificación completa de ambos patrones queda para Fase 19.
+- **Eliminada URL duplicada**: `tareasServices.js` tenía su propia constante `API` hardcodeada (idéntica a `constants/index.js`). El nuevo servicio importa `API` desde `../../constants`.
+- **Se mantuvieron los nombres de función** (`obtenerTareas`, `crearTarea`, etc.) en vez de renombrar a `readAll`/`append`/`update`/`remove` — ese patrón unificado es el objetivo de la Fase 19, no de esta.
+- **No se agregó confirmación de borrado en 2 pasos** (como sí tienen Ingresos/Gastos/Inventario) porque el objetivo de esta fase es estandarizar visual/estructuralmente, no cambiar comportamiento; se preservó el comportamiento original (borrado directo).
+- **`src/components/` quedó vacío y se eliminó** al mover `tareas.jsx` (era el último archivo ahí).
+
+**Issue encontrado (no corregido, documentado para Fase 22):**
+- `npx eslint` marca `react-hooks/set-state-in-effect` en `useTareas.js` (llamar `cargarTareas()` dentro de `useEffect`). Es el mismo patrón que ya tenía el componente original antes de esta fase — deuda técnica pre-existente, no introducida aquí.
 
 ---
 
