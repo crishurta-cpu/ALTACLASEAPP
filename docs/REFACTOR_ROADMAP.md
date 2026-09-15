@@ -10,10 +10,10 @@
 
 | Métrica | Valor |
 |---|---|
-| Fase actual | **16 — Introducir Context API** ✅ |
-| Última fase completada | **16 — Introducir Context API** |
-| Próxima fase | **17 — App.jsx como composition root** |
-| Estado | 🟢 **Fase 16 lista. Esperando autorización para Fase 17** |
+| Fase actual | **17 — App.jsx como composition root** ✅ |
+| Última fase completada | **17 — App.jsx como composition root** |
+| Próxima fase | **18 — Mejorar API client** |
+| Estado | 🟢 **Fase 17 lista. Esperando autorización para Fase 18** |
 
 ### Fase 0 — Backup + branch ✅
 **Objetivo:** Snapshot del estado actual antes de cualquier cambio.
@@ -577,21 +577,37 @@ Convertir `App.jsx` (2.687 líneas, single-file) en una **feature-based architec
 
 ---
 
-### Fase 17 — App.jsx como composition root ⏸️
+### Fase 17 — App.jsx como composition root ✅
 **Objetivo:** Reducir `App.jsx` a ~150 líneas.
 **Archivos nuevos:**
-- `src/app/AppLayout.jsx` (shell: sidebar + main + nav + FAB)
+- `src/app/AppLayout.jsx` — shell visual: estilos globales, sidebar desktop, nav inferior mobile, FAB, modal de "nuevo movimiento", modales de edición de ingreso/gasto. Lee `tab`/`showNuevo`/`editIng`/`editGas` de `useNav()` y `updateIngreso`/`removeIngreso`/`updateGasto`/`removeGasto` de `useData()` directo (sin props).
+- `src/app/NuevoMovimiento.jsx` — orquestador de tabs Ingreso/Lote/Gasto, movido desde `App.jsx` (estaba pendiente desde la nota de Fase 8). Lee `saveIngreso`/`saveGasto`/`clientes`/`proveedores` de `useData()` y `setShowNuevo` de `useNav()` directo.
 
 **Cambios:**
-- `src/App.jsx` se reduce a composition root que envuelve providers + layout.
-- `src/main.jsx` sigue igual (entrypoint).
+- `src/App.jsx`: **341 → 89 líneas** (superó la meta de ~150). Queda como composition root puro: gate de auth (`LoginScreen`), pantallas de loading/error, y el switch de contenido por `tab` envuelto en `<AppLayout>`. Conserva `Mas` (sub-tabs de "Más") como único componente local no-shell, por ser contenido de tab, no chrome.
+- `src/main.jsx` sigue igual (ya envolvía `<App/>` en `<AppProviders>` desde Fase 16).
 
 **Validación:**
-- [ ] `App.jsx` ≤ 200 líneas.
-- [ ] Build OK.
-- [ ] Funcionalidad idéntica.
+- [x] `App.jsx` ≤ 200 líneas (89, muy por debajo de la meta).
+- [x] Build OK (306.23 kB).
+- [x] `npm test` 6 tests pasan.
+- [x] Funcionalidad idéntica (JSX copiado literal a `AppLayout`/`NuevoMovimiento`, sin cambios de comportamiento).
+- [x] `npx eslint src`: **25 → 5 errores**. `App.jsx`, `AppLayout.jsx` y `NuevoMovimiento.jsx` quedan con **cero** errores de lint.
 
 **Commit:** `refactor(fase-17): App.jsx como composition root + AppLayout separado`.
+
+**Decisiones tomadas (desviaciones/adiciones al plan original):**
+- **`Mas` no se movió a `features/`**: es contenido de un tab (como `Home`/`Clientes`/`Historial`), no shell — el plan de Fase 17 solo pedía extraer el shell (`AppLayout`). Se queda en `App.jsx` como sub-orquestador local; una eventual `features/more/Mas.jsx` queda fuera de alcance de esta fase.
+- **Se aprovechó la reescritura completa de `App.jsx` para limpiar los imports muertos** que venían cargándose desde Fase 1 (`Divider`, `ConfirmDelete`, `Pill`, `ChipGroup`, `AutocompleteInput`, `GraficoCircular`, `TIPOS`, `CONCS`, `CLIENTES_ESPECIALES`, `NO_SON_CLIENTES`, `noEsClienteReal`, `fmt`, `CLAVE_ACCESO`, `ACCENT_KEY`, `ACCENTS`, `getAccentColor`) — no tenían dónde reubicarse una vez reducido `App.jsx` a composition root, y mantenerlos habría contradicho el objetivo mismo de esta fase. Esto adelantó parte de la limpieza de lint reservada para Fase 22 (bajó de 25 a 5 errores restantes en todo `src/`).
+- **De paso se corrigieron 2 errores de lint más** que quedaban en el bloque movido: el prop-drilling muerto `onMarcarPagado`/`onRegistrarAbono` en `Mas` (nunca se usaban dentro) y la variable `acc` duplicada/sombra sin uso real antes del `return` de `App.jsx` — ambos ya estaban documentados como pre-existentes, se limpiaron al reescribir el código que los contenía.
+- **`AppLayout` y `NuevoMovimiento` consumen los hooks de contexto directamente** en vez de recibir todo por props desde `App.jsx` — es la continuación natural de Fase 16: ya no hay necesidad de prop-drilling para lo que vive dentro del árbol de providers.
+
+**Issue encontrado (no corregido, ya documentado para Fase 22):**
+- Los 5 errores de lint restantes en todo `src/` son exactamente la misma deuda técnica documentada en fases previas (`Buffer` no definido en `services/api.js`, mutación de variable en `GraficoCircular.jsx`, `setState` en efecto en `DataProvider.jsx` y en `useTareas.js`, y un `clientes` no usado en `IngresoBloqueForm.jsx`). Ninguno nuevo.
+
+**Notas para Fase 18:**
+- Fase 18 = mejorar `services/api.js` con `AbortController`, timeout de 15s y retry exponencial (1 reintento), aplicado también a `services/sheets/tareas.service.js`.
+- Sigue pendiente el smoke test manual en navegador con login real (arrastrado desde Fase 16) — recomendado antes de continuar, dado que Fase 17 también tocó el bootstrap visual completo de la app.
 
 ---
 

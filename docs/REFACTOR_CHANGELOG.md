@@ -42,6 +42,44 @@
 
 ---
 
+## [2026-09-14] Sesión #18 — Fase 17: App.jsx como composition root ✅
+**Estado:** ✅ Completada (mismo caveat de Fase 16: sin smoke test en navegador en vivo)
+**Branch:** `refactor/architectural-cleanup`
+**Commit:** `refactor(fase-17): App.jsx como composition root + AppLayout separado`
+
+### Archivos modificados
+- `src/App.jsx` (**-252 líneas**: 341 → 89)
+- 2 archivos nuevos en `src/app/`:
+  - `AppLayout.jsx` — shell visual completo (estilos, sidebar, nav, FAB, modales), consume `useNav()`/`useData()` directo
+  - `NuevoMovimiento.jsx` — orquestador Ingreso/Lote/Gasto, movido desde `App.jsx` (pendiente desde Fase 8)
+
+### Cambios realizados
+- `App.jsx` queda como composition root puro: gate de auth, pantallas de loading/error, switch de contenido por tab dentro de `<AppLayout>`.
+- `Mas` se queda en `App.jsx` (es contenido de tab, no shell).
+- Limpieza de 15 imports muertos en `App.jsx` que venían arrastrándose desde Fase 1, sin dónde reubicarse tras reducir el archivo.
+- Corregidos 2 lints más al reescribir: props `onMarcarPagado`/`onRegistrarAbono` muertos en `Mas`, variable `acc` duplicada sin uso en `App.jsx`.
+
+### Decisiones tomadas
+- No se movió `Mas` a `features/` — fuera de alcance de "extraer el shell".
+- `AppLayout`/`NuevoMovimiento` leen de los hooks de contexto directo (sin props desde `App.jsx`), aprovechando los providers de Fase 16.
+- Se adelantó parte de la limpieza de lint de Fase 22 como efecto natural de la reescritura completa de `App.jsx` (no se buscó activamente, pero no tenía sentido cargar imports muertos a un archivo que ahora es composition root).
+
+### Problemas encontrados
+- Mismo caveat de Fase 16: no se pudo hacer smoke test en navegador con login real (conflicto de puerto con `webaltaclase`, ver Sesión #17). Validado con build + tests + revisión manual.
+- `npx eslint src`: 25 → 5 errores. `App.jsx`, `AppLayout.jsx` y `NuevoMovimiento.jsx` quedan en cero errores. Los 5 restantes son deuda técnica ya documentada (Buffer, GraficoCircular, 2x set-state-in-effect, 1 unused var), ninguno nuevo.
+
+### Validación
+- [x] `npm run build` OK (306.23 kB)
+- [x] `npm test` 6 tests pasan
+- [x] `App.jsx` en 89 líneas (meta era ≤200)
+- [ ] Smoke test manual en navegador con login real — sigue pendiente (arrastrado de Fase 16)
+
+### Próximos pasos
+1. **Recomendado**: smoke test manual completo antes de seguir (arrastrado de 2 fases).
+2. **Esperar autorización** para iniciar **Fase 18: Mejorar API client** (`AbortController`, timeout, retry).
+
+---
+
 ## [2026-09-14] Sesión #17 — Fase 16: Introducir Context API ✅
 **Estado:** ✅ Completada (con caveat: sin smoke test en navegador en vivo, ver Problemas encontrados)
 **Branch:** `refactor/architectural-cleanup`
