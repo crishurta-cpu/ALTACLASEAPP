@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { K, DS, TIPOS, fmt } from "../../constants";
-import { ingresoToRow } from "../../services/parsers";
 import Card from "../../shared/ui/Card";
 import Btn from "../../shared/ui/Btn";
 import ChipGroup from "../../shared/ui/ChipGroup";
@@ -11,14 +10,13 @@ import AutocompleteInput from "../../shared/ui/AutocompleteInput";
  * Formulario de registro de un nuevo ingreso (venta individual).
  *
  * Props:
- * - onSave: async (row) => void, recibe la fila ya en formato Sheets
- *   (orden de columnas garantizado por ingresoToRow).
+ * - onSave: async (item) => void, recibe el item con shape de negocio —
+ *   la conversión a fila Sheets vive en `ingresos.service.js` (Fase 19).
  * - clientes: string[] con nombres de clientes para autocompletar.
  * - proveedores: string[] con nombres de proveedores para autocompletar.
  *
  * Comportamiento:
- * - Construye el item con shape de negocio, lo transforma con ingresoToRow
- *   y delega la persistencia al padre.
+ * - Construye el item con shape de negocio y delega la persistencia al padre.
  * - Normaliza texto con toUpperCase().trim() al guardar.
  * - Muestra ganancia y margen en tiempo real.
  * - Toggle "debe" persiste como "SI" / "NO" en Sheets.
@@ -58,7 +56,7 @@ function IngresoForm({ onSave, clientes = [], proveedores = [] }) {
         ganancia: gan,
         margen: mrg + "%",
       };
-      await onSave(ingresoToRow(item));
+      await onSave(item);
       setF({ tipo: "VENTA", producto: "", cliente: "", proveedor: "", costo: "", pv: "", debe: false });
       setOk(true);
       setTimeout(() => setOk(false), 3000);

@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { K, DS, CONCS, CCAT } from "../../constants";
-import { gastoToRow } from "../../services/parsers";
 import Card from "../../shared/ui/Card";
 import Btn from "../../shared/ui/Btn";
 import ChipGroup from "../../shared/ui/ChipGroup";
@@ -10,12 +9,11 @@ import FInput from "../../shared/ui/FInput";
  * Formulario de registro de un nuevo gasto.
  *
  * Props:
- * - onSave: async (row) => void, recibe la fila ya en formato Sheets
- *   (orden de columnas garantizado por gastoToRow).
+ * - onSave: async (item) => void, recibe el item con shape de negocio —
+ *   la conversión a fila Sheets vive en `gastos.service.js` (Fase 19).
  *
  * Comportamiento:
- * - Construye el item con shape de negocio, lo transforma con gastoToRow
- *   y delega la persistencia al padre.
+ * - Construye el item con shape de negocio y delega la persistencia al padre.
  * - Normaliza texto con toUpperCase().trim() al guardar (campo referencia).
  * - Conserva el `concepto` seleccionado tras un guardado exitoso
  *   (típico en gastos: registras varios del mismo rubro).
@@ -40,7 +38,7 @@ function GastoForm({ onSave }) {
         costo: Number(f.costo) || 0,
         referencia: String(f.ref || "").toUpperCase().trim(),
       };
-      await onSave(gastoToRow(item));
+      await onSave(item);
       setF({ concepto: f.concepto, costo: "", ref: "" });
       setOk(true);
       setTimeout(() => setOk(false), 3000);

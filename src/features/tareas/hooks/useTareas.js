@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { obtenerTareas, crearTarea, eliminarTarea } from "../../../services/sheets/tareas.service";
+import { tareasService } from "../../../services/sheets";
 
 /**
  * Encapsula estado y acciones de la feature Tareas.
@@ -19,7 +19,7 @@ export function useTareas() {
   async function cargarTareas() {
     try {
       setCargando(true);
-      const data = await obtenerTareas();
+      const data = await tareasService.readAll();
       setTareas(data);
     } catch (error) {
       console.error("Error cargando tareas:", error);
@@ -46,7 +46,7 @@ export function useTareas() {
     };
 
     try {
-      await crearTarea(nuevaTarea);
+      await tareasService.append(nuevaTarea);
       setTexto("");
       cargarTareas();
     } catch (error) {
@@ -56,7 +56,7 @@ export function useTareas() {
 
   async function handleEliminar(tarea) {
     try {
-      await eliminarTarea(tarea._row);
+      await tareasService.remove(tarea._row);
       cargarTareas();
     } catch (error) {
       console.error("Error eliminando tarea:", error);

@@ -1,25 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { API, SYNC_INTERVAL_MS, K, cuentaParaListaClientes } from "../../constants";
+import { SYNC_INTERVAL_MS, K, cuentaParaListaClientes } from "../../constants";
 import { DataContext } from "../contexts/DataContext";
-import { fetchSheet, appendRow, updateRow, deleteRow } from "../../services/api";
 import {
-  parseIngresos,
-  parseGastos,
-  parseInventario,
-  parseClientesResumen,
-  parseClientesEspeciales,
-  parseDeudaPersonal,
-  ingresoToRow,
-  gastoToRow,
-  inventarioToRow,
-  deudaPersonalToRow,
-} from "../../services/parsers";
+  ingresosService,
+  gastosService,
+  inventarioService,
+  clientesService,
+  clientesEspecialesService,
+  deudaPersonalService,
+} from "../../services/sheets";
 import { useAuth } from "../hooks/useAuth";
 import { useToast } from "../hooks/useToast";
 
 /**
  * Datos de negocio: fetch/sync contra Google Sheets + todas las mutaciones
- * (ingresos, gastos, inventario, deuda personal, marcar pagado, abonos).
+ * (ingresos, gastos, inventario, deuda personal, marcar pagado, abonos),
+ * delegadas a `services/sheets/*.service.js` (unificados en Fase 19).
  * Comportamiento idéntico al que vivía inline en App.jsx antes de Fase 16,
  * incluida la estrategia `allSettled` (INGRESOS/GASTOS críticos, el resto
  * degrada a lista vacía si falla) y el auto-sync cada 2 min + al volver a la pestaña.
@@ -48,19 +44,25 @@ export function DataProvider({ children }) {
       try {
         // allSettled: si una hoja nueva falla (nombre de columna distinto, etc.) las demás
         // siguen cargando — INGRESOS y GASTOS son las únicas que de verdad no pueden fallar.
-        const sheets = ["INGRESOS", "GASTOS", "INVENTARIO", "CLIENTES", "CLIENTES ESPECIALES", "DEUDA VALEN"];
-        const results = await Promise.allSettled(sheets.map(fetchSheet));
+        const results = await Promise.allSettled([
+          ingresosService.readAll(),
+          gastosService.readAll(),
+          inventarioService.readAll(),
+          clientesService.readAll(),
+          clientesEspecialesService.readAll(),
+          deudaPersonalService.readAll(),
+        ]);
         const [rIng, rGas, rInv, rCli, rCliEsp, rDeuda] = results;
 
         if (rIng.status === "rejected") throw rIng.reason; // INGRESOS es crítico, si falla, falla todo
         if (rGas.status === "rejected") throw rGas.reason; // GASTOS también
 
-        const ingresos = parseIngresos(rIng.value);
-        const gastos = parseGastos(rGas.value);
-        const inventario = rInv.status === "fulfilled" ? parseInventario(rInv.value) : [];
-        const clientesResumen = rCli.status === "fulfilled" ? parseClientesResumen(rCli.value) : [];
-        const clientesEspeciales = rCliEsp.status === "fulfilled" ? parseClientesEspeciales(rCliEsp.value) : [];
-        const deudaPersonal = rDeuda.status === "fulfilled" ? parseDeudaPersonal(rDeuda.value) : [];
+        const ingresos = rIng.value;
+        const gastos = rGas.value;
+        const inventario = rInv.status === "fulfilled" ? rInv.value : [];
+        const clientesResumen = rCli.status === "fulfilled" ? rCli.value : [];
+        const clientesEspeciales = rCliEsp.status === "fulfilled" ? rCliEsp.value : [];
+        const deudaPersonal = rDeuda.status === "fulfilled" ? rDeuda.value : [];
 
         setDb({ ingresos, gastos, inventario, clientesResumen, clientesEspeciales, deudaPersonal });
         setLastSync(new Date());
@@ -101,23 +103,27 @@ export function DataProvider({ children }) {
     };
   }, [loadData, autenticado]);
 
+  // `item` con shape de negocio en los 4 (antes `saveIngreso`/`saveGasto`
+  // recibían a veces una fila ya convertida y a veces un item de negocio,
+  // según el formulario — inconsistencia real corregida en Fase 19: ver
+  // ingresos.service.js/gastos.service.js, que ahora convierten siempre).
   const saveIngreso = useCallback(
-    async (row) => {
-      await appendRow("INGRESOS", row);
+    async (item) => {
+      await ingresosService.append(item);
       await loadData(true);
     },
     [loadData]
   );
   const saveGasto = useCallback(
-    async (row) => {
-      await appendRow("GASTOS", row);
+    async (item) => {
+      await gastosService.append(item);
       await loadData(true);
     },
     [loadData]
   );
   const updateIngreso = useCallback(
     async (item) => {
-      await updateRow("INGRESOS", item._row, ingresoToRow(item));
+      await ingresosService.update(item);
       await loadData(true);
       flash("✓ Ingreso actualizado");
     },
@@ -125,7 +131,7 @@ export function DataProvider({ children }) {
   );
   const updateGasto = useCallback(
     async (item) => {
-      await updateRow("GASTOS", item._row, gastoToRow(item));
+      await gastosService.update(item);
       await loadData(true);
       flash("✓ Gasto actualizado");
     },
@@ -133,7 +139,7 @@ export function DataProvider({ children }) {
   );
   const removeIngreso = useCallback(
     async (item) => {
-      await deleteRow("INGRESOS", item._row);
+      await ingresosService.remove(item._row);
       await loadData(true);
       flash("✓ Ingreso borrado", K.red);
     },
@@ -141,7 +147,7 @@ export function DataProvider({ children }) {
   );
   const removeGasto = useCallback(
     async (item) => {
-      await deleteRow("GASTOS", item._row);
+      await gastosService.remove(item._row);
       await loadData(true);
       flash("✓ Gasto borrado", K.red);
     },
@@ -151,7 +157,7 @@ export function DataProvider({ children }) {
   // ── Inventario ──
   const addInventario = useCallback(
     async (it) => {
-      await appendRow("INVENTARIO", inventarioToRow(it));
+      await inventarioService.append(it);
       await loadData(true);
       flash("✓ Agregado al inventario", K.purple);
     },
@@ -159,7 +165,7 @@ export function DataProvider({ children }) {
   );
   const editInventario = useCallback(
     async (it) => {
-      await updateRow("INVENTARIO", it._row, inventarioToRow(it));
+      await inventarioService.update(it);
       await loadData(true);
       flash("✓ Inventario actualizado", K.purple);
     },
@@ -167,7 +173,7 @@ export function DataProvider({ children }) {
   );
   const removeInventario = useCallback(
     async (it) => {
-      await deleteRow("INVENTARIO", it._row);
+      await inventarioService.remove(it._row);
       await loadData(true);
       flash("✓ Borrado del inventario", K.red);
     },
@@ -177,7 +183,7 @@ export function DataProvider({ children }) {
   // ── Personal (Deuda Valen) ──
   const addDeuda = useCallback(
     async (it) => {
-      await appendRow("DEUDA VALEN", deudaPersonalToRow(it));
+      await deudaPersonalService.append(it);
       await loadData(true);
       flash("✓ Movimiento agregado");
     },
@@ -185,7 +191,7 @@ export function DataProvider({ children }) {
   );
   const editDeuda = useCallback(
     async (it) => {
-      await updateRow("DEUDA VALEN", it._row, deudaPersonalToRow(it));
+      await deudaPersonalService.update(it);
       await loadData(true);
       flash("✓ Movimiento actualizado");
     },
@@ -193,7 +199,7 @@ export function DataProvider({ children }) {
   );
   const removeDeuda = useCallback(
     async (it) => {
-      await deleteRow("DEUDA VALEN", it._row);
+      await deudaPersonalService.remove(it._row);
       await loadData(true);
       flash("✓ Movimiento borrado", K.red);
     },
@@ -205,8 +211,7 @@ export function DataProvider({ children }) {
   const marcarPagado = useCallback(
     async (pendientes, estado = "NO") => {
       for (const v of pendientes) {
-        const actualizado = { ...v, debe: estado };
-        await updateRow("INGRESOS", v._row, ingresoToRow(actualizado));
+        await ingresosService.update({ ...v, debe: estado });
       }
       const msg = estado === "NO" ? "pagado" : "marcado como debe";
       await loadData(true);
@@ -215,21 +220,9 @@ export function DataProvider({ children }) {
     [loadData, flash]
   );
 
-  // Registra un abono en la columna F de la hoja CLIENTES, buscando por nombre.
-  // No usa _row porque las filas de CLIENTES se reordenan solas con fórmulas UNIQUE/FILTER.
   const registrarAbono = useCallback(
     async (cliente, montoNuevo) => {
-      const qs = new URLSearchParams({
-        action: "updateCell",
-        sheet: "CLIENTES",
-        lookupValue: cliente,
-        col: "F",
-        value: String(montoNuevo),
-      }).toString();
-      const res = await fetch(`${API}?${qs}`, { method: "GET", redirect: "follow" });
-      if (!res.ok) throw new Error("HTTP " + res.status);
-      const data = await res.json();
-      if (!data.ok) throw new Error(data.error || "Error al registrar abono");
+      await clientesService.registrarAbono(cliente, montoNuevo);
       await loadData(true);
       flash(`✓ Abono de ${cliente} registrado`);
     },

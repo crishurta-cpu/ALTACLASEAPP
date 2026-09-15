@@ -10,10 +10,10 @@
 
 | Métrica | Valor |
 |---|---|
-| Fase actual | **18 — Mejorar API client** ✅ |
-| Última fase completada | **18 — Mejorar API client** |
-| Próxima fase | **19 — Unificar servicios de Sheets** |
-| Estado | 🟢 **Fase 18 lista. Esperando autorización para Fase 19** |
+| Fase actual | **19 — Unificar servicios de Sheets** ✅ |
+| Última fase completada | **19 — Unificar servicios de Sheets** |
+| Próxima fase | **20 — Tests adicionales** |
+| Estado | 🟢 **Fase 19 lista. Esperando autorización para Fase 20** |
 
 ### Fase 0 — Backup + branch ✅
 **Objetivo:** Snapshot del estado actual antes de cualquier cambio.
@@ -641,29 +641,42 @@ Convertir `App.jsx` (2.687 líneas, single-file) en una **feature-based architec
 
 ---
 
-### Fase 19 — Unificar servicios de Sheets ⏸️
+### Fase 19 — Unificar servicios de Sheets ✅
 **Archivos nuevos:**
-- `src/services/sheets/ingresos.service.js`
-- `src/services/sheets/gastos.service.js`
-- `src/services/sheets/clientes.service.js`
-- `src/services/sheets/clientesEspeciales.service.js`
-- `src/services/sheets/inventario.service.js`
-- `src/services/sheets/deudaPersonal.service.js`
-- `src/services/sheets/tareas.service.js`
-- `src/services/sheets/index.js`
+- `src/services/sheets/ingresos.service.js`, `gastos.service.js`, `inventario.service.js`, `deudaPersonal.service.js` — patrón completo `readAll/append/update/remove`, cada uno hace su propio `parse*`/`*ToRow` internamente.
+- `src/services/sheets/clientes.service.js` — solo `readAll` + `registrarAbono` (CLIENTES es una hoja de fórmulas, sin append/update/remove propios; ver decisiones).
+- `src/services/sheets/clientesEspeciales.service.js` — solo `readAll` (hoja de solo lectura, nada la escribe hoy).
+- `src/services/sheets/index.js` — barrel **namespaceado** (`export * as xService from "./x.service"`), necesario porque los 4 verbos se repiten con el mismo nombre en cada servicio.
 
-**Patrón por servicio:**
-```js
-export async function readAll() { ... }
-export async function append(item) { ... }
-export async function update(item) { ... }
-export async function remove(rowNum) { ... }
-```
+**Archivos modificados:**
+- `src/services/sheets/tareas.service.js` (Fase 15) — renombradas `obtenerTareas→readAll`, `crearTarea→append`, `actualizarTarea→update`, `eliminarTarea→remove(rowNum)`, para el mismo patrón que el resto.
+- `src/features/tareas/hooks/useTareas.js` — usa `tareasService.readAll/append/remove`.
+- `src/app/providers/DataProvider.jsx` — ya no importa `services/api.js`/`services/parsers.js` directo; usa los 6 servicios de dominio vía `Promise.allSettled`. `saveIngreso`/`saveGasto` ahora reciben siempre un item de negocio (ver decisiones). `registrarAbono` delega a `clientesService.registrarAbono` (resuelve el gap de Fase 18).
+- `src/features/ingresos/IngresoForm.jsx`, `src/features/gastos/GastoForm.jsx` — ya no pre-convierten con `ingresoToRow`/`gastoToRow` antes de `onSave`; pasan el item de negocio tal cual (ver decisiones, bug corregido).
+- `src/features/ingresos/IngresoBloqueForm.jsx` — sin cambio de código, solo JSDoc actualizado (ya pasaba item de negocio).
 
 **Validación:**
-- [ ] Cada feature usa su servicio en lugar de fetch directo.
+- [x] Cada feature usa su servicio en lugar de fetch directo — confirmado con `grep`: solo los `*.service.js` importan `services/api.js`/`services/parsers.js` ahora.
+- [x] Build OK (307.15 kB).
+- [x] `npm test` 6 tests pasan.
+- [x] `npx eslint src`: 5 → 5 (sin cambio neto, mismos errores pre-existentes documentados).
 
 **Commit:** `refactor(fase-19): unificar servicios de Sheets por dominio`.
+
+**Decisiones tomadas (desviaciones/adiciones al plan original):**
+- **Bug real corregido de paso**: `IngresoForm`/`GastoForm` (creación individual) llamaban `onSave(ingresoToRow(item))`/`onSave(gastoToRow(item))` — pasaban la fila YA convertida. `IngresoBloqueForm` en cambio siempre pasó `onSave(item)` con el shape de negocio SIN convertir (documentado como pendiente desde el cierre de Fase 7). Como los tres formularios comparten el mismo `saveIngreso`/`saveGasto` en `DataProvider`, este último literalmente recibía a veces un array-fila y a veces un objeto de negocio, y hacía `appendRow(sheet, row)` asumiendo siempre fila — el registro de ingresos/gastos por LOTE probablemente enviaba un objeto donde el backend esperaba un array. Ahora los 3 formularios pasan siempre el item de negocio, y la conversión vive en un solo lugar (`ingresos.service.js`/`gastos.service.js`).
+- **`clientes.service.js` no sigue el patrón `append/update/remove`**: CLIENTES es una hoja calculada con fórmulas `UNIQUE`/`FILTER` en Sheets, no tiene escritura directa de filas. Su único escritor real es `registrarAbono` (un `updateCell` puntual sobre la columna F), que se documenta explícitamente como la excepción al patrón genérico.
+- **Gap de Fase 18 resuelto**: `registrarAbono` ya no hace `fetch` crudo en `DataProvider.jsx` — vive en `clientes.service.js` y usa `fetchConTimeout` (timeout de 15s, sin reintento por ser escritura), igual que el resto de servicios desde Fase 18.
+- **`tareas.service.js` se renombró en esta fase, no en Fase 15**, tal como quedó explícitamente anotado en el cierre de esa fase.
+- **Barrel namespaceado (`export * as xService`)** en vez de una exportación plana: los 4 verbos (`readAll`/`append`/`update`/`remove`) se repiten idénticos en cada servicio: un `export *` plano colisionaría. Cada consumidor importa `{ ingresosService, gastosService, ... }` y llama `ingresosService.readAll()`.
+
+**Issue encontrado (no corregido, ya documentado para Fase 22):**
+- Los mismos 5 errores de lint de Fases 17-18 (Buffer, GraficoCircular, 2x set-state-in-effect, 1 unused var en `IngresoBloqueForm`). Ninguno nuevo.
+- **Bug de UI no relacionado, detectado al leer `IngresoBloqueForm.jsx`**: el input de "Proveedor" tiene un typo (`value={f.proedor}` en vez de `value={f.proveedor}`), por lo que el campo nunca refleja lo que el usuario escribe ahí. Está fuera del alcance de esta fase (no es un problema de servicios/Sheets); se reporta por separado.
+
+**Notas para Fase 20:**
+- Fase 20 = expandir tests a parsers y hooks. Buenos candidatos nuevos dado el trabajo de esta fase: tests de `ingresos.service.js`/`gastos.service.js` verificando que `append`/`update` llaman a `*ToRow` con el shape correcto (mockeando `services/api.js`).
+- Sigue pendiente el smoke test manual en navegador con login real (arrastrado desde Fase 16) — esta fase es la que más beneficio tendría de una verificación real, dado que toca cómo se guardan ingresos/gastos/inventario/deuda.
 
 ---
 

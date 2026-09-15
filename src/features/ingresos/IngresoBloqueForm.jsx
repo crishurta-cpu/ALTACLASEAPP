@@ -9,10 +9,9 @@ import FInput from "../../shared/ui/FInput";
  * Cada fila = un producto vendido a un cliente por un proveedor.
  *
  * Props:
- * - onSave: async (item) => void, recibe el item con shape de negocio
- *   (NO transformado con ingresoToRow — el padre decide si transformar
- *   fila por fila o enviar como bloque). Mantener compat con el
- *   comportamiento original de App.jsx.
+ * - onSave: async (item) => void, recibe el item con shape de negocio —
+ *   igual que `IngresoForm` desde Fase 19 (la conversión a fila Sheets
+ *   vive en `ingresos.service.js`, no acá).
  * - clientes: string[] con nombres para autocompletar (reservado para
  *   futuro; hoy se usa FInput plano para no romper el flujo batch).
  *

@@ -42,6 +42,44 @@
 
 ---
 
+## [2026-09-14] Sesión #20 — Fase 19: Unificar servicios de Sheets ✅
+**Estado:** ✅ Completada
+**Branch:** `refactor/architectural-cleanup`
+**Commit:** `refactor(fase-19): unificar servicios de Sheets por dominio`
+
+### Archivos modificados
+- 6 archivos nuevos en `src/services/sheets/`: `ingresos.service.js`, `gastos.service.js`, `inventario.service.js`, `deudaPersonal.service.js` (patrón `readAll/append/update/remove`), `clientes.service.js` (`readAll` + `registrarAbono`), `clientesEspeciales.service.js` (solo `readAll`)
+- `src/services/sheets/index.js` (nuevo) — barrel namespaceado
+- `src/services/sheets/tareas.service.js` — renombrado al patrón unificado
+- `src/features/tareas/hooks/useTareas.js` — usa `tareasService.*`
+- `src/app/providers/DataProvider.jsx` — usa los servicios de dominio en vez de `services/api.js`/`services/parsers.js` directo
+- `src/features/ingresos/IngresoForm.jsx`, `src/features/gastos/GastoForm.jsx` — dejan de pre-convertir a fila antes de `onSave`
+
+### Cambios realizados
+- Un servicio por hoja de Sheets, cada uno dueño de su `parse*`/`*ToRow`.
+- `DataProvider` ya no sabe nada de nombres de hoja ni de conversión fila↔objeto — solo orquesta `Promise.allSettled` y llama a los servicios.
+- `registrarAbono` se movió de un `fetch` crudo en `DataProvider` a `clientesService.registrarAbono` con timeout (resuelve el gap documentado en Fase 18).
+
+### Decisiones tomadas
+- **Bug real corregido**: `IngresoForm`/`GastoForm` pasaban la fila ya convertida a `saveIngreso`/`saveGasto`, mientras `IngresoBloqueForm` siempre pasó el item de negocio sin convertir (inconsistencia documentada desde el cierre de Fase 7). Como los tres comparten el mismo handler, el registro por lote probablemente enviaba al backend un objeto donde se esperaba un array de fila. Ahora los 3 pasan siempre el item de negocio; la conversión vive únicamente en el servicio.
+- `clientes.service.js` no sigue el patrón `append/update/remove` (CLIENTES es una hoja de fórmulas, sin escritura directa de filas) — se documenta como la excepción explícita.
+- Barrel namespaceado (`export * as xService`) porque los 4 verbos se repiten con el mismo nombre en cada servicio.
+
+### Problemas encontrados
+- Mismos 5 errores de lint de fases anteriores, ninguno nuevo.
+- **Bug de UI no relacionado detectado al leer el código** (no corregido, fuera de alcance): `IngresoBloqueForm.jsx` tiene un typo `value={f.proedor}` (debería ser `f.proveedor`) — el campo Proveedor del lote nunca refleja lo escrito. Reportado por separado.
+
+### Validación
+- [x] `npm run build` OK (307.15 kB)
+- [x] `npm test` 6 tests pasan
+- [x] Confirmado por `grep`: solo los `*.service.js` importan `services/api.js`/`services/parsers.js`
+
+### Próximos pasos
+1. **Esperar autorización** para iniciar **Fase 20: Tests adicionales**.
+2. Sigue pendiente el smoke test manual en navegador con login real — recomendado con más urgencia ahora, dado que esta fase tocó cómo se guardan ingresos/gastos/inventario/deuda.
+
+---
+
 ## [2026-09-14] Sesión #19 — Fase 18: Mejorar API client ✅
 **Estado:** ✅ Completada
 **Branch:** `refactor/architectural-cleanup`
