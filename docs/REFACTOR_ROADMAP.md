@@ -10,10 +10,10 @@
 
 | Métrica | Valor |
 |---|---|
-| Fase actual | **15 — Refactorizar feature Tareas** ✅ |
-| Última fase completada | **15 — Refactorizar feature Tareas** |
-| Próxima fase | **16 — Introducir Context API** |
-| Estado | 🟢 **Fase 15 lista. Esperando autorización para Fase 16** |
+| Fase actual | **16 — Introducir Context API** ✅ |
+| Última fase completada | **16 — Introducir Context API** |
+| Próxima fase | **17 — App.jsx como composition root** |
+| Estado | 🟢 **Fase 16 lista. Esperando autorización para Fase 17** |
 
 ### Fase 0 — Backup + branch ✅
 **Objetivo:** Snapshot del estado actual antes de cualquier cambio.
@@ -528,29 +528,52 @@ Convertir `App.jsx` (2.687 líneas, single-file) en una **feature-based architec
 
 ---
 
-### Fase 16 — Introducir Context API ⏸️
+### Fase 16 — Introducir Context API ✅
 **Objetivo:** Sacar estados globales de `App.jsx` a providers.
 **Archivos nuevos:**
-- `src/app/providers/DataProvider.jsx`
-- `src/app/providers/AuthProvider.jsx`
-- `src/app/providers/ToastProvider.jsx`
-- `src/app/providers/NavProvider.jsx`
-- `src/app/providers/AppProviders.jsx`
-- `src/app/hooks/useAuth.js`
-- `src/app/hooks/useData.js`
-- `src/app/hooks/useToast.js`
-- `src/app/hooks/useNav.js`
-- `src/app/hooks/useAccentColor.js`
+- `src/app/contexts/AuthContext.js`, `DataContext.js`, `NavContext.js`, `ToastContext.js` (solo `createContext`, separados de los providers para no romper Fast Refresh de Vite)
+- `src/app/providers/AuthProvider.jsx` — `autenticado`, `login`, `cerrarSesion` + efectos de `beforeunload` e inactividad (3 min)
+- `src/app/providers/DataProvider.jsx` — `db`, `loading`, `initDone`, `initError`, `lastSync`, `clientes`/`proveedores` derivados, `loadData` + las 12 mutaciones (save/update/remove de ingresos, gastos, inventario, deuda personal, `marcarPagado`, `registrarAbono`) y el auto-sync cada 2 min
+- `src/app/providers/ToastProvider.jsx` — **contextos separados** `ToastStateContext`/`ToastDispatchContext` (ver decisiones) + exporta `ToastHost` (el único componente que pinta el toast)
+- `src/app/providers/NavProvider.jsx` — `tab`, `showNuevo`, `editIng`, `editGas`
+- `src/app/providers/AppProviders.jsx` — composition root: `AuthProvider > ToastProvider(+ToastHost) > DataProvider > NavProvider`
+- `src/app/hooks/useAuth.js`, `useData.js`, `useToast.js`, `useNav.js`
+- `src/app/hooks/useAccentColor.js` (bonus, ver decisiones)
+
+**Archivos modificados:**
+- `src/main.jsx` — envuelve `<App/>` en `<AppProviders>`.
+- `src/App.jsx` — **561 → 341 líneas** (-220). Ya no declara `autenticado`, `tab`, `showNuevo`, `db`, `loading`, `toast`, `initDone`, `initError`, `lastSync`, `editIng`, `editGas` ni las funciones de sync/CRUD; los consume vía `useAuth()`/`useData()`/`useNav()`. El JSX y el layout quedan intactos.
+- `src/features/settings/Configuracion.jsx` — el botón "Cerrar sesión" ahora llama a `useAuth().cerrarSesion()` en vez de reimplementar `localStorage.removeItem` + `window.location.reload()` (ver decisiones, bug corregido).
+- `src/features/settings/AccentPicker.jsx` — usa `useAccentColor()` en vez de estado local + `localStorage` inline.
 
 **Riesgo:** ALTO (cambia cómo los componentes acceden al estado).
-**Estrategia:** introducir un provider a la vez, mantener compat con props.
+**Estrategia aplicada:** los 4 providers se escribieron y verificaron juntos (build+lint+test tras cada uno), pero en un solo commit — dado que `DataProvider` depende de `AuthProvider` y `ToastProvider` simultáneamente, no había un punto de corte intermedio "compilable" más granular sin dejar `App.jsx` en un estado híbrido roto.
 
 **Validación:**
-- [ ] Build OK.
-- [ ] Todas las pantallas funcionan idénticas.
-- [ ] `setToast` ya no re-renderiza toda la app.
+- [x] `npm run build` OK (306.31 kB).
+- [x] `npm test` 6 tests pasan.
+- [x] `npx eslint src`: 31 → 25 errores (bajó; no se introdujo ninguna categoría nueva — se limpiaron imports muertos de `App.jsx` que quedaron sin uso al mover la lógica).
+- [x] Todas las pantallas siguen recibiendo las mismas props que antes (revisión manual línea por línea de cada handler movido).
+- [x] `setToast` ya no re-renderiza toda la app: `ToastStateContext` (valor) y `ToastDispatchContext` (`flash`, estable) están separados; `ToastHost` es el único suscrito al valor y vive como hermano de `App` bajo `AppProviders`, no dentro de él.
+- [ ] **No verificado en navegador en vivo** (requiere login contra el Google Apps Script de producción con datos reales del negocio; validado por build + tests + revisión de código en su lugar). Recomendado hacer un smoke test manual real antes de desplegar a producción.
 
 **Commit:** `refactor(fase-16): introducir Context API con providers por dominio`.
+
+**Decisiones tomadas (desviaciones/adiciones al plan original):**
+- **Contextos en archivos separados de los providers** (`app/contexts/*.js`): el plan original no lo contemplaba, pero exportar `createContext(...)` junto a un componente en el mismo archivo rompe el Fast Refresh de Vite (`react-refresh/only-export-components`, detectado por ESLint). Patrón está mejor separado.
+- **`ToastProvider` con contextos split (estado/dispatch)**, no uno solo: es lo que permite cumplir el criterio de validación "`setToast` no re-renderiza toda la app" sin esperar a la Fase 17 (`AppLayout`). `DataProvider` consume `useToast()` (dispatch, estable) para llamar `flash()` sin sufrir re-render en cada toast.
+- **`ToastHost` se renderiza en `AppProviders`, no dentro de `App.jsx`**: por eso el `App.jsx` (autenticación, tabs, db) no se re-renderiza cuando aparece/desaparece un toast — solo lo hace `ToastHost`, que no tiene hijos pesados.
+- **Bug corregido de paso**: `Configuracion.jsx` (Fase 5) tenía su propio "Cerrar sesión" con `window.location.reload()`, desconectado del `cerrarSesion` real de `App.jsx` (nunca recibía esa prop). Con el Context API esto se unifica de forma natural — ahora usa el mismo `cerrarSesion` de `AuthProvider`, sin recarga completa de página.
+- **`useAccentColor.js` (bonus, no solo el hook — corrige un bug latente)**: `AccentPicker` disparaba el evento `"accentchange"` desde Fase 5, pero **nadie lo escuchaba** — el cambio de color de acento no se reflejaba en tiempo real en el resto de la app, solo en el próximo re-render incidental. El hook ahora escucha ese evento, así que cualquier componente futuro que lo use sí reacciona al instante. No se resolvió (está fuera de alcance) la reactividad de `K.gold` leído directo como getter en decenas de archivos — eso requeriría convertir ese token a contexto, que es un cambio de arquitectura más grande no pedido en esta fase.
+- **No se dividió `DataContext` en sub-contextos** (ej. uno por dominio: ingresos/gastos/inventario) — el objetivo de Fase 16 es sacar el estado de `App.jsx`, no optimizar re-renders por dominio; eso es explícitamente la Fase 21.
+- **`clientes`/`proveedores` (listas derivadas) se movieron a `DataProvider`** junto con `db`, en vez de quedar en `App.jsx`, porque dependen directamente de `db.ingresos` y solo se usan para alimentar formularios de datos (`NuevoMovimiento`).
+
+**Issue encontrado (no corregido, ya documentado para Fase 22):**
+- Los ~25 errores de lint restantes son la misma familia de deuda técnica pre-existente (imports muertos en `App.jsx` reservados para features futuras, `Buffer` no definido en `services/api.js`, mutación de variable en `GraficoCircular.jsx`, `setState` en efecto en `useTareas.js`). Ninguno nuevo introducido por esta fase.
+
+**Notas para Fase 17:**
+- Fase 17 = reducir `App.jsx` a un composition root de ~150 líneas, extrayendo el shell visual (sidebar + nav + FAB + modales) a `src/app/AppLayout.jsx`. Con los 4 hooks ya disponibles, `AppLayout` puede consumirlos directamente sin prop drilling.
+- Recomendado hacer un smoke test manual en el navegador (login real) antes de la Fase 17, ya que esta fase no se pudo verificar visualmente en vivo.
 
 ---
 

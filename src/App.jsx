@@ -1,10 +1,7 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState } from "react";
 import Tareas from "./features/tareas/Tareas";
 import {
-  API,
-  SYNC_INTERVAL_MS,
   CLAVE_ACCESO,
-  LS_AUTH_KEY,
   ACCENT_KEY,
   ACCENTS,
   getAccentColor,
@@ -15,30 +12,9 @@ import {
   CLIENTES_ESPECIALES,
   NO_SON_CLIENTES,
   noEsClienteReal,
-  cuentaParaListaClientes,
   fmt,
 } from "./constants";
-import {
-  callApi,
-  fetchSheet,
-  b64,
-  appendRow,
-  updateRow,
-  deleteRow,
-} from "./services/api";
 import Historial from "./features/history/Historial";
-import {
-  parseIngresos,
-  parseGastos,
-  parseInventario,
-  parseClientesResumen,
-  parseClientesEspeciales,
-  parseDeudaPersonal,
-  ingresoToRow,
-  gastoToRow,
-  inventarioToRow,
-  deudaPersonalToRow,
-} from "./services/parsers";
 import Divider from "./shared/ui/Divider";
 import ConfirmDelete from "./shared/ui/ConfirmDelete";
 import Pill from "./shared/ui/Pill";
@@ -58,6 +34,9 @@ import Personal from "./features/personal/Personal";
 import BusquedaGlobal from "./features/search/BusquedaGlobal";
 import Clientes from "./features/clients/Clientes";
 import Home from "./features/home/Home";
+import { useAuth } from "./app/hooks/useAuth";
+import { useData } from "./app/hooks/useData";
+import { useNav } from "./app/hooks/useNav";
 
 
 // ═══ UI ATOMS ═════════════════════════════════════════════════
@@ -143,199 +122,15 @@ function Mas({db,onEditIngreso,onEditGasto,onMarcarPagado,onRegistrarAbono,onAdd
 // LoginScreen: ver ./features/auth/LoginScreen.jsx
 
 export default function App(){
-  const [autenticado,setAutenticado]=useState(()=>localStorage.getItem(LS_AUTH_KEY)==="1");
-  const [tab,setTab]=useState("home"); // siempre inicia en home
-  const [showNuevo,setShowNuevo]=useState(false);
-  const [db,setDb]=useState({ingresos:[],gastos:[],inventario:[],clientesResumen:[],clientesEspeciales:[],deudaPersonal:[]});
-  const [loading,setLoading]=useState(false);
-  const [toast,setToast]=useState(null);
-  const [initDone,setInitDone]=useState(false);
-  const [initError,setInitError]=useState(null);
-  const [lastSync,setLastSync]=useState(null);
-  const [editIng,setEditIng]=useState(null);
-  const [editGas,setEditGas]=useState(null);
-  const intervalRef=useRef(null);
-  const inactivityRef=useRef(null);
-  const INACTIVITY_MS=3*60*1000; // 3 minutos
-  const clientes = [
-  ...new Set(
-    db.ingresos
-      .filter(cuentaParaListaClientes)
-      .map(i => i.cliente?.toUpperCase().trim())
-      .filter(Boolean)
-  ),
-].sort();
-  const proveedores = [
-  ...new Set(
-    db.ingresos
-      .map(i => i.proveedor?.toUpperCase().trim())
-      .filter(Boolean)
-  ),
-].sort();
-
-  const cerrarSesion=useCallback(()=>{
-    localStorage.removeItem(LS_AUTH_KEY);
-    setAutenticado(false);
-  },[]);
-
-  // Cierra sesión al cerrar/recargar el navegador
-  useEffect(()=>{
-    const onUnload=()=>localStorage.removeItem(LS_AUTH_KEY);
-    window.addEventListener("beforeunload",onUnload);
-    return()=>window.removeEventListener("beforeunload",onUnload);
-  },[]);
-
-  // Timeout de inactividad: reinicia con cada toque/click/tecla
-  useEffect(()=>{
-    if(!autenticado)return;
-    const reset=()=>{
-      clearTimeout(inactivityRef.current);
-      inactivityRef.current=setTimeout(cerrarSesion,INACTIVITY_MS);
-    };
-    const events=["touchstart","mousedown","keydown","scroll"];
-    events.forEach(e=>window.addEventListener(e,reset,{passive:true}));
-    reset(); // iniciar el timer al autenticarse
-    return()=>{
-      clearTimeout(inactivityRef.current);
-      events.forEach(e=>window.removeEventListener(e,reset));
-    };
-  },[autenticado,cerrarSesion]);
-
-  const flash=(msg,col=K.gold)=>{setToast({msg,col});setTimeout(()=>setToast(null),2500)};
-
-  const loadData=useCallback(async(silent=false)=>{
-    if(!silent)setLoading(true);
-    try{
-      // allSettled: si una hoja nueva falla (nombre de columna distinto, etc.) las demás
-      // siguen cargando — INGRESOS y GASTOS son las únicas que de verdad no pueden fallar.
-      const sheets=["INGRESOS","GASTOS","INVENTARIO","CLIENTES","CLIENTES ESPECIALES","DEUDA VALEN"];
-      const results=await Promise.allSettled(sheets.map(fetchSheet));
-      const [rIng,rGas,rInv,rCli,rCliEsp,rDeuda]=results;
-
-      if(rIng.status==="rejected")throw rIng.reason; // INGRESOS es crítico, si falla, falla todo
-      if(rGas.status==="rejected")throw rGas.reason; // GASTOS también
-
-      const ingresos=parseIngresos(rIng.value);
-      const gastos=parseGastos(rGas.value);
-      const inventario=rInv.status==="fulfilled"?parseInventario(rInv.value):[];
-      const clientesResumen=rCli.status==="fulfilled"?parseClientesResumen(rCli.value):[];
-      const clientesEspeciales=rCliEsp.status==="fulfilled"?parseClientesEspeciales(rCliEsp.value):[];
-      const deudaPersonal=rDeuda.status==="fulfilled"?parseDeudaPersonal(rDeuda.value):[];
-
-      setDb({ingresos,gastos,inventario,clientesResumen,clientesEspeciales,deudaPersonal});
-      setLastSync(new Date());
-      setInitError(null);
-      if(!silent)flash(`✓ ${ingresos.length} ingresos · ${gastos.length} gastos`);
-    }catch(e){
-      if(!silent){
-        flash("⚠️ Error conectando con Sheets",K.red);
-        setInitError(e.message);
-      }
-      // si falla un sync silencioso (de fondo), no molestamos con toast, solo lo dejamos pasar y se reintenta en el próximo ciclo
-    }finally{
-      if(!silent)setLoading(false);
-      setInitDone(true);
-    }
-  },[]);
-
-  // Carga inicial
-  useEffect(()=>{if(autenticado)loadData(false);},[loadData,autenticado]);
-
-  // Auto-sync cada 2 minutos en segundo plano, y al volver a la pestaña/app
-  useEffect(()=>{
-    if(!autenticado)return;
-    intervalRef.current=setInterval(()=>{loadData(true);},SYNC_INTERVAL_MS);
-    const onVisible=()=>{if(document.visibilityState==="visible")loadData(true);};
-    document.addEventListener("visibilitychange",onVisible);
-    return()=>{clearInterval(intervalRef.current);document.removeEventListener("visibilitychange",onVisible);};
-  },[loadData,autenticado]);
-
-  const saveIngreso=async(row)=>{
-    await appendRow("INGRESOS",row);
-    await loadData(true);
-  };
-  const saveGasto=async(row)=>{
-    await appendRow("GASTOS",row);
-    await loadData(true);
-  };
-  const updateIngreso=async(item)=>{
-    await updateRow("INGRESOS",item._row,ingresoToRow(item));
-    await loadData(true);
-    flash("✓ Ingreso actualizado");
-  };
-  const updateGasto=async(item)=>{
-    await updateRow("GASTOS",item._row,gastoToRow(item));
-    await loadData(true);
-    flash("✓ Gasto actualizado");
-  };
-  const removeIngreso=async(item)=>{
-    await deleteRow("INGRESOS",item._row);
-    await loadData(true);
-    flash("✓ Ingreso borrado",K.red);
-  };
-  const removeGasto=async(item)=>{
-    await deleteRow("GASTOS",item._row);
-    await loadData(true);
-    flash("✓ Gasto borrado",K.red);
-  };
-
-  // ── Inventario ──
-  const addInventario=async(it)=>{
-    await appendRow("INVENTARIO",inventarioToRow(it));
-    await loadData(true);
-    flash("✓ Agregado al inventario",K.purple);
-  };
-  const editInventario=async(it)=>{
-    await updateRow("INVENTARIO",it._row,inventarioToRow(it));
-    await loadData(true);
-    flash("✓ Inventario actualizado",K.purple);
-  };
-  const removeInventario=async(it)=>{
-    await deleteRow("INVENTARIO",it._row);
-    await loadData(true);
-    flash("✓ Borrado del inventario",K.red);
-  };
-
-  // ── Personal (Deuda Valen) ──
-  const addDeuda=async(it)=>{
-    await appendRow("DEUDA VALEN",deudaPersonalToRow(it));
-    await loadData(true);
-    flash("✓ Movimiento agregado");
-  };
-  const editDeuda=async(it)=>{
-    await updateRow("DEUDA VALEN",it._row,deudaPersonalToRow(it));
-    await loadData(true);
-    flash("✓ Movimiento actualizado");
-  };
-  const removeDeuda=async(it)=>{
-    await deleteRow("DEUDA VALEN",it._row);
-    await loadData(true);
-    flash("✓ Movimiento borrado",K.red);
-  };
-
-  // ── Marcar pagado: actualiza DEBE?=NO en CADA fila pendiente de ese cliente.
-  // Secuencial (no Promise.all) para evitar escrituras concurrentes a la misma hoja.
-  const marcarPagado=async(pendientes,estado="NO")=>{
-    for(const v of pendientes){
-      const actualizado={...v,debe:estado};
-      await updateRow("INGRESOS",v._row,ingresoToRow(actualizado));
-    }
-    const msg=estado==="NO"?"pagado":"marcado como debe";
-    await loadData(true);
-    flash(`✓ ${pendientes.length} ${msg}`);
-  };
-
-  // Registra un abono en la columna F de la hoja CLIENTES, buscando por nombre.
-  // No usa _row porque las filas de CLIENTES se reordenan solas con fórmulas UNIQUE/FILTER.
-  const registrarAbono=async(cliente,montoNuevo)=>{
-    const qs=new URLSearchParams({action:"updateCell",sheet:"CLIENTES",lookupValue:cliente,col:"F",value:String(montoNuevo)}).toString();
-    const res=await fetch(`${API}?${qs}`,{method:"GET",redirect:"follow"});
-    if(!res.ok)throw new Error("HTTP "+res.status);
-    const data=await res.json();
-    if(!data.ok)throw new Error(data.error||"Error al registrar abono");
-    await loadData(true);
-    flash(`✓ Abono de ${cliente} registrado`);
-  };
+  const {autenticado,login}=useAuth();
+  const {tab,setTab,showNuevo,setShowNuevo,editIng,setEditIng,editGas,setEditGas}=useNav();
+  const {
+    db,loading,initDone,initError,lastSync,clientes,proveedores,loadData,
+    saveIngreso,saveGasto,updateIngreso,updateGasto,removeIngreso,removeGasto,
+    addInventario,editInventario,removeInventario,
+    addDeuda,editDeuda,removeDeuda,
+    marcarPagado,registrarAbono,
+  }=useData();
 
   const NAV=[
     {id:"home",icon:"⌂",label:""},
@@ -345,7 +140,7 @@ export default function App(){
   ];
 
   if(!autenticado){
-    return <LoginScreen onSuccess={()=>{setAutenticado(true);setTab("home");}}/>;
+    return <LoginScreen onSuccess={()=>{login();setTab("home");}}/>;
   }
 
   if(!initDone){
@@ -450,24 +245,9 @@ export default function App(){
   WebkitOverflowScrolling:"touch",
   paddingBottom:"calc(68px + env(safe-area-inset-bottom,0px))"
 }}>
-          <div className="ac-main-inner">      {/* Toast premium */}
-      {toast&&(
-        <div style={{
-          position:"fixed",top:"max(24px, env(safe-area-inset-top, 24px))",
-          left:"50%",transform:"translateX(-50%)",
-          background:"rgba(22,22,31,.95)",
-          backdropFilter:"blur(24px)",WebkitBackdropFilter:"blur(24px)",
-          color:K.text,padding:"11px 22px",borderRadius:20,fontWeight:600,
-          zIndex:9999,fontSize:13,
-          boxShadow:`0 8px 32px rgba(0,0,0,.6), 0 1px 0 rgba(255,255,255,.06) inset`,
-          whiteSpace:"nowrap",
-          border:`1px solid rgba(255,255,255,.08)`,
-          display:"flex",alignItems:"center",gap:8,
-        }}>
-          <span style={{width:6,height:6,borderRadius:"50%",background:K.gold,display:"inline-block",flexShrink:0}}/>
-          {toast.msg}
-        </div>
-      )}
+          <div className="ac-main-inner">
+      {/* Toast: ver ./app/providers/ToastProvider.jsx (ToastHost) — se renderiza
+          fuera de este árbol a propósito, para no re-renderizar toda la app. */}
       {/* Contenido principal — scroll nativo */}
 <div style={{}}>
           {tab==="home"&&<Home db={db} onRefresh={()=>loadData(false)} loading={loading} lastSync={lastSync}/>}

@@ -1,24 +1,16 @@
-import { useState } from "react";
-import { ACCENT_KEY, ACCENTS, K } from "../../constants";
+import { ACCENTS, K } from "../../constants";
+import { useAccentColor } from "../../app/hooks/useAccentColor";
 
 /**
  * Selector de color de acento (8 opciones).
- * Persiste en localStorage y dispara evento "accentchange" para
- * que otros componentes reaccionen sin recargar la página.
+ * Persiste en localStorage vía `useAccentColor` y dispara evento "accentchange"
+ * para que otros componentes que usen ese hook reaccionen sin recargar la página.
  *
- * Props: ninguno (lee/escribe directo a localStorage).
+ * Props: ninguno.
  */
 function AccentPicker() {
-  const [accentId, setAccentId] = useState(
-    () => localStorage.getItem(ACCENT_KEY) || "gold"
-  );
-
-  const cambiarAccent = (id) => {
-    setAccentId(id);
-    localStorage.setItem(ACCENT_KEY, id);
-    // Forzar re-render sin recargar página completa
-    window.dispatchEvent(new Event("accentchange"));
-  };
+  const [accentId, , setAccent] = useAccentColor();
+  const cambiarAccent = setAccent;
 
   return (
     <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>

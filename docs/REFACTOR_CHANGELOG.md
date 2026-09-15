@@ -42,6 +42,49 @@
 
 ---
 
+## [2026-09-14] Sesión #17 — Fase 16: Introducir Context API ✅
+**Estado:** ✅ Completada (con caveat: sin smoke test en navegador en vivo, ver Problemas encontrados)
+**Branch:** `refactor/architectural-cleanup`
+**Commit:** `refactor(fase-16): introducir Context API con providers por dominio`
+
+### Archivos modificados
+- `src/App.jsx` (**-220 líneas**: 561 → 341)
+- `src/main.jsx` (envuelve `<App/>` en `<AppProviders>`)
+- `src/features/settings/Configuracion.jsx` (usa `useAuth().cerrarSesion()`)
+- `src/features/settings/AccentPicker.jsx` (usa `useAccentColor()`)
+- 14 archivos nuevos en `src/app/`:
+  - `contexts/AuthContext.js`, `DataContext.js`, `NavContext.js`, `ToastContext.js`
+  - `providers/AuthProvider.jsx`, `DataProvider.jsx`, `ToastProvider.jsx` (+ `ToastHost`), `NavProvider.jsx`, `AppProviders.jsx`
+  - `hooks/useAuth.js`, `useData.js`, `useToast.js`, `useNav.js`, `useAccentColor.js`
+
+### Cambios realizados
+- Extraídos los 4 dominios de estado global de `App.jsx`: autenticación, datos/CRUD contra Sheets, toast, navegación.
+- `ToastProvider` usa dos contextos separados (estado/dispatch) para que `flash()` no dispare re-render de toda la app — solo `ToastHost` (hermano de `App`, montado por `AppProviders`) se re-renderiza cuando cambia el toast.
+- Corregido bug latente: `Configuracion.jsx` tenía su propio "cerrar sesión" con `window.location.reload()`, desconectado del `cerrarSesion` real (nunca recibía esa prop desde Fase 5). Ahora usa el mismo de `AuthProvider`.
+- Corregido bug latente: el evento `"accentchange"` que dispara `AccentPicker` desde Fase 5 no tenía ningún listener. `useAccentColor()` ahora lo escucha.
+
+### Decisiones tomadas
+- Contextos (`createContext`) en archivos separados de los providers (`app/contexts/*.js`): exportarlos junto a un componente en el mismo archivo rompe el Fast Refresh de Vite (detectado por ESLint `react-refresh/only-export-components`).
+- Los 4 providers se implementaron y commitearon juntos (no incrementalmente como otras fases) porque `DataProvider` depende de `AuthProvider` y `ToastProvider` a la vez — no hay un punto de corte intermedio compilable sin dejar `App.jsx` roto a medias.
+- No se dividió `DataContext` por dominio (ingresos/gastos/inventario por separado); eso es alcance explícito de Fase 21.
+- `clientes`/`proveedores` derivados se movieron a `DataProvider` (dependen de `db.ingresos`), no a `NavProvider`.
+
+### Problemas encontrados
+- **No se pudo verificar en el navegador con un login real**: la app requiere autenticarse contra el Google Apps Script de producción con datos reales del negocio, y el intento de levantar el dev server chocó con el `.claude/launch.json` de `webaltaclase` (proyecto primario de la sesión, puerto 3000 ya ocupado) sin tocar configuración de ese otro proyecto. La validación de esta fase se apoyó en build + tests + revisión manual línea por línea de cada handler movido. **Recomendado un smoke test manual real antes de la Fase 17.**
+- `npx eslint src`: 31 → 25 errores. Ninguna categoría nueva; se limpiaron imports muertos de `App.jsx` que quedaron sin uso.
+
+### Validación
+- [x] `npm run build` OK (306.31 kB)
+- [x] `npm test` 6 tests pasan
+- [x] Revisión manual: cada handler/estado movido conserva firma y comportamiento idénticos
+- [ ] Smoke test manual en navegador con login real — pendiente, ver Problemas encontrados
+
+### Próximos pasos
+1. **Recomendado**: smoke test manual (login real, cada tab, crear/editar/borrar en cada feature) antes de continuar.
+2. **Esperar autorización** para iniciar **Fase 17: App.jsx como composition root**.
+
+---
+
 ## [2026-09-14] Sesión #16 — Fase 15: Refactorizar feature Tareas ✅
 **Estado:** ✅ Completada
 **Branch:** `refactor/architectural-cleanup`

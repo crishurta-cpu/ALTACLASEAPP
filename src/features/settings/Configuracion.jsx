@@ -1,6 +1,7 @@
-import { LS_AUTH_KEY, DS, K, getAccentColor } from "../../constants";
+import { DS, K, getAccentColor } from "../../constants";
 import Card from "../../shared/ui/Card";
 import AccentPicker from "./AccentPicker";
+import { useAuth } from "../../app/hooks/useAuth";
 
 /**
  * Panel de configuración. Sub-secciones:
@@ -14,10 +15,7 @@ import AccentPicker from "./AccentPicker";
  * notificaciones, etc.
  */
 function Configuracion() {
-  const cerrar = () => {
-    localStorage.removeItem(LS_AUTH_KEY);
-    window.location.reload();
-  };
+  const { cerrarSesion } = useAuth();
 
   return (
     <div style={{ padding: "0 0 16px" }}>
@@ -93,7 +91,7 @@ function Configuracion() {
 
       {/* Cerrar sesión */}
       <button
-        onClick={cerrar}
+        onClick={cerrarSesion}
         style={{
           width: "100%", background: "transparent", border: "none",
           color: K.red, fontSize: 17, fontWeight: 500,
