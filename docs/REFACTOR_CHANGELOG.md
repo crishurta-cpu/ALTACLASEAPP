@@ -42,6 +42,39 @@
 
 ---
 
+## [2026-09-14] Sesión #19 — Fase 18: Mejorar API client ✅
+**Estado:** ✅ Completada
+**Branch:** `refactor/architectural-cleanup`
+**Commit:** `refactor(fase-18): API client con AbortController + timeout + retry`
+
+### Archivos modificados
+- `src/services/http.js` (nuevo) — `fetchConTimeout` y `fetchConReintento`
+- `src/services/api.js` — `callApi` con timeout siempre, reintento solo en lecturas
+- `src/services/sheets/tareas.service.js` — mismo criterio en sus 4 acciones
+
+### Cambios realizados
+- Toda llamada a Google Apps Script ahora tiene timeout de 15s (antes podía colgarse indefinidamente si el script no respondía).
+- Las lecturas (`fetchSheet`, `obtenerTareas`) reintentan 1 vez con backoff de 800ms si fallan.
+- Las escrituras (append/update/delete) **no reintentan** — solo timeout.
+
+### Decisiones tomadas
+- **Retry solo en lecturas, nunca en escrituras**: reintentar automáticamente un `append`/`update`/`delete` que en realidad sí llegó a procesarse (pero tardó en responder) duplicaría la operación contra Sheets. Para una app financiera, ese riesgo es peor que dejar que el usuario reintente manualmente ante un error visible.
+- `registrarAbono` en `DataProvider.jsx` (fetch crudo, no pasa por `callApi`) queda sin tocar — se resolverá naturalmente en Fase 19 cuando se mueva a un `clientes.service.js` dedicado.
+- Backoff fijo (no exponencial real) porque con 1 solo reintento no hay diferencia práctica.
+
+### Problemas encontrados
+- Ninguno bloqueante. `npx eslint src` se mantuvo en 5 errores (se corrigió 1 introducido, `catch(e)` sin usar).
+
+### Validación
+- [x] `npm run build` OK (306.56 kB)
+- [x] `npm test` 6 tests pasan
+- [ ] Verificación en navegador de timeout/retry/cancelación real — no realizada (mismo caveat de Fases 16-17: requiere login de producción)
+
+### Próximos pasos
+1. **Esperar autorización** para iniciar **Fase 19: Unificar servicios de Sheets** (ahí se resuelve el gap de `registrarAbono`).
+
+---
+
 ## [2026-09-14] Sesión #18 — Fase 17: App.jsx como composition root ✅
 **Estado:** ✅ Completada (mismo caveat de Fase 16: sin smoke test en navegador en vivo)
 **Branch:** `refactor/architectural-cleanup`

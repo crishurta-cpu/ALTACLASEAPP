@@ -10,10 +10,10 @@
 
 | Métrica | Valor |
 |---|---|
-| Fase actual | **17 — App.jsx como composition root** ✅ |
-| Última fase completada | **17 — App.jsx como composition root** |
-| Próxima fase | **18 — Mejorar API client** |
-| Estado | 🟢 **Fase 17 lista. Esperando autorización para Fase 18** |
+| Fase actual | **18 — Mejorar API client** ✅ |
+| Última fase completada | **18 — Mejorar API client** |
+| Próxima fase | **19 — Unificar servicios de Sheets** |
+| Estado | 🟢 **Fase 18 lista. Esperando autorización para Fase 19** |
 
 ### Fase 0 — Backup + branch ✅
 **Objetivo:** Snapshot del estado actual antes de cualquier cambio.
@@ -611,17 +611,33 @@ Convertir `App.jsx` (2.687 líneas, single-file) en una **feature-based architec
 
 ---
 
-### Fase 18 — Mejorar API client ⏸️
-**Archivos a modificar:**
-- `src/services/api/client.js` — agregar `AbortController`, timeout 15s, retry exponencial (1 reintento).
-- Aplicar a todos los servicios en `services/sheets/`.
+### Fase 18 — Mejorar API client ✅
+**Objetivo:** Que las llamadas a Google Apps Script no se queden colgadas indefinidamente y toleren un fallo de red puntual.
+**Archivos nuevos:**
+- `src/services/http.js` — `fetchConTimeout` (AbortController + timeout 15s) y `fetchConReintento` (igual + 1 reintento con backoff fijo de 800ms).
+
+**Archivos modificados:**
+- `src/services/api.js` — `callApi` usa `fetchConReintento` en lecturas (`action:"read"`) y `fetchConTimeout` (sin reintento) en escrituras.
+- `src/services/sheets/tareas.service.js` — mismo criterio: `obtenerTareas` con reintento, `crearTarea`/`actualizarTarea`/`eliminarTarea` solo con timeout.
 
 **Validación:**
-- [ ] Build OK.
-- [ ] Si se aborta un fetch, no hay warning de "state update on unmounted".
-- [ ] Network tab muestra requests cancelados al cambiar de tab.
+- [x] Build OK (306.56 kB).
+- [x] `npm test` 6 tests pasan.
+- [x] `npx eslint src`: 5 → 5 errores (sin cambio neto; se corrigió 1 nuevo introducido — `catch(e)` con `e` sin usar — y el `Buffer` pre-existente de `api.js` se mantiene documentado).
+- [ ] "Si se aborta un fetch, no hay warning de state update on unmounted" — **no aplica tal cual**: `DataProvider` vive montado durante toda la sesión (nunca se desmonta en navegación normal entre tabs), así que este escenario no ocurre en la práctica actual. Se deja anotado por si `React.lazy`/code-splitting (Fase 21) cambia esto.
+- [ ] "Network tab muestra requests cancelados al cambiar de tab" — no verificado en navegador en vivo (mismo caveat de Fases 16-17, ver notas).
 
 **Commit:** `refactor(fase-18): API client con AbortController + timeout + retry`.
+
+**Decisiones tomadas (desviaciones del plan original):**
+- **No existe `src/services/api/client.js`** (ya documentado en Fase 15) — se modificó el archivo real, `src/services/api.js`.
+- **Retry SOLO en lecturas, nunca en escrituras** — es la desviación más importante de esta fase. El plan original decía "retry exponencial (1 reintento)" sin distinguir; aplicarlo ciegamente a `append`/`update`/`delete` es peligroso para una app financiera: si el Apps Script sí procesó la escritura pero la respuesta tardó más que el timeout, un reintento automático duplicaría la operación (ej. una fila de INGRESOS repetida, un abono registrado dos veces). Las escrituras solo tienen timeout (fallan rápido y visible con un toast de error), nunca reintento silencioso.
+- **`registrarAbono` (en `DataProvider.jsx`) NO se tocó**: hace su propio `fetch` crudo (no pasa por `callApi`) para la acción `updateCell`. Aplicar timeout/retry ahí requeriría modificar `DataProvider.jsx` (fuera de los archivos que esta fase tenía planeado tocar) y unificar ese `fetch` con `callApi` es, de hecho, el objetivo de la Fase 19 (unificación de servicios). Queda documentado como gap conocido — sigue sin timeout hasta Fase 19.
+- **Backoff fijo de 800ms, no exponencial real** (que solo tendría sentido con más de 1 reintento): con un único reintento, "exponencial" y "fijo" son equivalentes en la práctica; se documenta la simplificación.
+
+**Notas para Fase 19:**
+- Fase 19 = unificar `services/sheets/*.service.js` por dominio (ingresos, gastos, clientes, inventario, deuda personal) con el patrón `readAll/append/update/remove`, y ahí sí mover `registrarAbono` fuera de `DataProvider.jsx` a un `clientes.service.js` que use `callApi`/`fetchConTimeout` correctamente.
+- Sigue pendiente el smoke test manual en navegador con login real (arrastrado desde Fase 16).
 
 ---
 
