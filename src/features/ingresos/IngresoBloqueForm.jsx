@@ -3,6 +3,7 @@ import { K, DS, fmt } from "../../constants";
 import Card from "../../shared/ui/Card";
 import Btn from "../../shared/ui/Btn";
 import FInput from "../../shared/ui/FInput";
+import AutocompleteInput from "../../shared/ui/AutocompleteInput";
 
 /**
  * Registro rápido de múltiples ventas en una sola entrada.
@@ -12,8 +13,8 @@ import FInput from "../../shared/ui/FInput";
  * - onSave: async (item) => void, recibe el item con shape de negocio —
  *   igual que `IngresoForm` desde Fase 19 (la conversión a fila Sheets
  *   vive en `ingresos.service.js`, no acá).
- * - clientes: string[] con nombres para autocompletar (reservado para
- *   futuro; hoy se usa FInput plano para no romper el flujo batch).
+ * - clientes: string[] con nombres para autocompletar el campo Cliente de
+ *   cada fila (Fase 22 — antes reservado sin usar, mismo patrón que `IngresoForm`).
  *
  * Comportamiento:
  * - Filtra filas válidas (producto + cliente + precio) antes de guardar.
@@ -99,10 +100,10 @@ function IngresoBloqueForm({ onSave, clientes = [] }) {
           <div key={f.id} style={{ borderBottom: i < filas.length - 1 ? `0.5px solid ${K.border}` : "none", padding: 12 }}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
               <FInput value={f.producto} onChange={(v) => updateFila(f.id, "producto", v)} placeholder="Producto" />
-              <FInput value={f.cliente} onChange={(v) => updateFila(f.id, "cliente", v)} placeholder="Cliente" />
+              <AutocompleteInput value={f.cliente} onChange={(v) => updateFila(f.id, "cliente", v)} placeholder="Cliente" sugerencias={clientes} />
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
-              <FInput value={f.proedor} onChange={(v) => updateFila(f.id, "proveedor", v)} placeholder="Proveedor" />
+              <FInput value={f.proveedor} onChange={(v) => updateFila(f.id, "proveedor", v)} placeholder="Proveedor" />
               <FInput type="number" value={f.costo} onChange={(v) => updateFila(f.id, "costo", v)} placeholder="Costo" prefix="$" />
             </div>
             <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>

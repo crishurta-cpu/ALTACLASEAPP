@@ -10,10 +10,10 @@
 
 | Métrica | Valor |
 |---|---|
-| Fase actual | **21 — Optimizaciones de performance** ✅ |
-| Última fase completada | **21 — Optimizaciones de performance** |
-| Próxima fase | **22 — Limpieza final** |
-| Estado | 🟢 **Fase 21 lista. Esperando autorización para Fase 22** |
+| Fase actual | **22 — Limpieza final** ✅ |
+| Última fase completada | **22 — Limpieza final** |
+| Próxima fase | **23 — Deploy de validación** |
+| Estado | 🟢 **Fase 22 lista. Esperando autorización para Fase 23** |
 
 ### Fase 0 — Backup + branch ✅
 **Objetivo:** Snapshot del estado actual antes de cualquier cambio.
@@ -746,16 +746,36 @@ Convertir `App.jsx` (2.687 líneas, single-file) en una **feature-based architec
 
 ---
 
-### Fase 22 — Limpieza final ⏸️
+### Fase 22 — Limpieza final ✅
 **Cambios:**
-- [ ] Agregar alias `@/` en `vite.config.js`.
-- [ ] Agregar script `test` en `package.json`.
-- [ ] Configurar `prettier` (opcional).
-- [ ] Crear `vercel.json` con CSP básico.
-- [ ] Actualizar `AGENTS.md` raíz con la nueva arquitectura.
-- [ ] Eliminar `src/AGENTS.md` (ya debería estar eliminado desde Fase 2).
+- [x] Agregar alias `@/` en `vite.config.js` (apunta a `src/`, disponible para código nuevo; no se migraron los imports relativos existentes).
+- [x] Script `test` en `package.json` — ya existía desde Fase 1; se agregó además `test:coverage` en Fase 20.
+- [ ] Configurar `prettier` — **se decidió NO hacerlo** (ver decisiones).
+- [x] Crear `vercel.json` con CSP básico.
+- [x] Actualizar `AGENTS.md` raíz con la arquitectura por features/Context API/servicios (estaba describiendo el `App.jsx` monolítico pre-refactor).
+- [x] `src/AGENTS.md` — confirmado eliminado desde Fase 2 (movido a `.archive/App.jsx.snapshot-2026-08.md`).
+- [x] **Bonus, no en el plan original**: limpiados los 5 errores de lint pre-existentes documentados desde Fase 1 — `npx eslint .` queda en **0 errores** por primera vez en todo el refactor.
 
-**Commit:** `chore(fase-22): limpieza final + alias + tests script + CSP`.
+**Validación:**
+- [x] `npm run build` OK (288.98 kB — el alias `@/` no afecta el bundle, solo resolución de imports).
+- [x] `npm run lint` — **0 errores** (exit code 0).
+- [x] `npm test` — 36 tests pasan.
+
+**Commit:** `chore(fase-22): limpieza final + alias + CSP + AGENTS.md + 0 errores de lint`.
+
+**Decisiones tomadas (desviaciones del plan original):**
+- **`prettier` NO se configuró**, aunque el plan lo marcaba como opcional: el codebase completo (2.687 líneas originales de `App.jsx` y todo lo extraído desde entonces) usa un estilo compacto muy particular (objetos de estilo inline sin saltos de línea consistentes). Aplicar Prettier ahora reformatearía prácticamente cada archivo del proyecto en un solo commit gigante, sin ningún beneficio funcional, y complicaría `git blame`/diffs de las 22 fases anteriores. Se documenta como decisión consciente, no como pendiente.
+- **CSP de `vercel.json`**: incluye `style-src 'self' 'unsafe-inline'` porque **toda** la app usa CSS-in-JS con `style={{...}}` (miles de instancias) — sin `unsafe-inline` en `style-src`, la app entera dejaría de pintar estilos. `script-src 'self'` sí queda estricto (sin `unsafe-inline`/`unsafe-eval`). `connect-src` permite `https://script.google.com` (el backend real) además de `'self'`. Se agregaron también `X-Content-Type-Options`, `X-Frame-Options: DENY` y `Referrer-Policy` como headers de seguridad básicos adicionales, no pedidos explícitamente pero de costo cero y beneficio directo.
+- **Limpieza de los 5 errores de lint pre-existentes** (no estaba en el checklist original de Fase 22, pero es exactamente lo que esta fase representa — "limpieza final"):
+  - `Buffer` no definido en `services/api.js`: se agregó un override de ESLint (`globals.node`) solo para ese archivo, en vez de tocar el código — `Buffer` es un fallback real para que `b64()` sea testeable en Vitest/Node, nunca se ejecuta en el navegador.
+  - `GraficoCircular.jsx`: la mutación de `let ang` dentro de un `.map()` se reescribió con `.reduce()` — el ángulo acumulado ahora vive solo dentro del propio `reduce`, sin una variable "externa" reasignada en cada iteración. Comportamiento visual idéntico (se verificó fórmula matemática igual).
+  - `useTareas.js` y `DataProvider.jsx` (2 casos de `set-state-in-effect`): son el patrón estándar "cargar datos al montar/al autenticarse" — no hay estado derivado que sincronizar, es una carga de datos real. Se suprimieron con `eslint-disable-next-line` y un comentario explicando por qué, en vez de forzar una reestructura especulativa del flujo de carga de datos (alto riesgo para una app financiera, sin beneficio real).
+  - `IngresoBloqueForm.jsx` (`clientes` no usado): en vez de solo silenciar el lint, se **implementó** el autocompletado de cliente en el formulario de lote (reemplazando `FInput` por `AutocompleteInput`, mismo patrón que `IngresoForm`) — la prop ya existía "reservada para futuro" desde Fase 7, ahora se usa de verdad.
+  - **De paso, en el mismo archivo y la misma edición**: se corrigió el typo `f.proedor` → `f.proveedor` (bug real detectado en Fase 19, que se había separado como tarea aparte — se resolvió aquí mismo por eficiencia, al estar ya editando ese archivo).
+
+**Notas para Fase 23:**
+- Fase 23 = build/lint/test final, deploy manual en Vercel, smoke test completo, tag `v2.0-post-refactor`.
+- **El smoke test manual en navegador con login real sigue pendiente desde Fase 16** (6 fases sin verificación visual en vivo: 16, 17, 18, 19, 20, 21, 22) — es el paso más importante antes de considerar el refactor cerrado. Fase 23 es exactamente ese smoke test.
 
 ---
 

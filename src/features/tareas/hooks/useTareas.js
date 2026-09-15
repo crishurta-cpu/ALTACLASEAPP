@@ -29,6 +29,11 @@ export function useTareas() {
   }
 
   useEffect(() => {
+    // Carga inicial al montar (patrón estándar "fetch on mount"). El lint
+    // de react-hooks marca cualquier setState alcanzable desde un efecto,
+    // incluso este caso legítimo — no hay estado derivado que "sincronizar",
+    // es una carga de datos real (mismo patrón que DataProvider.loadData()).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     cargarTareas();
   }, []);
 

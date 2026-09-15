@@ -82,8 +82,11 @@ export function DataProvider({ children }) {
     [flash]
   );
 
-  // Carga inicial
+  // Carga inicial al autenticarse (patrón estándar "fetch on mount/condición").
+  // Ver la misma nota en useTareas.js: es una carga de datos real, no estado
+  // derivado — se suprime el lint de react-hooks a propósito.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (autenticado) loadData(false);
   }, [loadData, autenticado]);
 

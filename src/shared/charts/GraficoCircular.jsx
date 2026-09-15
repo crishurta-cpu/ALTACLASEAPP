@@ -17,29 +17,27 @@ function GraficoCircular({ datos, colores, total }) {
   const R = 40;
   const CX = 50;
   const CY = 50;
-  let ang = -Math.PI / 2;
 
-  const slices = datos.map(([cat, val], i) => {
-    const pct = val / total;
-    const startAng = ang;
-    ang += pct * 2 * Math.PI;
-    const x1 = CX + R * Math.cos(startAng);
-    const y1 = CY + R * Math.sin(startAng);
-    const x2 = CX + R * Math.cos(ang);
-    const y2 = CY + R * Math.sin(ang);
-    const large = pct > 0.5 ? 1 : 0;
-    return {
-      cat,
-      val,
-      pct,
-      x1,
-      y1,
-      x2,
-      y2,
-      large,
-      col: colores[i % colores.length],
-    };
-  });
+  // reduce en vez de `let ang` mutado dentro de un .map: evita reasignar una
+  // variable "externa" al callback en cada iteración (el ángulo acumulado
+  // vive solo dentro de este reduce, no se comparte entre renders).
+  const { list: slices } = datos.reduce(
+    (acc, [cat, val], i) => {
+      const pct = val / total;
+      const startAng = acc.ang;
+      const endAng = startAng + pct * 2 * Math.PI;
+      const x1 = CX + R * Math.cos(startAng);
+      const y1 = CY + R * Math.sin(startAng);
+      const x2 = CX + R * Math.cos(endAng);
+      const y2 = CY + R * Math.sin(endAng);
+      const large = pct > 0.5 ? 1 : 0;
+      return {
+        ang: endAng,
+        list: [...acc.list, { cat, val, pct, x1, y1, x2, y2, large, col: colores[i % colores.length] }],
+      };
+    },
+    { ang: -Math.PI / 2, list: [] }
+  );
 
   return (
     <div

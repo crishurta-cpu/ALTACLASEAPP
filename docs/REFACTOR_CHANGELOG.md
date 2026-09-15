@@ -42,6 +42,43 @@
 
 ---
 
+## [2026-09-14] Sesión #23 — Fase 22: Limpieza final ✅
+**Estado:** ✅ Completada
+**Branch:** `refactor/architectural-cleanup`
+**Commit:** `chore(fase-22): limpieza final + alias + CSP + AGENTS.md + 0 errores de lint`
+
+### Archivos modificados
+- `vite.config.js` — alias `@/` → `src/`
+- `vercel.json` (nuevo) — CSP básico + headers de seguridad
+- `AGENTS.md` — reescrito completo: describía el `App.jsx` monolítico pre-refactor (React 18, un solo archivo, paleta de colores vieja, componente `AnalisisIA` inexistente); ahora documenta la arquitectura real (features/, app/providers/hooks, services/sheets)
+- `eslint.config.js` — override de `globals.node` solo para `src/services/api.js`
+- `src/shared/charts/GraficoCircular.jsx` — `let ang` mutado en `.map()` → `.reduce()`
+- `src/features/tareas/hooks/useTareas.js`, `src/app/providers/DataProvider.jsx` — `eslint-disable-next-line react-hooks/set-state-in-effect` documentado (patrón legítimo de carga inicial)
+- `src/features/ingresos/IngresoBloqueForm.jsx` — implementado el autocompletado de cliente (`AutocompleteInput`, prop `clientes` que estaba sin usar) + corregido el typo `f.proedor` → `f.proveedor`
+
+### Cambios realizados
+- `npx eslint .`: **5 → 0 errores** — primera vez en las 22 fases del refactor con lint completamente limpio.
+- `AGENTS.md` deja de ser un documento desactualizado y pasa a reflejar la arquitectura real post-refactor, con referencias cruzadas a `docs/REFACTOR_ROADMAP.md` y una nota explícita distinguiendo este refactor (Sheets, vigente) de la migración futura a Supabase (`ALTACLASE_DATABASE_ARCHITECTURE.md`, no iniciada).
+
+### Decisiones tomadas
+- **No se configuró Prettier**: reformatear todo el codebase ahora generaría un diff gigante sin beneficio funcional y complicaría el historial de las 22 fases previas.
+- **CSP con `style-src 'unsafe-inline'`** porque toda la app usa CSS-in-JS (`style={{...}}`) — sin eso, la app no pintaría. `script-src` sí queda estricto.
+- Los 4 fixes de lint se hicieron sin cambiar comportamiento visible: 3 son reescrituras equivalentes o supresiones documentadas, y 1 (`IngresoBloqueForm`) se aprovechó para implementar de verdad una prop que ya existía reservada, en vez de solo silenciar el lint.
+- El bug del typo `f.proedor` (que se había separado como tarea aparte tras la Fase 19) se corrigió aquí mismo, en la misma edición del mismo archivo.
+
+### Problemas encontrados
+- Ninguno bloqueante.
+
+### Validación
+- [x] `npm run build` OK (288.98 kB)
+- [x] `npm run lint` — 0 errores, exit code 0
+- [x] `npm test` — 36 tests pasan
+
+### Próximos pasos
+1. **Esperar autorización** para iniciar **Fase 23: Deploy de validación** — incluye el smoke test manual en navegador con login real, pendiente desde Fase 16 (6 fases sin verificación visual en vivo).
+
+---
+
 ## [2026-09-14] Sesión #22 — Fase 21: Optimizaciones de performance ✅
 **Estado:** ✅ Completada
 **Branch:** `refactor/architectural-cleanup`

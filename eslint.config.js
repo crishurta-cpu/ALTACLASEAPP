@@ -18,4 +18,12 @@ export default defineConfig([
       parserOptions: { ecmaFeatures: { jsx: true } },
     },
   },
+  {
+    // b64() usa Buffer como fallback SOLO para que sea testeable en Vitest
+    // (Node); en el navegador nunca se ejecuta esa rama (usa window.btoa).
+    files: ['src/services/api.js'],
+    languageOptions: {
+      globals: { ...globals.browser, ...globals.node },
+    },
+  },
 ])
