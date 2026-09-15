@@ -42,6 +42,44 @@
 
 ---
 
+## [2026-09-14] Sesión #21 — Fase 20: Tests adicionales ✅
+**Estado:** ✅ Completada
+**Branch:** `refactor/architectural-cleanup`
+**Commit:** `test(fase-20): expandir cobertura de tests a parsers, hooks y cliente HTTP`
+
+### Archivos modificados
+- `src/services/parsers.test.js` (expandido: 6 → 15 tests)
+- `src/services/http.test.js` (nuevo, 6 tests: timeout, retry, propagación de errores)
+- `src/features/home/hooks/useHomeStats.test.js` (nuevo, 4 tests)
+- `src/features/clients/hooks/useClientesFilter.test.js` (nuevo, 6 tests)
+- `src/features/history/hooks/useHistorialFilter.test.js` (nuevo, 5 tests)
+- `package.json`/`package-lock.json` — nuevas devDependencies: `@testing-library/react`, `jsdom`, `@vitest/coverage-v8`; script `test:coverage`
+- `.gitignore` — agregado `coverage`
+
+### Cambios realizados
+- Suite de tests: 6 → **36 tests**, todos pasan.
+- Cobertura verificada con `npm run test:coverage`: 96.13% statements / 80.81% branches / 98.41% funciones / 100% líneas sobre parsers, hooks de clientes/historial/home y el cliente HTTP.
+
+### Decisiones tomadas
+- `services/parsers.js` sigue siendo un solo archivo — se expandió su test existente en vez de crear 4 archivos separados que el plan original suponía (no hay ningún archivo real dividido así).
+- Tests de hooks usan `@testing-library/react` + `jsdom`, declarado por archivo (`// @vitest-environment jsdom`) para no pagar el costo de DOM en los tests de parsers/http.
+- `@vitest/coverage-v8` se instaló pineado a la misma versión que `vitest` (`4.1.10`) porque `npm install` sin versión falló con un bug de arborist en `npm@12.0.2`.
+
+### Problemas encontrados
+- Ninguno bloqueante. Un test propio (`filtra por texto de búsqueda`) tenía una aserción incorrecta (esperaba que "an" no matcheara "JUAN", cuando sí es substring) — corregido antes de commitear, no llegó a fallar en el historial.
+
+### Validación
+- [x] `npm run build` OK (307.15 kB, sin cambio — confirma que las deps de test no afectan el bundle)
+- [x] `npm test`: 36 tests pasan
+- [x] `npm run test:coverage`: ≥80% en los archivos objetivo
+- [x] `npx eslint src`: 5 → 5 (sin cambio)
+
+### Próximos pasos
+1. **Esperar autorización** para iniciar **Fase 21: Optimizaciones de performance**.
+2. Sigue pendiente el smoke test manual en navegador con login real (arrastrado desde Fase 16).
+
+---
+
 ## [2026-09-14] Sesión #20 — Fase 19: Unificar servicios de Sheets ✅
 **Estado:** ✅ Completada
 **Branch:** `refactor/architectural-cleanup`

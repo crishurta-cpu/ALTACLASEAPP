@@ -10,10 +10,10 @@
 
 | Métrica | Valor |
 |---|---|
-| Fase actual | **19 — Unificar servicios de Sheets** ✅ |
-| Última fase completada | **19 — Unificar servicios de Sheets** |
-| Próxima fase | **20 — Tests adicionales** |
-| Estado | 🟢 **Fase 19 lista. Esperando autorización para Fase 20** |
+| Fase actual | **20 — Tests adicionales** ✅ |
+| Última fase completada | **20 — Tests adicionales** |
+| Próxima fase | **21 — Optimizaciones de performance** |
+| Estado | 🟢 **Fase 20 lista. Esperando autorización para Fase 21** |
 
 ### Fase 0 — Backup + branch ✅
 **Objetivo:** Snapshot del estado actual antes de cualquier cambio.
@@ -680,20 +680,42 @@ Convertir `App.jsx` (2.687 líneas, single-file) en una **feature-based architec
 
 ---
 
-### Fase 20 — Tests adicionales ⏸️
+### Fase 20 — Tests adicionales ✅
+**Objetivo:** Expandir cobertura a parsers, hooks y el cliente HTTP (Fase 18).
 **Archivos nuevos:**
-- `src/services/parsers/ingresos.test.js` (expandir)
-- `src/services/parsers/gastos.test.js`
-- `src/services/parsers/inventario.test.js`
-- `src/services/parsers/clientes.test.js`
+- `src/services/parsers.test.js` (expandido, no dividido en 4 archivos — el archivo real es único, ver decisiones) — ahora cubre `parseInventario`, `parseClientesResumen`, `parseClientesEspeciales`, `parseDeudaPersonal` y los 4 `*ToRow` (orden de columnas).
 - `src/features/home/hooks/useHomeStats.test.js`
-- `src/features/clients/hooks/useClientesFilter.test.js`
+- `src/features/clients/hooks/useClientesFilter.test.js` (cubre también `useDeudaPorCliente` indirectamente)
 - `src/features/history/hooks/useHistorialFilter.test.js`
-- `src/services/api/client.test.js` (mock fetch)
+- `src/services/http.test.js` (mock de `fetch`, en vez de `services/api/client.test.js` que no existe — ver Fase 15/18) — cubre timeout, retry único y propagación de errores de `fetchConTimeout`/`fetchConReintento`.
 
-**Cobertura mínima:** ≥80% en parsers y hooks.
+**Dependencias nuevas (solo dev, no afectan el bundle de producción):**
+- `@testing-library/react` + `jsdom` — necesarios para `renderHook` (los hooks usan `useMemo`, que requiere un entorno React real). Cada test de hook declara `// @vitest-environment jsdom` en su primera línea; los tests de parsers/http siguen en el entorno `node` por defecto (más rápidos, sin DOM).
+- `@vitest/coverage-v8` (pineado a `4.1.10`, igual que `vitest` — instalar `*` más reciente falló por un bug conocido de `npm@12` con arborist).
+- Script nuevo: `npm run test:coverage`.
 
-**Commit:** `test(fase-20): expandir cobertura de tests a parsers y hooks`.
+**Cobertura mínima:** ≥80% en parsers y hooks — **cumplida**: 96.13% statements, 80.81% branches, 98.41% funciones, 100% líneas sobre `parsers.js`, `http.js`, `useHomeStats.js`, `useClientesFilter.js`, `useDeudaPorCliente.js`, `useHistorialFilter.js` en conjunto.
+
+**Validación:**
+- [x] `npm run build` OK (307.15 kB — sin cambio, confirma que las deps de test no se bundlean).
+- [x] `npm test`: 15 → **36 tests**, todos pasan.
+- [x] `npm run test:coverage` confirma ≥80% en los archivos objetivo.
+- [x] `npx eslint src`: 5 → 5 (sin cambio).
+
+**Commit:** `test(fase-20): expandir cobertura de tests a parsers, hooks y cliente HTTP`.
+
+**Decisiones tomadas (desviaciones del plan original):**
+- **`services/parsers.js` es un solo archivo**, no está dividido en `ingresos.js`/`gastos.js`/etc. (esa división no forma parte de ningún plan de fase anterior) — expandir `parsers.test.js` en el mismo archivo real, en vez de crear 4 archivos de test para un módulo que no está partido así.
+- **No existe `services/api/client.js`** (ya documentado en Fases 15/18) — el test de cliente HTTP cubre `services/http.js` (el módulo real de timeout/retry, introducido en Fase 18).
+- **Entorno de test mixto**: `node` por defecto (parsers, http — rápidos, sin DOM) + `jsdom` solo en los archivos de hooks que lo declaran explícitamente (`// @vitest-environment jsdom`). Evita pagar el costo de arrancar un DOM para los tests que no lo necesitan.
+- **No se testearon `useResumenSemanal`/`useTopClientes`/`useDeudaResumen`/`useUltimosMovimientos`** (los otros 4 hooks de Home) — el plan original solo pedía `useHomeStats.test.js`; los demás quedan como candidatos naturales si se decide ampliar cobertura más adelante.
+- **`npm install -D @vitest/coverage-v8` (sin versión) falló** con `TypeError: Cannot read properties of null (reading 'children')` — bug de `npm@12.0.2`/arborist al resolver el árbol de dependencias de `vitest`. Se resolvió pineando la versión exacta (`@4.1.10`, igual que `vitest`).
+- **`coverage/` agregado a `.gitignore`** — no estaba, y `npm run test:coverage` genera un reporte HTML completo que no debe versionarse.
+
+**Notas para Fase 21:**
+- Fase 21 = `React.memo` en `SwipeableVenta`/`ClientesListItem`/`TopCliente`, `useDeferredValue` en `BusquedaGlobal`, code splitting con `React.lazy`.
+- La infraestructura de testing con `jsdom` ya está lista si Fase 21 necesita verificar renders con React DevTools Profiler o snapshots.
+- Sigue pendiente el smoke test manual en navegador con login real (arrastrado desde Fase 16).
 
 ---
 
