@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useDeferredValue, useState } from "react";
 import { K, DS, fmt, fDate, CCAT } from "../../constants";
 import Card from "../../shared/ui/Card";
 
@@ -23,12 +23,16 @@ import Card from "../../shared/ui/Card";
  *
  * Performance:
  * - Filtrado lineal O(n) sobre ingresos/gastos. Aceptable mientras
- *   el dataset no supere ~1000 items. Si crece, considerar memoización
- *   o índice (Fase 21 — useDeferredValue).
+ *   el dataset no supere ~1000 items. Si crece, considerar además un
+ *   índice o memoización del filtrado en sí.
+ * - `useDeferredValue` (Fase 21): el input (`q`) se muestra al instante,
+ *   pero el filtrado usa `deferredQ` — así React prioriza que el usuario
+ *   siga viendo lo que escribe sobre recalcular la lista en cada tecla.
  */
 function BusquedaGlobal({ db, onEditIngreso, onEditGasto }) {
   const [q, setQ] = useState("");
-  const QU = q.toUpperCase().trim();
+  const deferredQ = useDeferredValue(q);
+  const QU = deferredQ.toUpperCase().trim();
   const ingRes =
     QU.length < 2
       ? []

@@ -1,7 +1,12 @@
+import { memo } from "react";
 import { K, DS, fmt } from "../../constants";
 
 /**
  * Fila de cliente dentro de la lista paginada.
+ * Envuelto en `React.memo` (Fase 21): `onSelect` ya es una referencia
+ * estable (`setSel`, un setState) desde `Clientes.jsx`, así que memo evita
+ * re-renderizar cada fila cuando solo cambia la búsqueda/paginación y el
+ * `map` de origen no cambió.
  */
 function ClientesListItem({ nom, st, onSelect }) {
   return (
@@ -31,4 +36,4 @@ function ClientesListItem({ nom, st, onSelect }) {
   );
 }
 
-export default ClientesListItem;
+export default memo(ClientesListItem);

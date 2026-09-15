@@ -42,6 +42,42 @@
 
 ---
 
+## [2026-09-14] Sesión #22 — Fase 21: Optimizaciones de performance ✅
+**Estado:** ✅ Completada
+**Branch:** `refactor/architectural-cleanup`
+**Commit:** `perf(fase-21): React.memo + useDeferredValue + code splitting`
+
+### Archivos modificados
+- `src/features/clients/SwipeableVenta.jsx` — `React.memo`, firma de callbacks cambiada a `onEdit(v)`/`onToggleDebe(v, estado)`
+- `src/features/clients/ClienteHistorial.jsx` — `handleEdit`/`handleToggleDebe` con `useCallback` (necesario para que el memo de arriba sirva)
+- `src/features/clients/ClientesListItem.jsx` — `React.memo`
+- `src/features/home/TopClientes.jsx` — `React.memo`
+- `src/features/search/BusquedaGlobal.jsx` — `useDeferredValue` en el filtrado
+- `src/App.jsx` — 5 sub-tabs de "Más" con `React.lazy` + `Suspense`
+
+### Cambios realizados
+- Bundle principal: 307.15 kB → 288.90 kB (-6%), más 5 chunks de 3.4-5 kB bajo demanda.
+- `React.memo` en 3 componentes de lista, con el ajuste de callbacks necesario en `SwipeableVenta`/`ClienteHistorial` para que realmente sirva.
+
+### Decisiones tomadas
+- **`React.memo` solo en `SwipeableVenta` no habría hecho nada**: el padre pasaba callbacks inline nuevos cada render. Se cambió la firma para recibir el item como argumento y el padre pasa `useCallback`s estables.
+- Límite honesto documentado: estos memos no sobreviven a un `loadData()` real (los parsers crean objetos nuevos cada sync) — el beneficio es sobre interacciones locales (buscar, paginar, abrir acordeones), no sobre sync.
+- `useDeferredValue` solo en el filtrado, no en el valor del input (que debe sentirse instantáneo).
+
+### Problemas encontrados
+- Ninguno bloqueante. Mismos 5 errores de lint de fases anteriores.
+
+### Validación
+- [x] `npm run build`: bundle principal reducido, no aumentado
+- [x] `npm test`: 36 tests pasan
+- [ ] React DevTools Profiler en vivo — no verificado (mismo caveat de Fases 16-20)
+
+### Próximos pasos
+1. **Esperar autorización** para iniciar **Fase 22: Limpieza final**.
+2. El smoke test manual pendiente se vuelve más urgente antes de la Fase 23 (deploy).
+
+---
+
 ## [2026-09-14] Sesión #21 — Fase 20: Tests adicionales ✅
 **Estado:** ✅ Completada
 **Branch:** `refactor/architectural-cleanup`

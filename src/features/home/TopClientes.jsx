@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { K, DS, fmt } from "../../constants";
 
 const MEDALS = ["#C9A84C", "#A8A8A8", "#8B6914", "#38383A", "#38383A"];
@@ -9,6 +10,11 @@ const MEDALS = ["#C9A84C", "#A8A8A8", "#8B6914", "#38383A", "#38383A"];
  * Props:
  * - `top5`: array de tuplas [nombre, { g: number, n: number }]
  * - `deudaPorNombre`: mapa { [nombreUpperTrim]: saldo } para detectar deuda alta
+ *
+ * Envuelto en `React.memo` (Fase 21): sin callbacks, ambas props vienen de
+ * `useTopClientes`/`useDeudaResumen` (`useMemo`), así que se saltan
+ * re-renders cuando `Home` cambia por estado no relacionado (ej. abrir el
+ * acordeón de "Deben cobrar").
  */
 function TopClientes({ top5, deudaPorNombre }) {
   if (top5.length === 0) return null;
@@ -37,4 +43,4 @@ function TopClientes({ top5, deudaPorNombre }) {
   );
 }
 
-export default TopClientes;
+export default memo(TopClientes);

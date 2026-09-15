@@ -1,11 +1,19 @@
+import { useCallback } from "react";
 import { K } from "../../constants";
 import Card from "../../shared/ui/Card";
 import SwipeableVenta from "./SwipeableVenta";
 
 /**
  * Historial paginado de ventas del cliente, con swipe para cambiar deuda.
+ *
+ * `handleEdit`/`handleToggleDebe` están envueltos en `useCallback` (Fase 21)
+ * para que sean referencias estables entre renders — necesario para que el
+ * `React.memo` de `SwipeableVenta` funcione de verdad.
  */
 function ClienteHistorial({ ventasFiltradas, pagH, setPagH, onEditIngreso, onMarcarPagado }) {
+  const handleEdit = useCallback((v) => onEditIngreso(v), [onEditIngreso]);
+  const handleToggleDebe = useCallback((v, estado) => onMarcarPagado([v], estado), [onMarcarPagado]);
+
   const sortedV = [...ventasFiltradas].sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
   const totalPH = Math.max(1, Math.ceil(sortedV.length / 10));
   const paginaHistorial = Math.min(pagH, totalPH);
@@ -19,7 +27,7 @@ function ClienteHistorial({ ventasFiltradas, pagH, setPagH, onEditIngreso, onMar
           {sliceV.length === 0 && <div style={{ textAlign: "center", color: K.muted, padding: 16, fontSize: 13 }}>Sin compras este período</div>}
           {sliceV.map((v, i, arr) => {
             const debe = v.debe === "SI";
-            return <SwipeableVenta key={v._row || i} v={v} debe={debe} onEdit={() => onEditIngreso(v)} onToggleDebe={(estado) => onMarcarPagado([v], estado)} isLast={i === arr.length - 1} />;
+            return <SwipeableVenta key={v._row || i} v={v} debe={debe} onEdit={handleEdit} onToggleDebe={handleToggleDebe} isLast={i === arr.length - 1} />;
           })}
           {totalPH > 1 && (
             <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 10, marginTop: 12, paddingTop: 10, borderTop: `1px solid ${K.border}` }}>

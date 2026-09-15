@@ -1,19 +1,27 @@
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { K, DS } from "./constants";
 import Btn from "./shared/ui/Btn";
 import LoginScreen from "./features/auth/LoginScreen";
 import Historial from "./features/history/Historial";
-import Configuracion from "./features/settings/Configuracion";
-import Inventario from "./features/inventario/Inventario";
-import Personal from "./features/personal/Personal";
-import BusquedaGlobal from "./features/search/BusquedaGlobal";
-import Tareas from "./features/tareas/Tareas";
 import Clientes from "./features/clients/Clientes";
 import Home from "./features/home/Home";
 import AppLayout from "./app/AppLayout";
 import { useAuth } from "./app/hooks/useAuth";
 import { useData } from "./app/hooks/useData";
 import { useNav } from "./app/hooks/useNav";
+
+// Sub-tabs de "Más" cargados on-demand (Fase 21): solo se piden al abrir
+// esa pestaña, y solo el sub-tab elegido — nadie los necesita en la carga
+// inicial (login, Home, Clientes, Historial).
+const BusquedaGlobal = lazy(() => import("./features/search/BusquedaGlobal"));
+const Inventario = lazy(() => import("./features/inventario/Inventario"));
+const Tareas = lazy(() => import("./features/tareas/Tareas"));
+const Personal = lazy(() => import("./features/personal/Personal"));
+const Configuracion = lazy(() => import("./features/settings/Configuracion"));
+
+const cargandoSubTab = (
+  <div style={{ textAlign: "center", color: K.muted, padding: "40px 0", fontSize: 13 }}>Cargando...</div>
+);
 
 // ═══ MÁS ═══════════════════════════════════════════════════════
 // Sub-tabs de Más (no es un wrapper, tiene estado y dispatch).
@@ -31,11 +39,13 @@ function Mas({ db, onEditIngreso, onEditGasto, onAddInv, onEditInv, onDeleteInv,
           </button>
         ))}
       </div>
-      {v === "buscar" && <BusquedaGlobal db={db} onEditIngreso={onEditIngreso} onEditGasto={onEditGasto} />}
-      {v === "inv" && <Inventario db={db} onAdd={onAddInv} onEdit={onEditInv} onDelete={onDeleteInv} />}
-      {v === "tareas" && (<Tareas />)}
-      {v === "personal" && <Personal db={db} onAdd={onAddDeuda} onEdit={onEditDeuda} onDelete={onDeleteDeuda} />}
-      {v === "config" && <Configuracion />}
+      <Suspense fallback={cargandoSubTab}>
+        {v === "buscar" && <BusquedaGlobal db={db} onEditIngreso={onEditIngreso} onEditGasto={onEditGasto} />}
+        {v === "inv" && <Inventario db={db} onAdd={onAddInv} onEdit={onEditInv} onDelete={onDeleteInv} />}
+        {v === "tareas" && (<Tareas />)}
+        {v === "personal" && <Personal db={db} onAdd={onAddDeuda} onEdit={onEditDeuda} onDelete={onDeleteDeuda} />}
+        {v === "config" && <Configuracion />}
+      </Suspense>
     </div>
   );
 }

@@ -10,10 +10,10 @@
 
 | Métrica | Valor |
 |---|---|
-| Fase actual | **20 — Tests adicionales** ✅ |
-| Última fase completada | **20 — Tests adicionales** |
-| Próxima fase | **21 — Optimizaciones de performance** |
-| Estado | 🟢 **Fase 20 lista. Esperando autorización para Fase 21** |
+| Fase actual | **21 — Optimizaciones de performance** ✅ |
+| Última fase completada | **21 — Optimizaciones de performance** |
+| Próxima fase | **22 — Limpieza final** |
+| Estado | 🟢 **Fase 21 lista. Esperando autorización para Fase 22** |
 
 ### Fase 0 — Backup + branch ✅
 **Objetivo:** Snapshot del estado actual antes de cualquier cambio.
@@ -719,17 +719,30 @@ Convertir `App.jsx` (2.687 líneas, single-file) en una **feature-based architec
 
 ---
 
-### Fase 21 — Optimizaciones de performance ⏸️
+### Fase 21 — Optimizaciones de performance ✅
 **Cambios:**
-- `React.memo` en `SwipeableVenta`, `ClientesListItem`, `TopCliente`.
-- `useDeferredValue` en `BusquedaGlobal`.
-- Code splitting con `React.lazy` en sub-tabs de "Más".
+- `React.memo` en `SwipeableVenta.jsx`, `ClientesListItem.jsx` y `TopClientes.jsx` (el plan decía "TopCliente"; el archivo real es `TopClientes.jsx`, sin sub-componente por item — ver Fase 14).
+- `useDeferredValue` en `BusquedaGlobal.jsx`.
+- Code splitting con `React.lazy` + `Suspense` en los 5 sub-tabs de "Más" (`BusquedaGlobal`, `Inventario`, `Tareas`, `Personal`, `Configuracion`).
 
 **Validación:**
-- [ ] React DevTools Profiler muestra menos renders por interacción.
-- [ ] Build size no aumenta significativamente.
+- [x] Build size: bundle principal **307.15 kB → 288.90 kB** (-6%), más 5 chunks de 3.4-5 kB que solo se piden al abrir cada sub-tab de "Más". No hay aumento — hay reducción del bundle inicial.
+- [x] `npm test`: 36 tests siguen pasando (sin regresión de comportamiento).
+- [x] `npx eslint src`: 5 → 5 (sin cambio).
+- [ ] "React DevTools Profiler muestra menos renders" — **no verificado con el Profiler real** (requiere navegador con login de producción, mismo caveat arrastrado desde Fase 16). Verificado por análisis de código en su lugar (ver decisiones).
 
 **Commit:** `perf(fase-21): React.memo + useDeferredValue + code splitting`.
+
+**Decisiones tomadas (desviaciones/hallazgos del plan original):**
+- **`React.memo` por sí solo no alcanzaba en `SwipeableVenta`**: `ClienteHistorial.jsx` le pasaba `onEdit={() => onEditIngreso(v)}` y `onToggleDebe={(estado) => onMarcarPagado([v], estado)}` — funciones inline nuevas en cada render, que invalidan la comparación de props de `memo` sin importar nada más. Se cambió la firma de `SwipeableVenta` para que `onEdit(v)`/`onToggleDebe(v, estado)` reciban el item como argumento (en vez de capturarlo por closure), y `ClienteHistorial` ahora pasa `handleEdit`/`handleToggleDebe` envueltos en `useCallback` — esas sí son referencias estables. Sin este cambio, el `React.memo` habría sido cosmético (no habría evitado ningún re-render real).
+- **`ClientesListItem` y `TopClientes` no necesitaron ese ajuste**: ya recibían callbacks estables (`setSel`, un setState) o ninguno (`TopClientes` es de solo lectura), y sus demás props vienen de hooks `useMemo` — el `React.memo` directo sí es efectivo ahí.
+- **Límite honesto de estos memos**: siguen sin sobrevivir a un `loadData()` real (auto-sync cada 2 min o guardar algo), porque `parseIngresos`/`parseClientesResumen` crean objetos nuevos en cada parseo — eso rompe la igualdad referencial de `v`/`st`/`top5` sin importar el memo. El beneficio real de esta fase es evitar re-renders por **interacciones locales sin recarga de datos** (escribir en la búsqueda, abrir un acordeón, paginar) — no por sync. Una optimización más profunda (normalizar estado por id) queda fuera de alcance de esta fase.
+- **`useDeferredValue` se aplicó solo al filtrado (`QU`), no al valor del input** (`q` sigue inmediato) — el input debe sentirse instantáneo; lo que se difiere es el cálculo de `ingRes`/`gasRes`.
+- **Fallback de `Suspense`** es un simple texto "Cargando..." con los mismos tokens (`K.muted`) del resto de estados vacíos de la app, no un componente nuevo — no se justificaba un spinner dedicado para una carga que en la práctica dura milisegundos (chunks de 3-5 kB).
+
+**Notas para Fase 22:**
+- Fase 22 = alias `@/`, CSP en `vercel.json`, actualizar `AGENTS.md` raíz con la arquitectura nueva, limpiar los 5 errores de lint pre-existentes documentados desde Fase 1 (`Buffer`, `GraficoCircular`, 2× `set-state-in-effect`, 1 unused var).
+- Sigue pendiente el smoke test manual en navegador con login real (arrastrado desde Fase 16) — **recomendado antes del deploy de validación (Fase 23)**, ya que varias fases (16, 17, 19, 21) tocaron cómo se renderiza y sincroniza la app sin verificación visual en vivo.
 
 ---
 

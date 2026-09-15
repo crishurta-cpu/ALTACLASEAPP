@@ -1,13 +1,19 @@
-import { useRef, useState } from "react";
+import { memo, useRef, useState } from "react";
 import { K, DS, fmt, fDate } from "../../constants";
 
 /**
  * Fila táctil de venta con swipe bidireccional.
  *
  * Regla crítica:
- * - Swipe izquierda llama onToggleDebe("NO").
- * - Swipe derecha llama onToggleDebe("SI").
- * - Tap abre edición.
+ * - Swipe izquierda llama onToggleDebe(v, "NO").
+ * - Swipe derecha llama onToggleDebe(v, "SI").
+ * - Tap abre edición (onEdit(v)).
+ *
+ * Envuelto en `React.memo` (Fase 21): `onEdit`/`onToggleDebe` reciben `v`
+ * como argumento en vez de tenerlo "cerrado" (closure) para que el padre
+ * pueda pasar una referencia estable (`useCallback`) — de lo contrario
+ * memo no sirve de nada, porque una función inline nueva en cada render
+ * del padre siempre invalida la comparación de props.
  */
 function SwipeableVenta({ v, debe, onEdit, onToggleDebe, isLast }) {
   const startX = useRef(null);
@@ -41,11 +47,11 @@ function SwipeableVenta({ v, debe, onEdit, onToggleDebe, isLast }) {
     setSwiping(false);
     setOffsetX(0);
     if (!wasSwiping && Math.abs(dx) < 8 && Math.abs(dy) < 8) {
-      onEdit();
+      onEdit(v);
       return;
     }
-    if (dx < -THRESHOLD) onToggleDebe("NO");
-    if (dx > THRESHOLD) onToggleDebe("SI");
+    if (dx < -THRESHOLD) onToggleDebe(v, "NO");
+    if (dx > THRESHOLD) onToggleDebe(v, "SI");
   };
 
   const actionColor = offsetX < -THRESHOLD ? K.green : K.red;
@@ -81,4 +87,4 @@ function SwipeableVenta({ v, debe, onEdit, onToggleDebe, isLast }) {
   );
 }
 
-export default SwipeableVenta;
+export default memo(SwipeableVenta);
