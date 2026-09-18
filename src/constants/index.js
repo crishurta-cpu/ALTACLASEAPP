@@ -1,9 +1,6 @@
 // Constants and utility functions for design and business logic
 
-export const API = "https://script.google.com/macros/s/AKfycbySGO0LtHtnT7SBEHF22TfsDUmz3kqmz3C2a-tZk6zL3_ZFuEoUF485h4QWvxq4H_S7/exec";
 export const SYNC_INTERVAL_MS = 120000; // 2 minutos
-export const CLAVE_ACCESO = "ClaudeAlta";
-export const LS_AUTH_KEY = "altaclase_auth_ok";
 
 export const ACCENT_KEY = "altaclase_accent";
 export const ACCENTS = [

@@ -1,37 +1,42 @@
 import { useState } from "react";
-import { CLAVE_ACCESO, LS_AUTH_KEY, DS, K, getAccentColor } from "../../constants";
+import { DS, K, getAccentColor } from "../../constants";
+import { useAuth } from "../../app/hooks/useAuth";
 
 /**
- * Pantalla de login con clave de acceso.
- *
- * Props:
- * - onSuccess: () => void, callback al autenticarse correctamente
- *
- * Comportamiento:
- * - Valida contra CLAVE_ACCESO (hardcoded en constants).
- * - Al éxito: guarda LS_AUTH_KEY en localStorage y llama onSuccess.
- * - Al error: muestra mensaje y limpia el input.
- * - Auto-cierre por inactividad se maneja en App (useEffect separado).
+ * Pantalla de login con Supabase Auth real (email + contraseña).
+ * Reemplaza la clave de acceso hardcodeada (Fase M5, cutover).
  */
-function LoginScreen({ onSuccess }) {
-  const [clave, setClave] = useState("");
-  const [error, setError] = useState(false);
+function LoginScreen() {
+  const { signIn, signUp } = useAuth();
+  const [modo, setModo] = useState("login"); // "login" | "signup"
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [aviso, setAviso] = useState("");
   const [entrando, setEntrando] = useState(false);
 
-  const intentar = () => {
-    if (clave === CLAVE_ACCESO) {
-      setEntrando(true);
-      setTimeout(() => {
-        localStorage.setItem(LS_AUTH_KEY, "1");
-        onSuccess();
-      }, 350);
-    } else {
-      setError(true);
-      setClave("");
+  const accent = getAccentColor();
+
+  const intentar = async () => {
+    if (!email || !password) return;
+    setEntrando(true);
+    setError("");
+    setAviso("");
+    try {
+      if (modo === "signup") {
+        const data = await signUp(email, password);
+        if (!data.session) {
+          setAviso("Cuenta creada — revisa tu correo para confirmarla antes de entrar.");
+        }
+      } else {
+        await signIn(email, password);
+      }
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setEntrando(false);
     }
   };
-
-  const accent = getAccentColor();
 
   return (
     <div
@@ -76,7 +81,6 @@ function LoginScreen({ onSuccess }) {
           position: "relative",
         }}
       >
-        {/* Logo */}
         <div style={{ textAlign: "center", marginBottom: 36 }}>
           <div
             style={{
@@ -97,32 +101,22 @@ function LoginScreen({ onSuccess }) {
             A
           </div>
           <div
-            style={{
-              color: K.white,
-              fontWeight: 700,
-              fontSize: 24,
-              letterSpacing: -0.5,
-              marginBottom: 4,
-            }}
+            style={{ color: K.white, fontWeight: 700, fontSize: 24, letterSpacing: -0.5, marginBottom: 4 }}
           >
             Altaclase Bodega
           </div>
-          <div style={{ color: K.muted, fontSize: 13 }}>
-            Control financiero B2B
-          </div>
+          <div style={{ color: K.muted, fontSize: 13 }}>Control financiero B2B</div>
         </div>
 
-        {/* Input clave */}
-        <div style={{ marginBottom: error ? 8 : 16 }}>
+        <div style={{ marginBottom: 12 }}>
           <input
-            type="password"
-            value={clave}
+            type="email"
+            value={email}
             onChange={(e) => {
-              setClave(e.target.value);
-              setError(false);
+              setEmail(e.target.value);
+              setError("");
             }}
-            onKeyDown={(e) => e.key === "Enter" && intentar()}
-            placeholder="Clave de acceso"
+            placeholder="Email"
             autoFocus
             style={{
               width: "100%",
@@ -131,17 +125,37 @@ function LoginScreen({ onSuccess }) {
               borderRadius: DS.r.md,
               color: K.text,
               padding: "15px 18px",
-              fontSize: 17,
+              fontSize: 15,
               outline: "none",
               boxSizing: "border-box",
-              textAlign: "center",
-              letterSpacing: 2,
+              marginBottom: 10,
               WebkitAppearance: "none",
-              boxShadow: error ? `0 0 0 3px ${K.red}22` : "none",
-              transition: "border .15s, box-shadow .15s",
+            }}
+          />
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => {
+              setPassword(e.target.value);
+              setError("");
+            }}
+            onKeyDown={(e) => e.key === "Enter" && intentar()}
+            placeholder="Contraseña"
+            style={{
+              width: "100%",
+              background: K.card3,
+              border: `1px solid ${error ? K.red + "88" : K.border}`,
+              borderRadius: DS.r.md,
+              color: K.text,
+              padding: "15px 18px",
+              fontSize: 15,
+              outline: "none",
+              boxSizing: "border-box",
+              WebkitAppearance: "none",
             }}
           />
         </div>
+
         {error && (
           <div
             style={{
@@ -154,40 +168,69 @@ function LoginScreen({ onSuccess }) {
               padding: "7px",
             }}
           >
-            Clave incorrecta — inténtalo de nuevo
+            {error}
           </div>
         )}
+
+        {aviso && (
+          <div
+            style={{
+              color: K.green,
+              fontSize: 12,
+              textAlign: "center",
+              marginBottom: 12,
+              background: `${K.green}12`,
+              borderRadius: DS.r.sm,
+              padding: "7px",
+            }}
+          >
+            {aviso}
+          </div>
+        )}
+
         <button
           onClick={intentar}
-          disabled={!clave || entrando}
+          disabled={!email || !password || entrando}
           style={{
             width: "100%",
             padding: "15px",
-            background: !clave || entrando ? K.card3 : accent,
+            background: !email || !password || entrando ? K.card3 : accent,
             border: "none",
             borderRadius: DS.r.md,
-            color: !clave || entrando ? K.muted : "#000",
+            color: !email || !password || entrando ? K.muted : "#000",
             fontSize: 15,
             fontWeight: 600,
-            cursor: !clave || entrando ? "not-allowed" : "pointer",
-            opacity: !clave || entrando ? 0.5 : 1,
-            boxShadow: !clave || entrando ? "none" : `0 4px 20px ${accent}40`,
+            cursor: !email || !password || entrando ? "not-allowed" : "pointer",
+            opacity: !email || !password || entrando ? 0.5 : 1,
+            boxShadow: !email || !password || entrando ? "none" : `0 4px 20px ${accent}40`,
             transition: "all .2s",
             WebkitTapHighlightColor: "transparent",
           }}
         >
-          {entrando ? "Entrando..." : "Entrar →"}
+          {entrando ? "..." : modo === "signup" ? "Crear cuenta →" : "Entrar →"}
         </button>
-        <div
+
+        <button
+          onClick={() => {
+            setModo((m) => (m === "signup" ? "login" : "signup"));
+            setError("");
+          }}
           style={{
-            textAlign: "center",
-            fontSize: 11,
+            width: "100%",
+            background: "none",
+            border: "none",
             color: K.muted,
-            marginTop: 20,
-            lineHeight: 1.6,
+            fontSize: 12,
+            marginTop: 16,
+            cursor: "pointer",
+            textAlign: "center",
           }}
         >
-          Sesión se cierra automáticamente en 3 minutos
+          {modo === "signup" ? "Ya tengo cuenta — iniciar sesión" : "Primera vez — crear cuenta"}
+        </button>
+
+        <div style={{ textAlign: "center", fontSize: 11, color: K.muted, marginTop: 16, lineHeight: 1.6 }}>
+          Sesión se cierra automáticamente en 3 minutos de inactividad
         </div>
       </div>
     </div>

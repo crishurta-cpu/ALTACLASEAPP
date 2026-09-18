@@ -51,8 +51,8 @@ function Mas({ db, onEditIngreso, onEditGasto, onAddInv, onEditInv, onDeleteInv,
 }
 
 export default function App() {
-  const { autenticado, login } = useAuth();
-  const { tab, setTab, setEditIng, setEditGas } = useNav();
+  const { autenticado } = useAuth();
+  const { tab, setEditIng, setEditGas } = useNav();
   const {
     db, loading, initDone, initError, lastSync, loadData,
     marcarPagado, registrarAbono,
@@ -61,7 +61,7 @@ export default function App() {
   } = useData();
 
   if (!autenticado) {
-    return <LoginScreen onSuccess={() => { login(); setTab("home"); }} />;
+    return <LoginScreen />;
   }
 
   if (!initDone) {
@@ -69,7 +69,7 @@ export default function App() {
       <div style={{ background: K.bg, minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, color: K.text, fontFamily: "-apple-system,sans-serif" }}>
         <span style={{ fontSize: 56 }}>👟</span>
         <div style={{ color: K.gold, fontWeight: 700, fontSize: 18 }}>Altaclase Bodega</div>
-        <div style={{ color: K.muted, fontSize: 13 }}>Conectando con Google Sheets...</div>
+        <div style={{ color: K.muted, fontSize: 13 }}>Conectando con Supabase...</div>
         <div style={{ width: 40, height: 4, background: K.border, borderRadius: 2, overflow: "hidden", marginTop: 8 }}>
           <div style={{ width: "60%", height: "100%", background: K.gold, borderRadius: 2 }} />
         </div>
@@ -81,7 +81,7 @@ export default function App() {
     return (
       <div style={{ background: K.bg, minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14, color: K.text, fontFamily: "-apple-system,sans-serif", padding: 24, textAlign: "center" }}>
         <span style={{ fontSize: 48 }}>⚠️</span>
-        <div style={{ color: K.red, fontWeight: 700, fontSize: 17 }}>No conectó con Sheets</div>
+        <div style={{ color: K.red, fontWeight: 700, fontSize: 17 }}>No conectó con Supabase</div>
         <div style={{ color: K.muted, fontSize: 13, maxWidth: 300 }}>{initError}</div>
         <div style={{ maxWidth: 280, width: "100%" }}><Btn label="Reintentar" onClick={() => loadData(false)} loading={loading} /></div>
       </div>

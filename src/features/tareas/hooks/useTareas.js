@@ -1,26 +1,24 @@
 import { useEffect, useState } from "react";
-import { tareasService } from "../../../services/sheets";
+import * as tasksService from "../../../services/supabase/tasks.service";
+import { useAuth } from "../../../app/hooks/useAuth";
 
 /**
- * Encapsula estado y acciones de la feature Tareas.
- *
- * Retorna:
- * - tareas: array de tareas cargadas.
- * - texto/setTexto: input controlado de nueva tarea.
- * - cargando: boolean, true durante la carga inicial o recarga.
- * - handleCrear: crea la tarea del input y recarga la lista.
- * - handleEliminar: elimina una tarea por `_row` y recarga la lista.
+ * Encapsula estado y acciones de la feature Tareas, contra la tabla
+ * `tasks` de Supabase (Fase M5, cutover — reemplaza la hoja TAREAS).
+ * Shape expuesto a la UI sin cambios: `{ _row, Texto }` por tarea.
  */
 export function useTareas() {
+  const { organizationId } = useAuth();
   const [tareas, setTareas] = useState([]);
   const [texto, setTexto] = useState("");
   const [cargando, setCargando] = useState(true);
 
   async function cargarTareas() {
+    if (!organizationId) return;
     try {
       setCargando(true);
-      const data = await tareasService.readAll();
-      setTareas(data);
+      const data = await tasksService.readAll(organizationId);
+      setTareas(data.map((t) => ({ _row: t.id, Texto: t.title })));
     } catch (error) {
       console.error("Error cargando tareas:", error);
     } finally {
@@ -29,29 +27,15 @@ export function useTareas() {
   }
 
   useEffect(() => {
-    // Carga inicial al montar (patrón estándar "fetch on mount"). El lint
-    // de react-hooks marca cualquier setState alcanzable desde un efecto,
-    // incluso este caso legítimo — no hay estado derivado que "sincronizar",
-    // es una carga de datos real (mismo patrón que DataProvider.loadData()).
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- carga de datos real, no estado derivado
     cargarTareas();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- cargarTareas no esta memoizada a proposito
+  }, [organizationId]);
 
   async function handleCrear() {
-    if (!texto.trim()) return;
-
-    const nuevaTarea = {
-      id: crypto.randomUUID(),
-      texto,
-      completada: false,
-      prioridad: "Media",
-      categoria: "General",
-      fecha: new Date().toISOString(),
-      usuario: "admin",
-    };
-
+    if (!texto.trim() || !organizationId) return;
     try {
-      await tareasService.append(nuevaTarea);
+      await tasksService.append(organizationId, texto.trim());
       setTexto("");
       cargarTareas();
     } catch (error) {
@@ -61,7 +45,7 @@ export function useTareas() {
 
   async function handleEliminar(tarea) {
     try {
-      await tareasService.remove(tarea._row);
+      await tasksService.remove(tarea._row);
       cargarTareas();
     } catch (error) {
       console.error("Error eliminando tarea:", error);
