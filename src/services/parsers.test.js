@@ -8,6 +8,14 @@ import {
 import {
   parseIngresos,
   parseGastos,
+  parseInventario,
+  parseClientesResumen,
+  parseClientesEspeciales,
+  parseDeudaPersonal,
+  ingresoToRow,
+  gastoToRow,
+  inventarioToRow,
+  deudaPersonalToRow,
 } from "./parsers";
 
 describe("Business Rule Filters", () => {
@@ -111,5 +119,84 @@ describe("Data Parsers", () => {
     expect(parsed[0].concepto).toBe("GASTO FIJO");
     expect(parsed[0].costo).toBe(50000);
     expect(parsed[0].referencia).toBe("Parqueadero");
+  });
+
+  it("should discard gastos rows without concepto or costo", () => {
+    const rawRows = [
+      { _row: 1, "Marca temporal": "2026-07-06T12:00:00.000Z", "CONCEPTO": "", "COSTO": "1000" },
+      { _row: 2, "Marca temporal": "2026-07-06T12:00:00.000Z", "CONCEPTO": "MERCADO", "COSTO": "0" },
+    ];
+    expect(parseGastos(rawRows)).toHaveLength(0);
+  });
+
+  it("should parse inventario rows correctly and discard rows without producto", () => {
+    const rawRows = [
+      { _row: 3, "FECHA": "2026-07-01", "PRODUCTO": "Nike Air Force", "PROVEEDOR": "Lider", "COSTO": "80000" },
+      { _row: 4, "FECHA": "2026-07-02", "PRODUCTO": "", "PROVEEDOR": "Lider", "COSTO": "1000" },
+      { _row: 5, "FECHA": "fecha-invalida", "PRODUCTO": "Adidas Samba", "COSTO": "1000" },
+    ];
+    const parsed = parseInventario(rawRows);
+    expect(parsed).toHaveLength(1);
+    expect(parsed[0]).toMatchObject({ id: "inv3", _row: 3, producto: "Nike Air Force", proveedor: "Lider", costo: 80000 });
+  });
+
+  it("should parse clientesResumen with deudaTotal and abonos", () => {
+    const rawRows = [
+      { "CLIENTE": "Juan", "TOTAL VENTA": "500000", "SALDO": "100000", "DEBE?": "si", "ABONOS": "20000", "DEUDA TOTAL": "80000" },
+      { "CLIENTE": "" }, // sin cliente, descartada
+    ];
+    const parsed = parseClientesResumen(rawRows);
+    expect(parsed).toHaveLength(1);
+    expect(parsed[0]).toMatchObject({ cliente: "Juan", totalVenta: 500000, saldo: 100000, debe: "SI", abonos: 20000, deudaTotal: 80000 });
+  });
+
+  it("should parse clientesEspeciales using CLIENTE LIMPIO with fallback a CLIENTE", () => {
+    const rawRows = [
+      { "CLIENTE LIMPIO": "BAYRON", "SALDO INICIAL": "0", "RECARGAS": "50000", "COMPRAS": "30000", "SALDO": "20000" },
+      { "CLIENTE": "MARCO", "SALDO": "5000" },
+    ];
+    const parsed = parseClientesEspeciales(rawRows);
+    expect(parsed).toHaveLength(2);
+    expect(parsed[0].cliente).toBe("BAYRON");
+    expect(parsed[1].cliente).toBe("MARCO");
+  });
+
+  it("should parse deudaPersonal rows and discard rows without movimiento", () => {
+    const rawRows = [
+      { _row: 7, "FECHA": "2026-07-01", "MOVIMIENTO": "Prestamo", "PRESTO": "100000", "PAGO": "0", "SALDO": "100000" },
+      { _row: 8, "FECHA": "2026-07-02", "MOVIMIENTO": "" },
+    ];
+    const parsed = parseDeudaPersonal(rawRows);
+    expect(parsed).toHaveLength(1);
+    expect(parsed[0]).toMatchObject({ id: "dp7", _row: 7, movimiento: "Prestamo", presto: 100000, pago: 0, saldo: 100000 });
+  });
+});
+
+describe("Row Converters (orden de columnas debe coincidir con Sheets)", () => {
+  it("ingresoToRow preserves column order", () => {
+    const row = ingresoToRow({
+      fecha: "2026-07-06T12:00:00.000Z", tipo: "VENTA", producto: "Nike", cliente: "Juan",
+      proveedor: "Lider", costo: 100, precioVenta: 150, debe: "NO", ganancia: 50, margen: "33%",
+    });
+    expect(row).toHaveLength(10);
+    expect(row[1]).toBe("VENTA");
+    expect(row[2]).toBe("Nike");
+    expect(row[7]).toBe("NO");
+    expect(row[9]).toBe("33%");
+  });
+
+  it("gastoToRow preserves column order", () => {
+    const row = gastoToRow({ fecha: "2026-07-06T12:00:00.000Z", concepto: "MERCADO", costo: 1000, referencia: "Arriendo" });
+    expect(row).toEqual([expect.any(String), "MERCADO", 1000, "Arriendo"]);
+  });
+
+  it("inventarioToRow preserves column order (FECHA, PRODUCTO, PROVEEDOR, COSTO)", () => {
+    const row = inventarioToRow({ fecha: "2026-07-06T12:00:00.000Z", producto: "Nike", proveedor: "Lider", costo: 80000 });
+    expect(row).toEqual([expect.any(String), "Nike", "Lider", 80000]);
+  });
+
+  it("deudaPersonalToRow preserves column order (FECHA, MOVIMIENTO, PRESTO, PAGO, SALDO)", () => {
+    const row = deudaPersonalToRow({ fecha: "2026-07-01", movimiento: "Prestamo", presto: 100000, pago: "", saldo: 100000 });
+    expect(row).toEqual(["2026-07-01", "Prestamo", 100000, "", 100000]);
   });
 });

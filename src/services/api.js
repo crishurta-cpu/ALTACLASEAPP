@@ -1,11 +1,21 @@
 import { API } from "../constants";
+import { fetchConTimeout, fetchConReintento } from "./http";
 
 // GET con todo en query string + row en base64. Esto evita problemas de
 // longitud de URL y de caracteres especiales (tildes, comas) en nombres
 // largos de cliente/producto/proveedor.
+//
+// Timeout de 15s en TODAS las acciones (ver ./http.js). Reintento automático
+// SOLO en lecturas (action:"read"): reintentar una escritura (append/update/
+// delete) es peligroso si el servidor sí procesó la primera petición pero la
+// respuesta tardó más que el timeout — duplicaría la operación.
 export async function callApi(params) {
   const qs = new URLSearchParams(params).toString();
-  const res = await fetch(`${API}?${qs}`, { method: "GET", redirect: "follow" });
+  const url = `${API}?${qs}`;
+  const options = { method: "GET", redirect: "follow" };
+  const res = params.action === "read"
+    ? await fetchConReintento(url, options)
+    : await fetchConTimeout(url, options);
   if (!res.ok) throw new Error("HTTP " + res.status);
   const json = await res.json();
   if (!json.ok) throw new Error(json.error || "Error de script");

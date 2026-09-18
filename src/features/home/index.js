@@ -1,0 +1,11 @@
+export { default } from "./Home";
+export { default as Home } from "./Home";
+export { default as Header } from "./Header";
+export { default as UtilidadCard } from "./UtilidadCard";
+export { default as StatsGrid } from "./StatsGrid";
+export { default as ResumenSemanal } from "./ResumenSemanal";
+export { default as TopClientes } from "./TopClientes";
+export { default as GraficoGananciaDiaria } from "./GraficoGananciaDiaria";
+export { default as TotalDeudaCard } from "./TotalDeudaCard";
+export { default as DebenCobrarAcordeon } from "./DebenCobrarAcordeon";
+export { default as UltimosGastosAcordeon } from "./UltimosGastosAcordeon";
