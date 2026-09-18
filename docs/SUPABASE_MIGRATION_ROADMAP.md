@@ -9,9 +9,9 @@
 
 | Métrica | Valor |
 |---|---|
-| Fase actual | **M1 — Conexión base** ✅ |
+| Fase actual | **M3 (parcial) — Tablas de mapeo pendientes creadas** ✅ |
 | Próxima fase | **M2 — Autenticación real (Supabase Auth)** |
-| Estado | 🟢 Cliente conectado. Esperando autorización para migrar el login. |
+| Estado | 🟢 Cliente conectado. Mapeo de DEUDA VALEN y TAREAS resuelto y aplicado. Entrando a implementar login real. |
 
 ---
 
@@ -99,10 +99,10 @@ Vistas: v_order_totals, v_order_profitability, v_order_balances (paid/balance/pa
 **Mapeo de campos pendiente de decidir** (Sheets → Supabase), por dominio:
 - INGRESOS → `orders` + `order_items` (una fila de Sheets = una orden con 1 item, salvo que se decida agrupar).
 - GASTOS → `expenses` (`type='business'`).
-- DEUDA VALEN → ¿`expenses type='personal'` + `transfers`? Necesita decisión explícita — no hay un mapeo 1:1 limpio (ver Fase M4).
+- DEUDA VALEN → **decidido 2026-09-18**: tabla nueva `personal_loans` (una fila por prestamista/deuda) + columna `loan_id` en `other_income` y `expenses` para enlazar cada movimiento. Un préstamo recibido se registra en `other_income` (`type='loan'`, ya excluido de la ganancia en `v_monthly_business`, solo suma en `v_financing`). Un pago se registra en `expenses` (`type='personal'`, ya sumado en `v_monthly_personal`). Vista nueva `v_personal_loan_balances` calcula el saldo restante por deuda (`total_borrowed - total_paid`). Migración: `supabase/migrations/20260918000000_personal_loans_and_tasks.sql`.
 - CLIENTES → `customers`; `CLIENTES_ESPECIALES` (Bayron/Marco/Marcos) → `customers.credit_enabled = true`, sin tabla aparte.
 - INVENTARIO → `products` + `purchases`.
-- TAREAS → sin tabla equivalente en este esquema — decidir si se queda en Sheets, se le crea una tabla nueva, o se descarta.
+- TAREAS → **decidido 2026-09-18**: tabla nueva `tasks` (`title`, `done`, `organization_id`) en el mismo proyecto Supabase, mismo patrón RLS que el resto. Migración: `supabase/migrations/20260918000000_personal_loans_and_tasks.sql`.
 
 ---
 
