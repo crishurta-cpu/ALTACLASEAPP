@@ -40,7 +40,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   const signUp = useCallback(async (email, password) => {
-    await authService.signUp(email, password);
+    return authService.signUp(email, password);
   }, []);
 
   const cerrarSesion = useCallback(async () => {
