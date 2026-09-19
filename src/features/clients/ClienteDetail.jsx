@@ -27,6 +27,7 @@ function ClienteDetail({
   onEditIngreso,
   onMarcarPagado,
   onRegistrarAbono,
+  onEliminarIngresos,
 }) {
   const { organizationId } = useAuth();
   const { editCliente } = useData();
@@ -108,7 +109,7 @@ function ClienteDetail({
         </div>
       )}
       <ClienteStats totalVentas={tv} ganancia={ganF} />
-      <ClienteHistorial ventasFiltradas={ventasFiltradas} pagH={pagH} setPagH={setPagH} onEditIngreso={onEditIngreso} onMarcarPagado={onMarcarPagado} />
+      <ClienteHistorial ventasFiltradas={ventasFiltradas} pagH={pagH} setPagH={setPagH} onEditIngreso={onEditIngreso} onMarcarPagado={onMarcarPagado} onEliminarIngresos={onEliminarIngresos} />
       <DeudaFactura cliente={cliente} ventasDeudoras={ventasDeudoras} abonos={abonos} totalDeuda={data?.saldo ?? null} />
       <ReporteClienteBtn cliente={cliente} ventasDeudoras={ventasDeudoras} abonos={abonos} totalDeuda={data?.saldo ?? null} />
       {editando && (

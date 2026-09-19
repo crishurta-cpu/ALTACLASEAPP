@@ -61,10 +61,11 @@ export default function AppLayout({ children }) {
           border-right:1px solid rgba(255,255,255,.07);padding:48px 16px 24px;
           position:static;top:0;left:0;bottom:0;z-index:100;}
         .ac-main-inner{width:100%;max-width:430px;margin:0 auto;}
-        .ac-nav-wrap{position:fixed;left:12px;right:12px;bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:200;}
+        .ac-nav-wrap{position:fixed;left:0;right:0;bottom:0;z-index:200;}
         .ac-nav{display:flex;align-items:center;justify-content:space-around;height:68px;
-          background:${K.ink};border-radius:${DS.r.xl}px;padding:0 6px;
-          box-shadow:0 14px 30px rgba(0,0,0,.5);}
+          padding-bottom:env(safe-area-inset-bottom,0px);box-sizing:content-box;
+          background:${K.ink};border-radius:${DS.r.xl}px ${DS.r.xl}px 0 0;padding-left:6px;padding-right:6px;
+          box-shadow:0 -8px 30px rgba(0,0,0,.5);}
         @media(min-width:768px) and (min-height:600px){
           .ac-sidebar{display:flex!important;}
           .ac-main-inner{max-width:none!important;margin-left:0!important;}

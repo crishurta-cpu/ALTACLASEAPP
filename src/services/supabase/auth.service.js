@@ -49,6 +49,23 @@ export async function updatePassword(newPassword) {
 }
 
 /**
+ * Envia un codigo de 6 digitos al correo de la cuenta para verificar
+ * identidad antes de cambiar la contraseña (pantalla interna de
+ * Configuracion, no el flujo de "olvidé mi contraseña"). No crea usuario
+ * nuevo: si el correo no existe, Supabase devuelve error.
+ */
+export async function sendPasswordChangeCode(email) {
+  const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false } });
+  if (error) throw error;
+}
+
+/** Verifica el codigo recibido por correo; si es correcto, refresca la sesion. */
+export async function verifyPasswordChangeCode(email, code) {
+  const { error } = await supabase.auth.verifyOtp({ email, token: code, type: "email" });
+  if (error) throw error;
+}
+
+/**
  * Devuelve el organization_id del usuario autenticado. Si no tiene ninguna
  * membresia todavia (primer signup), crea la organizacion por defecto una
  * sola vez via el RPC SECURITY DEFINER create_organization.

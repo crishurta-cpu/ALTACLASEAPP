@@ -8,7 +8,6 @@ import TopClientes from "./TopClientes";
 import GraficoGananciaDiaria from "./GraficoGananciaDiaria";
 import TotalDeudaCard from "./TotalDeudaCard";
 import DebenCobrarAcordeon from "./DebenCobrarAcordeon";
-import UltimosGastosAcordeon from "./UltimosGastosAcordeon";
 import useHomeStats from "./hooks/useHomeStats";
 import useResumenSemanal from "./hooks/useResumenSemanal";
 import useTopClientes from "./hooks/useTopClientes";
@@ -19,7 +18,7 @@ import useUltimosMovimientos from "./hooks/useUltimosMovimientos";
  * Vista principal (Home). Muestra resumen del mes en curso + semana + top clientes + deuda.
  *
  * Props:
- * - `db`: objeto con `ingresos`, `gastos`, `clientesResumen`, `deudaPersonal`, etc.
+ * - `db`: objeto con `ingresos`, `gastos`, `clientesResumen`, `prestamistas`, etc.
  * - `onRefresh`: callback que dispara recarga (botón sync).
  * - `loading`: boolean para deshabilitar sync mientras carga.
  * - `lastSync`: Date|null del último sync.
@@ -29,13 +28,12 @@ import useUltimosMovimientos from "./hooks/useUltimosMovimientos";
  */
 function Home({ db, onRefresh, loading, lastSync }) {
   const [debenAbierto, setDebenAbierto] = useState(false);
-  const [gastosAbierto, setGastosAbierto] = useState(false);
 
   const { ventas, gan, gastos, ahorro, util, mrg } = useHomeStats(db);
   const { ganSem, tendSem, ventasSem, gasSem } = useResumenSemanal(db);
   const { debenList, totalPorCobrar, deudaPorNombre } = useDeudaResumen(db);
   const { top5 } = useTopClientes(db, deudaPorNombre);
-  const { diasIng, ultimosGastos } = useUltimosMovimientos(db);
+  const { diasIng } = useUltimosMovimientos(db);
 
   return (
     <div style={{ padding: 0 }}>
@@ -59,12 +57,6 @@ function Home({ db, onRefresh, loading, lastSync }) {
             debenList={debenList}
             abierto={debenAbierto}
             onToggle={() => setDebenAbierto((v) => !v)}
-          />
-
-          <UltimosGastosAcordeon
-            ultimosGastos={ultimosGastos}
-            abierto={gastosAbierto}
-            onToggle={() => setGastosAbierto((v) => !v)}
           />
         </div>
 

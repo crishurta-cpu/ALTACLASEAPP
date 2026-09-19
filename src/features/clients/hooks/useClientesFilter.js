@@ -5,12 +5,12 @@ import useDeudaPorCliente from "./useDeudaPorCliente";
 export const PORPAGINA = 10;
 
 /**
- * Construye el mapa de clientes, aplica búsqueda/filtro por inicial y pagina.
+ * Construye el mapa de clientes, aplica búsqueda y pagina.
  *
  * Usa cuentaParaListaClientes, no cuentaParaTotales. Es una regla crítica
  * porque la pantalla Clientes tiene exclusiones distintas a Home.
  */
-function useClientesFilter(db, q, letraFiltro, pagina) {
+function useClientesFilter(db, q, pagina) {
   const deudaPorCliente = useDeudaPorCliente(db.clientesResumen);
 
   const map = useMemo(() => {
@@ -33,21 +33,12 @@ function useClientesFilter(db, q, letraFiltro, pagina) {
     return nextMap;
   }, [db.ingresos, deudaPorCliente]);
 
-  const letrasDisponibles = useMemo(
-    () => [...new Set(Object.keys(map).map((k) => k[0]).filter(Boolean))].sort(),
-    [map],
-  );
-
   const lista = useMemo(
     () =>
       Object.entries(map)
-        .filter(([k]) => {
-          if (q && !k.includes(q.toUpperCase())) return false;
-          if (letraFiltro && k[0] !== letraFiltro) return false;
-          return true;
-        })
+        .filter(([k]) => !q || k.includes(q.toUpperCase()))
         .sort((a, b) => b[1].gan - a[1].gan),
-    [map, q, letraFiltro],
+    [map, q],
   );
 
   const totalPaginas = Math.max(1, Math.ceil(lista.length / PORPAGINA));
@@ -56,7 +47,6 @@ function useClientesFilter(db, q, letraFiltro, pagina) {
 
   return {
     map,
-    letrasDisponibles,
     lista,
     listaPagina,
     totalPaginas,

@@ -6,7 +6,7 @@ import useHistorialFilter from "./hooks/useHistorialFilter";
 /**
  * Historial anual de ingresos y gastos.
  */
-function Historial({ db, onEditIngreso, onEditGasto, onMarcarPagado }) {
+function Historial({ db, onEditIngreso, onEditGasto }) {
   const [open, setOpen] = useState(curM());
   const [filter, setFilter] = useState("ingresos");
   const [buscar, setBuscar] = useState("");
@@ -35,7 +35,6 @@ function Historial({ db, onEditIngreso, onEditGasto, onMarcarPagado }) {
           setOrden={setOrden}
           onEditIngreso={onEditIngreso}
           onEditGasto={onEditGasto}
-          onMarcarPagado={onMarcarPagado}
         />
       ))}
     </div>

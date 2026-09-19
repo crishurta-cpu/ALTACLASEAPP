@@ -7,9 +7,11 @@ import Historial from "./features/history/Historial";
 import Clientes from "./features/clients/Clientes";
 import Home from "./features/home/Home";
 import AppLayout from "./app/AppLayout";
+import ChunkErrorBoundary from "./app/ChunkErrorBoundary";
 import { useAuth } from "./app/hooks/useAuth";
 import { useData } from "./app/hooks/useData";
 import { useNav } from "./app/hooks/useNav";
+import { useAccentColor } from "./app/hooks/useAccentColor";
 
 // Sub-tabs de "Más" cargados on-demand (Fase 21): solo se piden al abrir
 // esa pestaña, y solo el sub-tab elegido — nadie los necesita en la carga
@@ -40,23 +42,29 @@ function Mas({ db, onEditIngreso, onEditGasto, onAddInv, onEditInv, onDeleteInv,
           </button>
         ))}
       </div>
-      <Suspense fallback={cargandoSubTab}>
-        {v === "buscar" && <BusquedaGlobal db={db} onEditIngreso={onEditIngreso} onEditGasto={onEditGasto} />}
-        {v === "inv" && <Inventario db={db} onAdd={onAddInv} onEdit={onEditInv} onDelete={onDeleteInv} />}
-        {v === "tareas" && (<Tareas />)}
-        {v === "personal" && <Personal db={db} onAdd={onAddDeuda} onEdit={onEditDeuda} onDelete={onDeleteDeuda} />}
-        {v === "config" && <Configuracion />}
-      </Suspense>
+      <ChunkErrorBoundary key={v}>
+        <Suspense fallback={cargandoSubTab}>
+          {v === "buscar" && <BusquedaGlobal db={db} onEditIngreso={onEditIngreso} onEditGasto={onEditGasto} />}
+          {v === "inv" && <Inventario db={db} onAdd={onAddInv} onEdit={onEditInv} onDelete={onDeleteInv} />}
+          {v === "tareas" && (<Tareas />)}
+          {v === "personal" && <Personal prestamistas={db.prestamistas} onAdd={onAddDeuda} onEdit={onEditDeuda} onDelete={onDeleteDeuda} />}
+          {v === "config" && <Configuracion />}
+        </Suspense>
+      </ChunkErrorBoundary>
     </div>
   );
 }
 
 export default function App() {
+  // Suscribe la raíz de la app al color de acento: sin esto, cambiarlo en
+  // Configuración solo se refleja al navegar a otra pestaña, porque nada
+  // más arriba de AccentPicker vuelve a renderizar (ver useAccentColor.js).
+  useAccentColor();
   const { autenticado, passwordRecovery } = useAuth();
   const { tab, setEditIng, setEditGas } = useNav();
   const {
     db, loading, initDone, initError, lastSync, loadData,
-    marcarPagado, registrarAbono,
+    marcarPagado, registrarAbono, removeIngresosLote,
     addInventario, editInventario, removeInventario,
     addDeuda, editDeuda, removeDeuda,
   } = useData();
@@ -73,7 +81,7 @@ export default function App() {
 
   if (!initDone) {
     return (
-      <div style={{ background: K.bg, minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, color: K.text, fontFamily: "-apple-system,sans-serif" }}>
+      <div style={{ background: K.bg, minHeight: "100dvh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, color: K.text, fontFamily: "-apple-system,sans-serif" }}>
         <span style={{ fontSize: 56 }}>👟</span>
         <div style={{ color: K.gold, fontWeight: 700, fontSize: 18 }}>Altaclase Bodega</div>
         <div style={{ color: K.muted, fontSize: 13 }}>Conectando con Supabase...</div>
@@ -86,7 +94,7 @@ export default function App() {
 
   if (initError && db.ingresos.length === 0 && db.gastos.length === 0) {
     return (
-      <div style={{ background: K.bg, minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14, color: K.text, fontFamily: "-apple-system,sans-serif", padding: 24, textAlign: "center" }}>
+      <div style={{ background: K.bg, minHeight: "100dvh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14, color: K.text, fontFamily: "-apple-system,sans-serif", padding: 24, textAlign: "center" }}>
         <span style={{ fontSize: 48 }}>⚠️</span>
         <div style={{ color: K.red, fontWeight: 700, fontSize: 17 }}>No conectó con Supabase</div>
         <div style={{ color: K.muted, fontSize: 13, maxWidth: 300 }}>{initError}</div>
@@ -98,8 +106,8 @@ export default function App() {
   return (
     <AppLayout>
       {tab === "home" && <Home db={db} onRefresh={() => loadData(false)} loading={loading} lastSync={lastSync} />}
-      {tab === "clientes" && <div style={{ padding: "0 0 0" }}><div style={{ padding: "16px 16px 0" }}><div style={{ fontSize: 28, fontWeight: 700, letterSpacing: -.5, marginBottom: 16, color: K.text }}>Clientes</div><Clientes db={db} onEditIngreso={setEditIng} onMarcarPagado={marcarPagado} onRegistrarAbono={registrarAbono} /></div></div>}
-      {tab === "historial" && <div style={{ padding: "0 0 0" }}><div style={{ padding: "16px 16px 0" }}><div style={{ fontSize: 28, fontWeight: 700, letterSpacing: -.5, marginBottom: 16, color: K.text }}>Historial</div><Historial db={db} onEditIngreso={setEditIng} onEditGasto={setEditGas} onMarcarPagado={marcarPagado} /></div></div>}
+      {tab === "clientes" && <div style={{ padding: "0 0 0" }}><div style={{ padding: "16px 16px 0" }}><div style={{ fontSize: 28, fontWeight: 700, letterSpacing: -.5, marginBottom: 16, color: K.text }}>Clientes</div><Clientes db={db} onEditIngreso={setEditIng} onMarcarPagado={marcarPagado} onRegistrarAbono={registrarAbono} onEliminarIngresos={removeIngresosLote} /></div></div>}
+      {tab === "historial" && <div style={{ padding: "0 0 0" }}><div style={{ padding: "16px 16px 0" }}><div style={{ fontSize: 28, fontWeight: 700, letterSpacing: -.5, marginBottom: 16, color: K.text }}>Historial</div><Historial db={db} onEditIngreso={setEditIng} onEditGasto={setEditGas} /></div></div>}
       {tab === "mas" && <Mas db={db} onEditIngreso={setEditIng} onEditGasto={setEditGas} onAddInv={addInventario} onEditInv={editInventario} onDeleteInv={removeInventario} onAddDeuda={addDeuda} onEditDeuda={editDeuda} onDeleteDeuda={removeDeuda} />}
     </AppLayout>
   );

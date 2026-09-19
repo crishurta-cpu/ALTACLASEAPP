@@ -15,7 +15,7 @@ import { K, DS, fmt, fDate } from "../../constants";
  * memo no sirve de nada, porque una función inline nueva en cada render
  * del padre siempre invalida la comparación de props.
  */
-function SwipeableVenta({ v, debe, onEdit, onToggleDebe, isLast }) {
+function SwipeableVenta({ v, debe, onEdit, onToggleDebe, isLast, seleccionable, seleccionada, onToggleSeleccion }) {
   const startX = useRef(null);
   const startY = useRef(null);
   const [offsetX, setOffsetX] = useState(0);
@@ -23,6 +23,7 @@ function SwipeableVenta({ v, debe, onEdit, onToggleDebe, isLast }) {
   const THRESHOLD = 72;
 
   const onTouchStart = (e) => {
+    if (seleccionable) return;
     startX.current = e.touches[0].clientX;
     startY.current = e.touches[0].clientY;
     setSwiping(false);
@@ -30,7 +31,7 @@ function SwipeableVenta({ v, debe, onEdit, onToggleDebe, isLast }) {
   };
 
   const onTouchMove = (e) => {
-    if (startX.current === null) return;
+    if (seleccionable || startX.current === null) return;
     const dx = e.touches[0].clientX - startX.current;
     const dy = e.touches[0].clientY - startY.current;
     if (!swiping && Math.abs(dy) > Math.abs(dx) * 1.5) return;
@@ -39,6 +40,7 @@ function SwipeableVenta({ v, debe, onEdit, onToggleDebe, isLast }) {
   };
 
   const onTouchEnd = (e) => {
+    if (seleccionable) return;
     const dx = e.changedTouches[0].clientX - (startX.current || 0);
     const dy = e.changedTouches[0].clientY - (startY.current || 0);
     const wasSwiping = swiping;
@@ -52,6 +54,10 @@ function SwipeableVenta({ v, debe, onEdit, onToggleDebe, isLast }) {
     }
     if (dx < -THRESHOLD) onToggleDebe(v, "NO");
     if (dx > THRESHOLD) onToggleDebe(v, "SI");
+  };
+
+  const onClick = () => {
+    if (seleccionable) onToggleSeleccion(v);
   };
 
   const actionColor = offsetX < -THRESHOLD ? K.green : K.red;
@@ -69,8 +75,14 @@ function SwipeableVenta({ v, debe, onEdit, onToggleDebe, isLast }) {
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
-        style={{ transform: `translateX(${offsetX}px)`, transition: swiping ? "none" : "transform .25s cubic-bezier(.4,0,.2,1)", background: debe ? "#2C0A0A" : K.card2, borderRadius: DS.r.md, padding: "12px 14px", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", userSelect: "none", WebkitUserSelect: "none", WebkitTapHighlightColor: "transparent", willChange: "transform" }}
+        onClick={onClick}
+        style={{ transform: `translateX(${offsetX}px)`, transition: swiping ? "none" : "transform .25s cubic-bezier(.4,0,.2,1)", background: seleccionada ? `${K.gold}18` : debe ? "#2C0A0A" : K.card2, border: seleccionada ? `1.5px solid ${K.gold}` : "1.5px solid transparent", borderRadius: DS.r.md, padding: "12px 14px", display: "flex", alignItems: "center", gap: 10, cursor: "pointer", userSelect: "none", WebkitUserSelect: "none", WebkitTapHighlightColor: "transparent", willChange: "transform" }}
       >
+        {seleccionable && (
+          <span style={{ width: 18, height: 18, borderRadius: 5, border: `1.5px solid ${seleccionada ? K.gold : K.border}`, background: seleccionada ? K.gold : "transparent", color: "#0A0A0B", fontSize: 12, fontWeight: 900, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            {seleccionada ? "✓" : ""}
+          </span>
+        )}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 15, fontWeight: 600, color: K.text, display: "flex", alignItems: "center", gap: 8 }}>
             {v.producto}

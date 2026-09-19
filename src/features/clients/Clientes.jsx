@@ -8,15 +8,14 @@ import useClientesFilter from "./hooks/useClientesFilter";
 /**
  * Orquestador de la feature Clientes.
  */
-function Clientes({ db, onEditIngreso, onMarcarPagado, onRegistrarAbono }) {
+function Clientes({ db, onEditIngreso, onMarcarPagado, onRegistrarAbono, onEliminarIngresos }) {
   const [sel, setSel] = useState(null);
   const [q, setQ] = useState("");
-  const [letraFiltro, setLetraFiltro] = useState(null);
   const [mesSel, setMesSel] = useState("todos");
   const [pagH, setPagH] = useState(1);
   const [pagina, setPagina] = useState(1);
   const [abonoAbierto, setAbonoAbierto] = useState(false);
-  const { map, letrasDisponibles, lista, listaPagina, totalPaginas, paginaSegura } = useClientesFilter(db, q, letraFiltro, pagina);
+  const { map, lista, listaPagina, totalPaginas, paginaSegura } = useClientesFilter(db, q, pagina);
 
   if (sel) {
     return (
@@ -36,6 +35,7 @@ function Clientes({ db, onEditIngreso, onMarcarPagado, onRegistrarAbono }) {
         onEditIngreso={onEditIngreso}
         onMarcarPagado={onMarcarPagado}
         onRegistrarAbono={onRegistrarAbono}
+        onEliminarIngresos={onEliminarIngresos}
       />
     );
   }
@@ -46,13 +46,7 @@ function Clientes({ db, onEditIngreso, onMarcarPagado, onRegistrarAbono }) {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: K.muted }}>{lista.length} clientes</div>
       </div>
-      <input value={q} onChange={(e) => { setQ(e.target.value); setPagina(1); setLetraFiltro(null); }} placeholder="🔍 Buscar..." style={{ width: "100%", background: K.card, border: `1px solid ${K.border}`, boxShadow: DS.shadow.sm, borderRadius: DS.r.md, color: K.text, padding: "10px 14px", fontSize: 14, outline: "none", boxSizing: "border-box", marginBottom: 8 }} />
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 3, marginBottom: 10 }}>
-        <button onClick={() => { setLetraFiltro(null); setPagina(1); }} style={{ background: !letraFiltro ? K.gold : "transparent", border: `1px solid ${!letraFiltro ? K.gold : K.border}`, color: !letraFiltro ? "#000" : K.muted, borderRadius: 5, padding: "2px 6px", fontSize: 10, fontWeight: 600, cursor: "pointer", WebkitTapHighlightColor: "transparent" }}>Todos</button>
-        {letrasDisponibles.map((l) => (
-          <button key={l} onClick={() => { setLetraFiltro(l === letraFiltro ? null : l); setPagina(1); }} style={{ background: letraFiltro === l ? K.gold : "transparent", border: `1px solid ${letraFiltro === l ? K.gold : K.border}`, color: letraFiltro === l ? "#000" : K.muted, borderRadius: 5, padding: "2px 6px", fontSize: 10, fontWeight: 600, cursor: "pointer", WebkitTapHighlightColor: "transparent" }}>{l}</button>
-        ))}
-      </div>
+      <input value={q} onChange={(e) => { setQ(e.target.value); setPagina(1); }} placeholder="🔍 Buscar..." style={{ width: "100%", background: K.card, border: `1px solid ${K.border}`, boxShadow: DS.shadow.sm, borderRadius: DS.r.md, color: K.text, padding: "10px 14px", fontSize: 14, outline: "none", boxSizing: "border-box", marginBottom: 10 }} />
       {listaPagina.map(([nom, st]) => (
         <ClientesListItem key={nom} nom={nom} st={st} onSelect={setSel} />
       ))}

@@ -63,6 +63,14 @@ export function AuthProvider({ children }) {
     setPasswordRecovery(false);
   }, []);
 
+  const sendPasswordChangeCode = useCallback(async (email) => {
+    await authService.sendPasswordChangeCode(email);
+  }, []);
+
+  const verifyPasswordChangeCode = useCallback(async (email, code) => {
+    await authService.verifyPasswordChangeCode(email, code);
+  }, []);
+
   // Timeout de inactividad: reinicia con cada toque/click/tecla
   useEffect(() => {
     if (!session) return;
@@ -91,6 +99,8 @@ export function AuthProvider({ children }) {
       cerrarSesion,
       resetPasswordForEmail,
       updatePassword,
+      sendPasswordChangeCode,
+      verifyPasswordChangeCode,
     }),
     [
       session,
@@ -102,6 +112,8 @@ export function AuthProvider({ children }) {
       cerrarSesion,
       resetPasswordForEmail,
       updatePassword,
+      sendPasswordChangeCode,
+      verifyPasswordChangeCode,
     ]
   );
 

@@ -8,4 +8,3 @@ export { default as TopClientes } from "./TopClientes";
 export { default as GraficoGananciaDiaria } from "./GraficoGananciaDiaria";
 export { default as TotalDeudaCard } from "./TotalDeudaCard";
 export { default as DebenCobrarAcordeon } from "./DebenCobrarAcordeon";
-export { default as UltimosGastosAcordeon } from "./UltimosGastosAcordeon";

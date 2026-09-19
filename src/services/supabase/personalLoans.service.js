@@ -1,52 +1,72 @@
 import { supabase } from "./client";
 
 /**
- * Reemplaza services/sheets/deudaPersonal.service.js (Deuda Valen).
+ * Libro personal (antes "Deuda Valen"), ahora separado por prestamista.
  *
- * Reglas de negocio confirmadas (2026-09-18): un prestamo recibido entra
- * como `other_income` (type='loan', ya excluido de la ganancia en
- * v_monthly_business) y aumenta el saldo; un pago entra como `expenses`
- * (type='personal') y lo reduce. Ambos se linkean a una fila de
- * `personal_loans` via `loan_id` para poder calcular el saldo.
- *
- * La UI actual (DeudaPersonalForm) es un solo libro sin distinguir
- * prestamista, así que se usa una única fila "General" en `personal_loans`
- * por organizacion — el esquema ya soporta varias si en el futuro se separa
- * por prestamista (Valen/Mondragón/Lina en el histórico de Sheets).
+ * Un prestamo recibido entra como `other_income` (type='loan', ya excluido
+ * de la ganancia en v_monthly_business) y aumenta el saldo; un pago entra
+ * como `expenses` (type='personal') y lo reduce. Ambos se linkean a una
+ * fila de `personal_loans` via `loan_id` — esa fila YA existe separada por
+ * prestamista en produccion (Valentina Arango, Carlos Mondragón, Lina
+ * Cañizales), la UI anterior simplemente ignoraba esa separación y mezclaba
+ * todos los movimientos de todos los prestamistas en un solo saldo corrido
+ * (bug real: el saldo mostrado era el de la transacción más antigua, no el
+ * total — ver Personal.jsx `saldoActual` antes de este fix).
  */
-
 const CATEGORY = "PRESTAMO";
 
-async function ensureDefaultLoan(organizationId) {
+/** Resumen por prestamista, usando la vista que ya calcula saldo=prestado-pagado. */
+export async function readLenders(organizationId) {
+  const { data, error } = await supabase
+    .from("v_personal_loan_balances")
+    .select("loan_id, lender_name, total_borrowed, total_paid, balance")
+    .eq("organization_id", organizationId)
+    .order("lender_name", { ascending: true });
+  if (error) throw error;
+  return data.map((r) => ({
+    loanId: r.loan_id,
+    lenderName: r.lender_name,
+    totalPrestado: Number(r.total_borrowed) || 0,
+    totalPagado: Number(r.total_paid) || 0,
+    saldo: Number(r.balance) || 0,
+  }));
+}
+
+export async function findOrCreateLender(organizationId, lenderName) {
+  const cleanName = String(lenderName || "").trim();
+  if (!cleanName) throw new Error("Falta el nombre del prestamista");
+
   const { data: existing, error: findError } = await supabase
     .from("personal_loans")
     .select("id")
     .eq("organization_id", organizationId)
+    .ilike("lender_name", cleanName)
     .limit(1);
   if (findError) throw findError;
   if (existing && existing.length > 0) return existing[0].id;
 
   const { data: created, error: createError } = await supabase
     .from("personal_loans")
-    .insert({ organization_id: organizationId, lender_name: "General" })
+    .insert({ organization_id: organizationId, lender_name: cleanName })
     .select("id")
     .single();
   if (createError) throw createError;
   return created.id;
 }
 
-export async function readAll(organizationId) {
+/** Movimientos de UN prestamista, con saldo corrido (más reciente primero). */
+export async function readMovimientos(loanId) {
   const [prestamosRes, pagosRes] = await Promise.all([
     supabase
       .from("other_income")
       .select("id, amount, description, income_date")
-      .eq("organization_id", organizationId)
+      .eq("loan_id", loanId)
       .eq("type", "loan")
       .order("income_date", { ascending: true }),
     supabase
       .from("expenses")
       .select("id, amount, description, expense_date")
-      .eq("organization_id", organizationId)
+      .eq("loan_id", loanId)
       .eq("type", "personal")
       .eq("category", CATEGORY)
       .order("expense_date", { ascending: true }),
@@ -80,8 +100,7 @@ export async function readAll(organizationId) {
   return conSaldo.reverse().map((m, i) => ({ id: "dp" + i, ...m }));
 }
 
-export async function append(organizationId, item) {
-  const loanId = await ensureDefaultLoan(organizationId);
+export async function append(organizationId, loanId, item) {
   const presto = Number(item.presto) || 0;
   const pago = Number(item.pago) || 0;
 
@@ -113,8 +132,8 @@ export async function append(organizationId, item) {
 // Crea el reemplazo primero y borra el original despues: si algo falla a
 // mitad de camino, el peor caso es un duplicado visible, nunca perder el
 // movimiento original en silencio.
-export async function update(organizationId, item) {
-  await append(organizationId, item);
+export async function update(organizationId, loanId, item) {
+  await append(organizationId, loanId, item);
   await remove(item._row);
 }
 

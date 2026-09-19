@@ -31,7 +31,7 @@ export function DataProvider({ children }) {
     inventario: [],
     clientesResumen: [],
     clientesEspeciales: [],
-    deudaPersonal: [],
+    prestamistas: [],
   });
   const [loading, setLoading] = useState(false);
   const [initDone, setInitDone] = useState(false);
@@ -49,7 +49,7 @@ export function DataProvider({ children }) {
           gastosService.readAll(organizationId),
           inventarioService.readAll(organizationId),
           customersService.readResumen(organizationId),
-          personalLoansService.readAll(organizationId),
+          personalLoansService.readLenders(organizationId),
         ]);
         const [rIng, rGas, rInv, rCli, rDeuda] = results;
 
@@ -60,9 +60,9 @@ export function DataProvider({ children }) {
         const gastos = rGas.value;
         const inventario = rInv.status === "fulfilled" ? rInv.value : [];
         const clientesResumen = rCli.status === "fulfilled" ? rCli.value : [];
-        const deudaPersonal = rDeuda.status === "fulfilled" ? rDeuda.value : [];
+        const prestamistas = rDeuda.status === "fulfilled" ? rDeuda.value : [];
 
-        setDb({ ingresos, gastos, inventario, clientesResumen, clientesEspeciales: [], deudaPersonal });
+        setDb({ ingresos, gastos, inventario, clientesResumen, clientesEspeciales: [], prestamistas });
         setLastSync(new Date());
         setInitError(null);
         if (!silent) flash(`✓ ${ingresos.length} ingresos · ${gastos.length} gastos`);
@@ -109,8 +109,8 @@ export function DataProvider({ children }) {
 
   const reloadDeuda = useCallback(async () => {
     if (!organizationId) return;
-    const deudaPersonal = await personalLoansService.readAll(organizationId);
-    setDb((prev) => ({ ...prev, deudaPersonal }));
+    const prestamistas = await personalLoansService.readLenders(organizationId);
+    setDb((prev) => ({ ...prev, prestamistas }));
     setLastSync(new Date());
   }, [organizationId]);
 
@@ -190,6 +190,19 @@ export function DataProvider({ children }) {
     },
     [reloadIngresos, flash]
   );
+  // Borrado en bloque (selección múltiple por cliente): en serie, no en
+  // paralelo, para no arriesgar condiciones de carrera en el saldo del
+  // cliente si dos borrados tocan el mismo cliente casi al mismo tiempo.
+  const removeIngresosLote = useCallback(
+    async (items) => {
+      for (const it of items) {
+        await ingresosService.remove(it._row);
+      }
+      await reloadIngresos();
+      flash(`✓ ${items.length} ingresos borrados`, K.red);
+    },
+    [reloadIngresos, flash]
+  );
   const removeGasto = useCallback(
     async (item) => {
       await gastosService.remove(item._row);
@@ -225,18 +238,22 @@ export function DataProvider({ children }) {
     [reloadInventario, flash]
   );
 
-  // ── Personal (Deuda Valen / prestamos personales) ──
+  // ── Personal (libro de prestamos personales, separado por prestamista) ──
+  const findOrCreatePrestamista = useCallback(
+    (lenderName) => personalLoansService.findOrCreateLender(organizationId, lenderName),
+    [organizationId]
+  );
   const addDeuda = useCallback(
-    async (it) => {
-      await personalLoansService.append(organizationId, it);
+    async (loanId, it) => {
+      await personalLoansService.append(organizationId, loanId, it);
       await reloadDeuda();
       flash("✓ Movimiento agregado");
     },
     [reloadDeuda, flash, organizationId]
   );
   const editDeuda = useCallback(
-    async (it) => {
-      await personalLoansService.update(organizationId, it);
+    async (loanId, it) => {
+      await personalLoansService.update(organizationId, loanId, it);
       await reloadDeuda();
       flash("✓ Movimiento actualizado");
     },
@@ -326,6 +343,7 @@ export function DataProvider({ children }) {
       updateIngreso,
       updateGasto,
       removeIngreso,
+      removeIngresosLote,
       removeGasto,
       addInventario,
       editInventario,
@@ -333,6 +351,8 @@ export function DataProvider({ children }) {
       addDeuda,
       editDeuda,
       removeDeuda,
+      findOrCreatePrestamista,
+      reloadDeuda,
       marcarPagado,
       registrarAbono,
       editCliente,
@@ -352,6 +372,7 @@ export function DataProvider({ children }) {
       updateIngreso,
       updateGasto,
       removeIngreso,
+      removeIngresosLote,
       removeGasto,
       addInventario,
       editInventario,
@@ -359,6 +380,8 @@ export function DataProvider({ children }) {
       addDeuda,
       editDeuda,
       removeDeuda,
+      findOrCreatePrestamista,
+      reloadDeuda,
       marcarPagado,
       registrarAbono,
       editCliente,
