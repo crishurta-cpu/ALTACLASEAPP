@@ -65,12 +65,21 @@ export default function AppLayout({ children }) {
         .ac-nav{display:flex;align-items:center;justify-content:space-around;height:68px;
           background:${K.ink};border-radius:${DS.r.xl}px;padding:0 6px;
           box-shadow:0 14px 30px rgba(0,0,0,.5);}
-        @media(min-width:768px){
+        @media(min-width:768px) and (min-height:600px){
           .ac-sidebar{display:flex!important;}
           .ac-main-inner{max-width:none!important;margin-left:0!important;}
           .ac-nav-wrap{display:none!important;}
           .ac-fab-desktop{display:flex!important;}
           .ac-desktop-2col{display:grid!important;grid-template-columns:1fr 1fr!important;gap:16px!important;align-items:start!important;}
+        }
+        /* Celular en horizontal: pantalla ancha pero baja (a diferencia de
+           un desktop real), asi que NO se activa el sidebar/FAB de escritorio
+           arriba (quedaria un layout roto de "computador" en un telefono).
+           Solo se le da mas ancho al contenido y se parten los modulos del
+           Home en 2 columnas para que no queden diminutos. */
+        @media (orientation:landscape) and (max-height:600px){
+          .ac-main-inner{max-width:680px!important;}
+          .ac-desktop-2col{display:grid!important;grid-template-columns:1fr 1fr!important;gap:12px!important;align-items:start!important;}
         }
       `}</style>
       <div style={{
