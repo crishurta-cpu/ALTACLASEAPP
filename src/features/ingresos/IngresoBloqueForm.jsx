@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { K, DS, fmt } from "../../constants";
 import Card from "../../shared/ui/Card";
 import Btn from "../../shared/ui/Btn";
@@ -10,26 +10,29 @@ import AutocompleteInput from "../../shared/ui/AutocompleteInput";
  * Cada fila = un producto vendido a un cliente por un proveedor.
  *
  * Props:
- * - onSave: async (item) => void, recibe el item con shape de negocio —
- *   igual que `IngresoForm` desde Fase 19 (la conversión a fila Sheets
- *   vive en `ingresos.service.js`, no acá).
+ * - onSaveLote: async (items[]) => void, recibe TODAS las filas válidas de
+ *   una vez (el guardado fila-por-fila y el recargo único de datos viven en
+ *   `DataProvider.saveIngresosLote`, no acá). Antes esto reutilizaba
+ *   `onSave` de un ingreso individual llamado en loop — cerraba el modal
+ *   tras la primera fila mientras el resto seguía guardándose sin verse
+ *   (bug real, corregido 2026-09-19).
  * - clientes: string[] con nombres para autocompletar el campo Cliente de
  *   cada fila (Fase 22 — antes reservado sin usar, mismo patrón que `IngresoForm`).
  *
  * Comportamiento:
  * - Filtra filas válidas (producto + cliente + precio) antes de guardar.
- * - Cada fila válida se guarda secuencialmente con await onSave.
  * - Calcula ganancia y margen por fila (precio - costo).
  * - Muestra ganancia total del lote.
  * - Al guardar: limpia y deja 1 fila vacía con id incrementado.
  */
-function IngresoBloqueForm({ onSave, clientes = [] }) {
+function IngresoBloqueForm({ onSaveLote, clientes = [] }) {
   const [filas, setFilas] = useState([
     { id: 1, producto: "", cliente: "", proveedor: "", costo: "", precio: "" },
   ]);
   const [saving, setSaving] = useState(false);
   const [ok, setOk] = useState(false);
   const [err, setErr] = useState(null);
+  const guardandoRef = useRef(false); // guard sincrono contra doble-click, ver IngresoForm
 
   const nextId = Math.max(...filas.map((f) => f.id || 0)) + 1;
 
@@ -44,21 +47,23 @@ function IngresoBloqueForm({ onSave, clientes = [] }) {
   const removeFila = (id) => setFilas((f) => f.filter((f) => f.id !== id));
 
   const guardar = async () => {
+    if (guardandoRef.current) return;
     const validas = filas.filter((f) => f.producto && f.cliente && f.precio);
     if (validas.length === 0) {
       setErr("Agrega al menos una venta completa");
       return;
     }
+    guardandoRef.current = true;
     setSaving(true);
     setErr(null);
     try {
-      for (const f of validas) {
+      const trim = (s) => String(s || "").toUpperCase().trim();
+      const items = validas.map((f) => {
         const costo = Number(f.costo) || 0;
         const pv = Number(f.precio) || 0;
         const gan = pv - costo;
         const mrg = pv > 0 ? ((gan / pv) * 100).toFixed(1) : 0;
-        const trim = (s) => String(s || "").toUpperCase().trim();
-        const item = {
+        return {
           fecha: new Date().toISOString(),
           tipo: "VENTA",
           producto: trim(f.producto),
@@ -70,8 +75,8 @@ function IngresoBloqueForm({ onSave, clientes = [] }) {
           ganancia: gan,
           margen: mrg + "%",
         };
-        await onSave(item);
-      }
+      });
+      await onSaveLote(items);
       setFilas([
         { id: nextId + 1, producto: "", cliente: "", proveedor: "", costo: "", precio: "" },
       ]);
@@ -81,6 +86,7 @@ function IngresoBloqueForm({ onSave, clientes = [] }) {
       setErr("Error: " + e.message);
     } finally {
       setSaving(false);
+      guardandoRef.current = false;
     }
   };
 
@@ -92,7 +98,7 @@ function IngresoBloqueForm({ onSave, clientes = [] }) {
 
   return (
     <div>
-      {ok && <div style={{ textAlign: "center", color: K.gold, fontWeight: 700, marginBottom: 12, fontSize: 14 }}>✓ Lote guardado en Google Sheets!</div>}
+      {ok && <div style={{ textAlign: "center", color: K.gold, fontWeight: 700, marginBottom: 12, fontSize: 14 }}>✓ Lote guardado</div>}
       {err && <div style={{ color: K.red, fontSize: 13, marginBottom: 12 }}>{err}</div>}
 
       <div style={{ background: K.card2, borderRadius: DS.r.lg, overflow: "hidden", marginBottom: 12 }}>

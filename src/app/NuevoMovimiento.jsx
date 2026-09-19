@@ -15,10 +15,15 @@ import { useNav } from "./hooks/useNav";
  */
 export default function NuevoMovimiento() {
   const [modo, setModo] = useState("ingreso");
-  const { saveIngreso, saveGasto, clientes, proveedores } = useData();
+  const { saveIngreso, saveIngresosLote, saveGasto, clientes, proveedores } = useData();
   const { setShowNuevo } = useNav();
 
   const onSaveIngreso = async (r) => { await saveIngreso(r); setShowNuevo(false); };
+  // Bug real corregido: antes el lote reutilizaba onSaveIngreso, que cierra
+  // el modal — con varias filas, el modal se cerraba tras la primera
+  // mientras el resto seguia guardandose sin que se viera. Ahora guarda
+  // todo el lote y cierra el modal UNA sola vez al terminar.
+  const onSaveLote = async (items) => { await saveIngresosLote(items); setShowNuevo(false); };
   const onSaveGasto = async (r) => { await saveGasto(r); setShowNuevo(false); };
 
   return (
@@ -29,7 +34,7 @@ export default function NuevoMovimiento() {
         <button onClick={() => setModo("gasto")} style={{ flex: 1, background: modo === "gasto" ? `${K.red}22` : K.card, border: `1.5px solid ${modo === "gasto" ? K.red : K.border}`, color: modo === "gasto" ? K.red : K.muted, borderRadius: DS.r.md, padding: "12px 0", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>Gasto</button>
       </div>
       {modo === "ingreso" && <IngresoForm onSave={onSaveIngreso} clientes={clientes} proveedores={proveedores} />}
-      {modo === "lote" && <IngresoBloqueForm onSave={onSaveIngreso} clientes={clientes} />}
+      {modo === "lote" && <IngresoBloqueForm onSaveLote={onSaveLote} clientes={clientes} />}
       {modo === "gasto" && <GastoForm onSave={onSaveGasto} />}
     </div>
   );

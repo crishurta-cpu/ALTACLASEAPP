@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { K, DS, fmt } from "../../constants";
 import Card from "../../shared/ui/Card";
 import Btn from "../../shared/ui/Btn";
@@ -41,11 +41,14 @@ function DeudaPersonalForm({ item, saldoBase = 0, onClose, onSave, onDelete }) {
   const [saving, setSaving] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
   const [err, setErr] = useState(null);
+  const busyRef = useRef(false); // guard sincrono compartido guardar/borrar, ver IngresoForm
 
   const up = (k) => (v) => setF((p) => ({ ...p, [k]: v }));
   const nuevoSaldo = base + (Number(f.presto) || 0) - (Number(f.pago) || 0);
 
   const guardar = async () => {
+    if (busyRef.current) return;
+    busyRef.current = true;
     setSaving(true);
     setErr(null);
     try {
@@ -60,10 +63,13 @@ function DeudaPersonalForm({ item, saldoBase = 0, onClose, onSave, onDelete }) {
     } catch (e) {
       setErr("Error: " + e.message);
       setSaving(false);
+      busyRef.current = false;
     }
   };
 
   const borrar = async () => {
+    if (busyRef.current) return;
+    busyRef.current = true;
     setSaving(true);
     setErr(null);
     try {
@@ -72,6 +78,7 @@ function DeudaPersonalForm({ item, saldoBase = 0, onClose, onSave, onDelete }) {
     } catch (e) {
       setErr("Error: " + e.message);
       setSaving(false);
+      busyRef.current = false;
     }
   };
 

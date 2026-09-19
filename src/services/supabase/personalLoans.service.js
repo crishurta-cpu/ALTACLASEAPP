@@ -110,9 +110,12 @@ export async function append(organizationId, item) {
   }
 }
 
+// Crea el reemplazo primero y borra el original despues: si algo falla a
+// mitad de camino, el peor caso es un duplicado visible, nunca perder el
+// movimiento original en silencio.
 export async function update(organizationId, item) {
-  await remove(item._row);
   await append(organizationId, item);
+  await remove(item._row);
 }
 
 export async function remove(rowRef) {

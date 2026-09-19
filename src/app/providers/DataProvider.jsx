@@ -79,6 +79,41 @@ export function DataProvider({ children }) {
     [flash, organizationId]
   );
 
+  // Recargas parciales: cada mutacion solo trae de vuelta el pedazo de `db`
+  // que en verdad pudo cambiar, en vez de las 5 consultas completas de
+  // `loadData`. Ingresos SIEMPRE trae tambien clientesResumen porque el
+  // saldo de un cliente depende de ordenes+pagos (v_customer_balances).
+  const reloadIngresos = useCallback(async () => {
+    if (!organizationId) return;
+    const [ingresos, clientesResumen] = await Promise.all([
+      ingresosService.readAll(organizationId),
+      customersService.readResumen(organizationId),
+    ]);
+    setDb((prev) => ({ ...prev, ingresos, clientesResumen }));
+    setLastSync(new Date());
+  }, [organizationId]);
+
+  const reloadGastos = useCallback(async () => {
+    if (!organizationId) return;
+    const gastos = await gastosService.readAll(organizationId);
+    setDb((prev) => ({ ...prev, gastos }));
+    setLastSync(new Date());
+  }, [organizationId]);
+
+  const reloadInventario = useCallback(async () => {
+    if (!organizationId) return;
+    const inventario = await inventarioService.readAll(organizationId);
+    setDb((prev) => ({ ...prev, inventario }));
+    setLastSync(new Date());
+  }, [organizationId]);
+
+  const reloadDeuda = useCallback(async () => {
+    if (!organizationId) return;
+    const deudaPersonal = await personalLoansService.readAll(organizationId);
+    setDb((prev) => ({ ...prev, deudaPersonal }));
+    setLastSync(new Date());
+  }, [organizationId]);
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (autenticado && organizationId) loadData(false);
@@ -102,100 +137,118 @@ export function DataProvider({ children }) {
   const saveIngreso = useCallback(
     async (item) => {
       await ingresosService.append(organizationId, item);
-      await loadData(true);
+      await reloadIngresos();
     },
-    [loadData, organizationId]
+    [reloadIngresos, organizationId]
   );
+
+  // Lote: guarda todas las filas EN SERIE (ver appendMany) y recarga UNA
+  // sola vez al final — antes cada fila del lote disparaba su propio
+  // loadData(true) completo (5 consultas x N filas). Si alguna fila falla,
+  // las demas ya guardadas quedan guardadas; se avisa cuales fallaron.
+  const saveIngresosLote = useCallback(
+    async (items) => {
+      const { ok, fallidas } = await ingresosService.appendMany(organizationId, items);
+      await reloadIngresos();
+      if (fallidas.length > 0) {
+        flash(`⚠️ ${ok} guardadas, ${fallidas.length} fallaron`, K.red);
+        throw new Error(fallidas.map((f) => f.error).join(" · "));
+      }
+      flash(`✓ ${ok} ventas guardadas`);
+    },
+    [reloadIngresos, flash, organizationId]
+  );
+
   const saveGasto = useCallback(
     async (item) => {
       await gastosService.append(organizationId, item);
-      await loadData(true);
+      await reloadGastos();
     },
-    [loadData, organizationId]
+    [reloadGastos, organizationId]
   );
   const updateIngreso = useCallback(
     async (item) => {
       await ingresosService.update(organizationId, item);
-      await loadData(true);
+      await reloadIngresos();
       flash("✓ Ingreso actualizado");
     },
-    [loadData, flash, organizationId]
+    [reloadIngresos, flash, organizationId]
   );
   const updateGasto = useCallback(
     async (item) => {
       await gastosService.update(item);
-      await loadData(true);
+      await reloadGastos();
       flash("✓ Gasto actualizado");
     },
-    [loadData, flash]
+    [reloadGastos, flash]
   );
   const removeIngreso = useCallback(
     async (item) => {
       await ingresosService.remove(item._row);
-      await loadData(true);
+      await reloadIngresos();
       flash("✓ Ingreso borrado", K.red);
     },
-    [loadData, flash]
+    [reloadIngresos, flash]
   );
   const removeGasto = useCallback(
     async (item) => {
       await gastosService.remove(item._row);
-      await loadData(true);
+      await reloadGastos();
       flash("✓ Gasto borrado", K.red);
     },
-    [loadData, flash]
+    [reloadGastos, flash]
   );
 
   // ── Inventario ──
   const addInventario = useCallback(
     async (it) => {
       await inventarioService.append(organizationId, it);
-      await loadData(true);
+      await reloadInventario();
       flash("✓ Agregado al inventario", K.purple);
     },
-    [loadData, flash, organizationId]
+    [reloadInventario, flash, organizationId]
   );
   const editInventario = useCallback(
     async (it) => {
       await inventarioService.update(organizationId, it);
-      await loadData(true);
+      await reloadInventario();
       flash("✓ Inventario actualizado", K.purple);
     },
-    [loadData, flash, organizationId]
+    [reloadInventario, flash, organizationId]
   );
   const removeInventario = useCallback(
     async (it) => {
       await inventarioService.remove(it._row);
-      await loadData(true);
+      await reloadInventario();
       flash("✓ Borrado del inventario", K.red);
     },
-    [loadData, flash]
+    [reloadInventario, flash]
   );
 
   // ── Personal (Deuda Valen / prestamos personales) ──
   const addDeuda = useCallback(
     async (it) => {
       await personalLoansService.append(organizationId, it);
-      await loadData(true);
+      await reloadDeuda();
       flash("✓ Movimiento agregado");
     },
-    [loadData, flash, organizationId]
+    [reloadDeuda, flash, organizationId]
   );
   const editDeuda = useCallback(
     async (it) => {
       await personalLoansService.update(organizationId, it);
-      await loadData(true);
+      await reloadDeuda();
       flash("✓ Movimiento actualizado");
     },
-    [loadData, flash, organizationId]
+    [reloadDeuda, flash, organizationId]
   );
   const removeDeuda = useCallback(
     async (it) => {
       await personalLoansService.remove(it._row);
-      await loadData(true);
+      await reloadDeuda();
       flash("✓ Movimiento borrado", K.red);
     },
-    [loadData, flash]
+    [reloadDeuda, flash]
   );
 
   // ── Marcar pagado: cierra el saldo pendiente de cada ingreso de ese cliente. ──
@@ -205,10 +258,10 @@ export function DataProvider({ children }) {
         await ingresosService.update(organizationId, { ...v, debe: estado });
       }
       const msg = estado === "NO" ? "pagado" : "marcado como debe";
-      await loadData(true);
+      await reloadIngresos();
       flash(`✓ ${pendientes.length} ${msg}`);
     },
-    [loadData, flash, organizationId]
+    [reloadIngresos, flash, organizationId]
   );
 
   // Abono directo (no ligado a un movimiento de Ingresos): reutiliza el
@@ -221,10 +274,10 @@ export function DataProvider({ children }) {
         fecha: new Date().toISOString(),
         precioVenta: montoNuevo,
       });
-      await loadData(true);
+      await reloadIngresos();
       flash(`✓ Abono de ${cliente} registrado`);
     },
-    [loadData, flash, organizationId]
+    [reloadIngresos, flash, organizationId]
   );
 
   const clientes = useMemo(
@@ -255,6 +308,7 @@ export function DataProvider({ children }) {
       proveedores,
       loadData,
       saveIngreso,
+      saveIngresosLote,
       saveGasto,
       updateIngreso,
       updateGasto,
@@ -279,6 +333,7 @@ export function DataProvider({ children }) {
       proveedores,
       loadData,
       saveIngreso,
+      saveIngresosLote,
       saveGasto,
       updateIngreso,
       updateGasto,

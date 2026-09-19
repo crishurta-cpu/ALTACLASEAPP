@@ -127,9 +127,13 @@ async function nextOrderNumber(organizationId) {
 }
 
 async function createOrder(organizationId, item) {
-  const customerId = await findOrCreateCustomer(organizationId, item.cliente);
-  const supplierId = await findOrCreateSupplier(organizationId, item.proveedor);
-  const productId = await findOrCreateProduct(organizationId, item.producto);
+  // Los 3 catalogos son independientes entre si — en paralelo en vez de en
+  // serie corta el tiempo de guardado de un ingreso a un tercio.
+  const [customerId, supplierId, productId] = await Promise.all([
+    findOrCreateCustomer(organizationId, item.cliente),
+    findOrCreateSupplier(organizationId, item.proveedor),
+    findOrCreateProduct(organizationId, item.producto),
+  ]);
   const isCompraConSaldo = item.tipo === "COMPRA CON SALDO";
   // COMPRA CON SALDO no deja margen (era la caja propia de clientes especiales):
   // el precio de venta es el costo mismo, así el saldo pendiente = lo que se debe.
@@ -238,13 +242,48 @@ export async function append(organizationId, item) {
 }
 
 /**
- * Update se implementa como borrar + recrear: mas simple y seguro que
- * reconciliar pagos parciales ya existentes contra un cambio de tipo/monto.
- * `item._row` trae el prefijo de tabla (ord:/oi:/pay:) para saber que borrar.
+ * Guarda varias filas EN SERIE (nunca Promise.all): dos inserts concurrentes
+ * de un cliente/producto nuevo con el mismo nombre pueden pasar ambos por
+ * findOrCreate antes de que el primero termine de crearlo, y quedarian dos
+ * filas duplicadas del mismo cliente. En serie, cada fila ve ya creado lo
+ * que creo la anterior. Devuelve { ok, fallidas } — si algo falla a mitad
+ * de un lote, lo ya guardado queda guardado (no se revierte).
+ */
+export async function appendMany(organizationId, items) {
+  const fallidas = [];
+  let ok = 0;
+  for (const item of items) {
+    try {
+      await append(organizationId, item);
+      ok++;
+    } catch (e) {
+      fallidas.push({ item, error: e.message });
+    }
+  }
+  return { ok, fallidas };
+}
+
+/**
+ * Update: crea el reemplazo PRIMERO y borra el original despues. Si algo
+ * falla a mitad de camino (ej. se cae la conexion), el peor caso es un
+ * duplicado visible y corregible — nunca perder el registro original en
+ * silencio, que es lo que pasaria si se borrara primero y la creacion
+ * fallara despues. `item._row` trae el prefijo de tabla (ord:/oi:/pay:)
+ * del registro original a borrar.
+ *
+ * Excepcion: RECIBIDO CLIENTE (abono) SI borra primero — createAbono
+ * reparte el monto contra el saldo abierto de las ordenes en ese momento,
+ * y ese saldo tiene que reflejar que el abono viejo ya no cuenta, o el
+ * reparto (FIFO) sale mal.
  */
 export async function update(organizationId, item) {
-  await remove(item._row);
+  if (item.tipo === "RECIBIDO CLIENTE") {
+    await remove(item._row);
+    await append(organizationId, item);
+    return;
+  }
   await append(organizationId, item);
+  await remove(item._row);
 }
 
 export async function remove(rowRef) {

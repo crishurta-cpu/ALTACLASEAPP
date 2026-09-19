@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { K, DS, CONCS, CCAT } from "../../constants";
 import Card from "../../shared/ui/Card";
 import Btn from "../../shared/ui/Btn";
@@ -25,10 +25,13 @@ function GastoForm({ onSave }) {
   const [saving, setSaving] = useState(false);
   const [ok, setOk] = useState(false);
   const [err, setErr] = useState(null);
+  const guardandoRef = useRef(false); // guard sincrono contra doble-click, ver IngresoForm
 
   const up = (k) => (v) => setF((p) => ({ ...p, [k]: v }));
 
   const go = async () => {
+    if (guardandoRef.current) return;
+    guardandoRef.current = true;
     setSaving(true);
     setErr(null);
     try {
@@ -46,6 +49,7 @@ function GastoForm({ onSave }) {
       setErr("Error al guardar: " + e.message);
     } finally {
       setSaving(false);
+      guardandoRef.current = false;
     }
   };
 
@@ -54,7 +58,7 @@ function GastoForm({ onSave }) {
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
         <span style={{ fontSize: 26 }}>⬇️</span>
         <div>
-          <div style={{ fontSize: 10, color: K.muted }}>NUEVO · SE GUARDA EN SHEETS</div>
+          <div style={{ fontSize: 10, color: K.muted }}>NUEVO</div>
           <div style={{ fontSize: 20, fontWeight: 700, color: K.red }}>Gasto</div>
         </div>
       </div>
@@ -81,7 +85,7 @@ function GastoForm({ onSave }) {
       />
       {ok && (
         <div style={{ textAlign: "center", color: K.gold, fontWeight: 700, marginBottom: 8, fontSize: 14 }}>
-          ✓ Guardado en Google Sheets!
+          ✓ Guardado
         </div>
       )}
       {err && (

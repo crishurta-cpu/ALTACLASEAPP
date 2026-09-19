@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { K, DS, TIPOS, fmt } from "../../constants";
 import Card from "../../shared/ui/Card";
 import Btn from "../../shared/ui/Btn";
@@ -34,12 +34,18 @@ function IngresoForm({ onSave, clientes = [], proveedores = [] }) {
   const [saving, setSaving] = useState(false);
   const [ok, setOk] = useState(false);
   const [err, setErr] = useState(null);
+  // Guard sincrono: `saving` solo desactiva el boton en el siguiente render,
+  // asi que un doble-click muy rapido podia disparar 2 guardados (posible
+  // ingreso duplicado). El ref se lee/escribe al instante, sin esperar a React.
+  const guardandoRef = useRef(false);
 
   const up = (k) => (v) => setF((p) => ({ ...p, [k]: v }));
   const gan = Number(f.pv || 0) - Number(f.costo || 0);
   const mrg = Number(f.pv) > 0 ? Math.round((gan / Number(f.pv)) * 100) : 0;
 
   const go = async () => {
+    if (guardandoRef.current) return;
+    guardandoRef.current = true;
     setSaving(true);
     setErr(null);
     try {
@@ -64,6 +70,7 @@ function IngresoForm({ onSave, clientes = [], proveedores = [] }) {
       setErr("Error al guardar: " + e.message);
     } finally {
       setSaving(false);
+      guardandoRef.current = false;
     }
   };
 
@@ -72,7 +79,7 @@ function IngresoForm({ onSave, clientes = [], proveedores = [] }) {
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
         <span style={{ fontSize: 26 }}>⬆️</span>
         <div>
-          <div style={{ fontSize: 10, color: K.muted }}>NUEVO · SE GUARDA EN SHEETS</div>
+          <div style={{ fontSize: 10, color: K.muted }}>NUEVO</div>
           <div style={{ fontSize: 20, fontWeight: 700, color: K.gold }}>Ingreso</div>
         </div>
       </div>
@@ -132,7 +139,7 @@ function IngresoForm({ onSave, clientes = [], proveedores = [] }) {
           </>
         }
       />
-      {ok && <div style={{ textAlign: "center", color: K.gold, fontWeight: 700, marginBottom: 8, fontSize: 14 }}>✓ Guardado en Google Sheets!</div>}
+      {ok && <div style={{ textAlign: "center", color: K.gold, fontWeight: 700, marginBottom: 8, fontSize: 14 }}>✓ Guardado</div>}
       {err && <div style={{ textAlign: "center", color: K.red, fontWeight: 700, marginBottom: 8, fontSize: 13 }}>{err}</div>}
       <Btn label="REGISTRAR INGRESO" onClick={go} dis={!f.producto || !f.pv} loading={saving} />
     </div>

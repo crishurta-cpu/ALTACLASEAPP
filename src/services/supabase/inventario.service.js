@@ -22,8 +22,10 @@ export async function readAll(organizationId) {
 }
 
 export async function append(organizationId, item) {
-  const productId = await findOrCreateProduct(organizationId, item.producto);
-  const supplierId = await findOrCreateSupplier(organizationId, item.proveedor);
+  const [productId, supplierId] = await Promise.all([
+    findOrCreateProduct(organizationId, item.producto),
+    findOrCreateSupplier(organizationId, item.proveedor),
+  ]);
   const { error } = await supabase.from("purchases").insert({
     organization_id: organizationId,
     product_id: productId,
@@ -36,8 +38,10 @@ export async function append(organizationId, item) {
 }
 
 export async function update(organizationId, item) {
-  const productId = await findOrCreateProduct(organizationId, item.producto);
-  const supplierId = await findOrCreateSupplier(organizationId, item.proveedor);
+  const [productId, supplierId] = await Promise.all([
+    findOrCreateProduct(organizationId, item.producto),
+    findOrCreateSupplier(organizationId, item.proveedor),
+  ]);
   const { error } = await supabase
     .from("purchases")
     .update({
