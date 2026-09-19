@@ -32,6 +32,15 @@ export function onAuthStateChange(callback) {
  * Devuelve el organization_id del usuario autenticado. Si no tiene ninguna
  * membresia todavia (primer signup), crea la organizacion por defecto una
  * sola vez via el RPC SECURITY DEFINER create_organization.
+ *
+ * `organization_members.user_id` tiene un UNIQUE constraint (un usuario =
+ * una sola organizacion). Esto importa porque Supabase dispara mas de un
+ * evento de auth al cargar la sesion (INITIAL_SESSION y luego SIGNED_IN),
+ * y ambos pueden llamar a este metodo casi al mismo tiempo — sin el
+ * constraint, las dos llamadas veian "sin membresia" y creaban 2
+ * organizaciones para el mismo usuario (bug real, corregido 2026-09-19).
+ * Si el RPC choca contra el constraint, la otra llamada ya gano la carrera:
+ * simplemente se relee la membresia real en vez de fallar.
  */
 export async function ensureOrganization(defaultName = "Altaclase Bodega") {
   const { data: memberships, error: readError } = await supabase
@@ -47,6 +56,18 @@ export async function ensureOrganization(defaultName = "Altaclase Bodega") {
   const { data: organizationId, error: rpcError } = await supabase.rpc("create_organization", {
     p_name: defaultName,
   });
-  if (rpcError) throw rpcError;
+  if (rpcError) {
+    if (rpcError.code === "23505") {
+      // Ya existe (la ganó otra llamada concurrente) — releer.
+      const { data: existing, error: retryError } = await supabase
+        .from("organization_members")
+        .select("organization_id")
+        .limit(1)
+        .single();
+      if (retryError) throw retryError;
+      return existing.organization_id;
+    }
+    throw rpcError;
+  }
   return organizationId;
 }
