@@ -8,11 +8,11 @@ function UtilidadCard({ util, mrg, ahorro }) {
   const positivo = util >= 0;
   return (
     <div style={{
-      background: positivo ? `linear-gradient(135deg,#1A1810 0%,${K.card} 100%)` : `linear-gradient(135deg,#1A0E0E 0%,${K.card} 100%)`,
-      borderRadius: DS.r.xl, padding: "24px 20px 20px", marginBottom: 12, textAlign: "center",
+      background: positivo ? `linear-gradient(135deg,#1F160D 0%,${K.card} 100%)` : `linear-gradient(135deg,#1A0E0E 0%,${K.card} 100%)`,
+      borderRadius: DS.r.xl, padding: "24px 20px 20px", marginBottom: 12, marginTop: -16, textAlign: "center",
       border: `1px solid ${positivo ? K.gold + "22" : K.red + "22"}`,
-      boxShadow: positivo ? `0 4px 32px ${K.gold}18` : `0 4px 32px ${K.red}12`,
-      position: "relative", overflow: "hidden",
+      boxShadow: positivo ? `0 20px 40px rgba(0,0,0,.35), 0 4px 32px ${K.gold}18` : `0 20px 40px rgba(0,0,0,.35), 0 4px 32px ${K.red}12`,
+      position: "relative", overflow: "hidden", zIndex: 2,
     }}>
       <div style={{ position: "absolute", top: -30, left: "50%", transform: "translateX(-50%)", width: 200, height: 100, borderRadius: "50%", background: positivo ? `${K.gold}06` : `${K.red}06`, filter: "blur(30px)" }} />
       <div style={{ fontSize: 11, color: K.muted, textTransform: "uppercase", letterSpacing: 1.5, fontWeight: 600, marginBottom: 8 }}>Utilidad Neta del Mes Actual</div>

@@ -4,26 +4,26 @@ export const SYNC_INTERVAL_MS = 120000; // 2 minutos
 
 export const ACCENT_KEY = "altaclase_accent";
 export const ACCENTS = [
+  { id: "orange", label: "Naranja", color: "#FF7A1A" },
   { id: "gold", label: "Dorado", color: "#D4A843" },
   { id: "blue", label: "Azul", color: "#3B82F6" },
   { id: "green", label: "Verde", color: "#10B981" },
   { id: "purple", label: "Púrpura", color: "#8B5CF6" },
-  { id: "orange", label: "Naranja", color: "#F59E0B" },
   { id: "teal", label: "Teal", color: "#06B6D4" },
   { id: "rose", label: "Rosa", color: "#F43F5E" },
   { id: "white", label: "Blanco", color: "#F1F5F9" },
 ];
 
 export const getAccentColor = () => {
-  if (typeof window === "undefined" || !window.localStorage) return "#D4A843";
+  if (typeof window === "undefined" || !window.localStorage) return "#FF7A1A";
   const saved = localStorage.getItem(ACCENT_KEY);
   const found = ACCENTS.find(a => a.id === saved);
-  return found ? found.color : "#D4A843";
+  return found ? found.color : "#FF7A1A";
 };
 
-// Sombras y radios del sistema
+// Sombras y radios del sistema — esquinas mas redondeadas (rediseño 2026-09-19)
 export const DS = {
-  r: { sm: 10, md: 16, lg: 20, xl: 24, xxl: 28 },
+  r: { sm: 12, md: 18, lg: 22, xl: 26, xxl: 30 },
   shadow: {
     sm: "0 1px 3px rgba(0,0,0,.4)",
     md: "0 4px 16px rgba(0,0,0,.5)",
@@ -31,16 +31,19 @@ export const DS = {
     xl: "0 16px 48px rgba(0,0,0,.7)",
     glow: (col) => `0 4px 20px ${col}33`,
   },
-  glass: "rgba(28,28,35,.85)",
+  glass: "rgba(24,24,26,.85)",
   glassBorder: "rgba(255,255,255,.06)",
 };
 
+// Paleta rediseño 2026-09-19: negro/gris oscuro de base + naranja de acento,
+// con tarjetas claras ("light") para secciones de contenido/listas, al estilo
+// de la referencia de wallet fintech que aprobó el usuario.
 export const K = {
-  bg: "#737380",            // negro azulado profundo — más rico que negro puro
-  card: "#16161F",          // tarjeta nivel 1 — ligero tinte índigo
-  card2: "#1E1E2A",         // tarjeta nivel 2
-  card3: "#252533",         // input y elementos interactivos
-  card4: "#2E2E3D",         // hover y activos
+  bg: "#0A0A0B",            // negro profundo — fondo de la app
+  card: "#141416",          // tarjeta nivel 1
+  card2: "#1B1B1E",         // tarjeta nivel 2
+  card3: "#222225",         // input y elementos interactivos
+  card4: "#2B2B2F",         // hover y activos
   get gold() { return getAccentColor(); },
   green: "#10B981",
   grafico: "#6b7280",
@@ -56,6 +59,11 @@ export const K = {
   mutedLighter: "#9CA3AF",
   text: "#F1F5F9",
   white: "#FFFFFF",
+  // Tarjetas claras (listas, acciones rápidas) sobre el fondo oscuro
+  light: "#F7F6F4",
+  lightBorder: "#E7E5E2",
+  ink: "#17100A",
+  inkMuted: "#6B6B70",
 };
 
 export const CCAT = {

@@ -45,7 +45,7 @@ function LoginScreen() {
   return (
     <div
       style={{
-        background: `radial-gradient(ellipse at 35% 25%, ${accent}0A 0%, transparent 55%), #0D0D12`,
+        background: `radial-gradient(ellipse at 35% 25%, ${accent}0A 0%, transparent 55%), #0A0A0B`,
         minHeight: "100dvh",
         display: "flex",
         flexDirection: "column",

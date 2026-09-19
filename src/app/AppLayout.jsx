@@ -12,6 +12,33 @@ const NAV = [
   { id: "mas", label: "Más" },
 ];
 
+const NAV_ICONS = {
+  home: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9.5 12 3l9 6.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1Z" /></svg>,
+  clientes: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /></svg>,
+  historial: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 3" /></svg>,
+  mas: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="5" cy="12" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="19" cy="12" r="1.5" /></svg>,
+};
+
+/** Item de la barra flotante inferior: icono + label, con pill de acento cuando está activo. */
+function NavItem({ id, active, onClick }) {
+  const labels = { home: "Inicio", clientes: "Clientes", historial: "Historial", mas: "Más" };
+  const color = active ? K.gold : "#7A7A7E";
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        flex: 1, background: active ? `${K.gold}22` : "none", border: "none",
+        padding: "8px 4px", borderRadius: DS.r.md, cursor: "pointer",
+        display: "flex", flexDirection: "column", alignItems: "center", gap: 3,
+        WebkitTapHighlightColor: "transparent",
+      }}
+    >
+      <span style={{ color, display: "flex" }}>{NAV_ICONS[id]}</span>
+      <span style={{ fontSize: 9, fontWeight: active ? 700 : 600, color }}>{labels[id]}</span>
+    </button>
+  );
+}
+
 /**
  * Shell visual de la app: estilos globales, sidebar desktop, nav inferior
  * mobile, FAB, modal de "nuevo movimiento" y modales de edición de
@@ -27,23 +54,22 @@ export default function AppLayout({ children }) {
   return (
     <>
       <style>{`
-        html,body{margin:0;padding:0;background:#0D0D12;width:100%;max-width:100vw;overflow-x:hidden;overscroll-behavior:none;}
+        html,body{margin:0;padding:0;background:${K.bg};width:100%;max-width:100vw;overflow-x:hidden;overscroll-behavior:none;}
         *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
         .ac-sidebar{display:none;flex-direction:column;width:220px;min-height:100dvh;
-          background:rgba(22,22,30,.97);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+          background:rgba(20,20,22,.97);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
           border-right:1px solid rgba(255,255,255,.07);padding:48px 16px 24px;
           position:static;top:0;left:0;bottom:0;z-index:100;}
         .ac-main-inner{width:100%;max-width:430px;margin:0 auto;}
-        .ac-nav{position:fixed;bottom:0;left:0;right:0;display:flex;z-index:200;
-          background:rgba(13,13,18,.95);backdrop-filter:blur(28px);-webkit-backdrop-filter:blur(28px);
-          border-top:1px solid rgba(255,255,255,.07);
-          padding-bottom:env(safe-area-inset-bottom,0px);}
-        .ac-fab{position:fixed;bottom:calc(78px + env(safe-area-inset-bottom,0px));right:20px;z-index:150;}
+        .ac-nav-wrap{position:fixed;left:12px;right:12px;bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:200;}
+        .ac-nav{display:flex;align-items:center;justify-content:space-around;height:68px;
+          background:${K.ink};border-radius:${DS.r.xl}px;padding:0 6px;
+          box-shadow:0 14px 30px rgba(0,0,0,.5);}
         @media(min-width:768px){
           .ac-sidebar{display:flex!important;}
           .ac-main-inner{max-width:none!important;margin-left:0!important;}
-          .ac-nav{display:none!important;}
-          .ac-fab{right:32px!important;}
+          .ac-nav-wrap{display:none!important;}
+          .ac-fab-desktop{display:flex!important;}
           .ac-desktop-2col{display:grid!important;grid-template-columns:1fr 1fr!important;gap:16px!important;align-items:start!important;}
         }
       `}</style>
@@ -100,26 +126,28 @@ export default function AppLayout({ children }) {
             overflowY: "auto",
             height: "100vh",
             WebkitOverflowScrolling: "touch",
-            paddingBottom: "calc(68px + env(safe-area-inset-bottom,0px))",
+            paddingBottom: "calc(96px + env(safe-area-inset-bottom,0px))",
           }}>
             <div className="ac-main-inner">
               {/* Toast: ver ./providers/ToastProvider.jsx (ToastHost) — se renderiza
                   fuera de este árbol a propósito, para no re-renderizar toda la app. */}
               <div style={{}}>{children}</div>
 
-              {/* FAB premium */}
+              {/* FAB de escritorio: en mobile vive integrado a la barra inferior (ver .ac-nav) */}
               {mostrarFab && (
                 <button
                   onClick={() => setShowNuevo(true)}
+                  className="ac-fab-desktop"
                   style={{
+                    display: "none",
                     position: "fixed",
-                    bottom: `calc(80px + env(safe-area-inset-bottom,0px))`,
-                    right: `calc(20px + env(safe-area-inset-right,0px))`,
+                    bottom: 32,
+                    right: 32,
                     width: 58, height: 58,
                     background: `linear-gradient(135deg, ${K.gold} 0%, ${K.gold}CC 100%)`,
                     border: "none",
                     borderRadius: "50%",
-                    display: "flex", alignItems: "center", justifyContent: "center",
+                    alignItems: "center", justifyContent: "center",
                     boxShadow: `0 6px 24px ${K.gold}55, 0 2px 8px rgba(0,0,0,.4)`,
                     cursor: "pointer", zIndex: 150,
                     WebkitTapHighlightColor: "transparent",
@@ -150,31 +178,37 @@ export default function AppLayout({ children }) {
                 </div>
               )}
 
-              {/* Nav — CSS oculta en desktop */}
-              <nav className="ac-nav">
-                {NAV.map(({ id }) => {
-                  const active = tab === id;
-                  const acc = K.gold;
-                  const icons = {
-                    home: <svg width="20" height="20" viewBox="0 0 24 24" fill={active ? acc : "none"} stroke={active ? acc : K.muted} strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" /></svg>,
-                    clientes: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={active ? acc : K.muted} strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" /></svg>,
-                    historial: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={active ? acc : K.muted} strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3v11.25A2.25 2.25 0 006 16.5h2.25M3.75 3h-1.5m1.5 0h16.5m0 0h1.5m-1.5 0v11.25A2.25 2.25 0 0118 16.5h-2.25m-7.5 0h7.5m-7.5 0l-1 3m8.5-3l1 3" /></svg>,
-                    mas: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={active ? acc : K.muted} strokeWidth="1.5"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" /></svg>,
-                  };
-                  const labels = { home: "Inicio", clientes: "Clientes", historial: "Historial", mas: "Más" };
-                  return <button key={id} onClick={() => setTab(id)} style={{ flex: 1, background: "none", border: "none", padding: "10px 0 12px", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3, WebkitTapHighlightColor: "transparent" }}>
-                    {icons[id]}
-                    <span style={{ fontSize: 10, fontWeight: active ? 600 : 400, color: active ? acc : K.muted }}>{labels[id]}</span>
-                  </button>;
-                })}
-              </nav>
+              {/* Nav flotante — CSS oculta en desktop. El FAB de "nuevo movimiento"
+                  vive integrado al centro de la barra (antes eran 2 botones
+                  flotantes distintos casi superpuestos — se unificó en uno). */}
+              <div className="ac-nav-wrap">
+                <nav className="ac-nav">
+                  {NAV.slice(0, 2).map(({ id }) => (
+                    <NavItem key={id} id={id} active={tab === id} onClick={() => setTab(id)} />
+                  ))}
 
-              {/* FAB — CSS posiciona correctamente */}
-              {mostrarFab && (
-                <div className="ac-fab">
-                  <button onClick={() => setShowNuevo(true)} style={{ width: 56, height: 56, background: K.gold, border: "none", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: `0 4px 20px ${K.gold}50`, cursor: "pointer", fontSize: 26, color: "#000", fontWeight: 300, WebkitTapHighlightColor: "transparent" }}>+</button>
-                </div>
-              )}
+                  {mostrarFab ? (
+                    <button
+                      onClick={() => setShowNuevo(true)}
+                      aria-label="Nuevo movimiento"
+                      style={{
+                        width: 52, height: 52, borderRadius: "50%",
+                        background: K.gold, border: `5px solid ${K.ink}`,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        transform: "translateY(-16px)", boxShadow: `0 8px 18px ${K.gold}55`,
+                        cursor: "pointer", flexShrink: 0, WebkitTapHighlightColor: "transparent",
+                      }}>
+                      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#0A0A0B" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                    </button>
+                  ) : (
+                    <div style={{ width: 52, flexShrink: 0 }} />
+                  )}
+
+                  {NAV.slice(2).map(({ id }) => (
+                    <NavItem key={id} id={id} active={tab === id} onClick={() => setTab(id)} />
+                  ))}
+                </nav>
+              </div>
 
               {editIng && <EditIngreso item={editIng} onClose={() => setEditIng(null)} onSave={updateIngreso} onDelete={removeIngreso} />}
               {editGas && <EditGasto item={editGas} onClose={() => setEditGas(null)} onSave={updateGasto} onDelete={removeGasto} />}
