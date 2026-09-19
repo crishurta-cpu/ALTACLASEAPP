@@ -4,7 +4,7 @@ import { K, DS } from "../../constants";
 /**
  * Genera y copia al portapapeles el reporte de deuda para WhatsApp.
  */
-function ReporteClienteBtn({ cliente, ventasDeudoras = [], abonos = 0 }) {
+function ReporteClienteBtn({ cliente, ventasDeudoras = [], abonos = 0, totalDeuda = null }) {
   const [copiado, setCopiado] = useState(false);
   const fmt2 = (n) => "$" + Number(n || 0).toLocaleString("es-CO");
 
@@ -14,8 +14,11 @@ function ReporteClienteBtn({ cliente, ventasDeudoras = [], abonos = 0 }) {
     const hoy = new Date();
     const fechaStr = hoy.toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric" });
     const sorted = [...ventasDeudoras].sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-    const totalBruto = sorted.reduce((s, v) => s + v.precioVenta, 0);
-    const totalNeto = Math.max(0, totalBruto - abonos);
+    // totalDeuda es el balance real (ventas - pagos) que ya calcula Supabase.
+    // No se recalcula sumando solo las ventas "debe=SI" menos los abonos
+    // totales, porque si el cliente ya tiene ventas viejas marcadas como
+    // pagadas, esos abonos ya se usaron ahí y no se pueden restar otra vez.
+    const totalNeto = totalDeuda !== null ? Math.max(0, totalDeuda) : Math.max(0, sorted.reduce((s, v) => s + v.precioVenta, 0) - abonos);
     const lineas = [
       `📋 *REPORTE ACTUALIZADO CLIENTE:*`,
       `      *• ${cliente}*`,

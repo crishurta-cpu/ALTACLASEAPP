@@ -3,12 +3,15 @@ import { K, DS } from "../../constants";
 /**
  * Detalle visual de deuda pendiente para un cliente.
  */
-function DeudaFactura({ cliente, ventasDeudoras, abonos = 0 }) {
+function DeudaFactura({ cliente, ventasDeudoras, abonos = 0, totalDeuda = null }) {
   if (!ventasDeudoras || ventasDeudoras.length === 0) return null;
 
   const fmt2 = (n) => "$" + Number(n || 0).toLocaleString("es-CO");
-  const totalBruto = ventasDeudoras.reduce((s, v) => s + v.precioVenta, 0);
-  const totalNeto = Math.max(0, totalBruto - abonos);
+  // totalDeuda es el balance real (ventas - pagos) calculado en Supabase.
+  // No se recalcula localmente: si el cliente tiene ventas viejas ya
+  // marcadas como pagadas, sus abonos ya se usaron ahí y restarlos de
+  // nuevo aquí subestima la deuda pendiente (ver ReporteClienteBtn.jsx).
+  const totalNeto = totalDeuda !== null ? Math.max(0, totalDeuda) : Math.max(0, ventasDeudoras.reduce((s, v) => s + v.precioVenta, 0) - abonos);
   const sorted = [...ventasDeudoras].sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
   const hoy = new Date();
   const fechaStr = hoy.toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric" });

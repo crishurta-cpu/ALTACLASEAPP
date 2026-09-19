@@ -109,8 +109,8 @@ function ClienteDetail({
       )}
       <ClienteStats totalVentas={tv} ganancia={ganF} />
       <ClienteHistorial ventasFiltradas={ventasFiltradas} pagH={pagH} setPagH={setPagH} onEditIngreso={onEditIngreso} onMarcarPagado={onMarcarPagado} />
-      <DeudaFactura cliente={cliente} ventasDeudoras={ventasDeudoras} abonos={abonos} />
-      <ReporteClienteBtn cliente={cliente} ventasDeudoras={ventasDeudoras} abonos={abonos} />
+      <DeudaFactura cliente={cliente} ventasDeudoras={ventasDeudoras} abonos={abonos} totalDeuda={data?.saldo ?? null} />
+      <ReporteClienteBtn cliente={cliente} ventasDeudoras={ventasDeudoras} abonos={abonos} totalDeuda={data?.saldo ?? null} />
       {editando && (
         <EditClienteForm
           customer={editando}
