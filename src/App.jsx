@@ -2,6 +2,7 @@ import { lazy, Suspense, useState } from "react";
 import { K, DS } from "./constants";
 import Btn from "./shared/ui/Btn";
 import LoginScreen from "./features/auth/LoginScreen";
+import ResetPasswordScreen from "./features/auth/ResetPasswordScreen";
 import Historial from "./features/history/Historial";
 import Clientes from "./features/clients/Clientes";
 import Home from "./features/home/Home";
@@ -51,7 +52,7 @@ function Mas({ db, onEditIngreso, onEditGasto, onAddInv, onEditInv, onDeleteInv,
 }
 
 export default function App() {
-  const { autenticado } = useAuth();
+  const { autenticado, passwordRecovery } = useAuth();
   const { tab, setEditIng, setEditGas } = useNav();
   const {
     db, loading, initDone, initError, lastSync, loadData,
@@ -59,6 +60,12 @@ export default function App() {
     addInventario, editInventario, removeInventario,
     addDeuda, editDeuda, removeDeuda,
   } = useData();
+
+  // Ojo: al abrir el link de "olvidé mi contraseña" Supabase SI crea sesion
+  // (autenticado=true), asi que este check va antes que el de login normal.
+  if (passwordRecovery) {
+    return <ResetPasswordScreen />;
+  }
 
   if (!autenticado) {
     return <LoginScreen />;

@@ -1,5 +1,8 @@
+import { useState } from "react";
 import { DS, K, getAccentColor } from "../../constants";
 import Card from "../../shared/ui/Card";
+import Btn from "../../shared/ui/Btn";
+import FInput from "../../shared/ui/FInput";
 import AccentPicker from "./AccentPicker";
 import { useAuth } from "../../app/hooks/useAuth";
 
@@ -15,7 +18,34 @@ import { useAuth } from "../../app/hooks/useAuth";
  * notificaciones, etc.
  */
 function Configuracion() {
-  const { cerrarSesion } = useAuth();
+  const { cerrarSesion, updatePassword, email } = useAuth();
+  const [nuevaClave, setNuevaClave] = useState("");
+  const [confirmarClave, setConfirmarClave] = useState("");
+  const [cambiando, setCambiando] = useState(false);
+  const [claveMsg, setClaveMsg] = useState(null); // { texto, color }
+
+  const cambiarClave = async () => {
+    if (nuevaClave.length < 6) {
+      setClaveMsg({ texto: "Mínimo 6 caracteres", color: K.red });
+      return;
+    }
+    if (nuevaClave !== confirmarClave) {
+      setClaveMsg({ texto: "Las contraseñas no coinciden", color: K.red });
+      return;
+    }
+    setCambiando(true);
+    setClaveMsg(null);
+    try {
+      await updatePassword(nuevaClave);
+      setNuevaClave("");
+      setConfirmarClave("");
+      setClaveMsg({ texto: "✓ Contraseña actualizada", color: K.green });
+    } catch (e) {
+      setClaveMsg({ texto: e.message, color: K.red });
+    } finally {
+      setCambiando(false);
+    }
+  };
 
   return (
     <div style={{ padding: "0 0 16px" }}>
@@ -65,7 +95,7 @@ function Configuracion() {
         </div>
         <div style={{ height: "0.5px", background: K.border, margin: "0 -16px 10px" }} />
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span style={{ fontSize: 15, color: K.text }}>Cerrar al cerrar navegador</span>
+          <span style={{ fontSize: 15, color: K.text }}>Persiste al cerrar navegador</span>
           <span style={{ fontSize: 13, color: K.green, fontWeight: 600 }}>Activo</span>
         </div>
       </>} />
@@ -85,8 +115,27 @@ function Configuracion() {
         <div style={{ height: "0.5px", background: K.border, margin: "0 -16px 10px" }} />
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <span style={{ fontSize: 15, color: K.text }}>Fuente de datos</span>
-          <span style={{ fontSize: 13, color: K.muted }}>Google Sheets</span>
+          <span style={{ fontSize: 13, color: K.muted }}>Supabase</span>
         </div>
+      </>} />
+
+      {/* Cuenta / contraseña */}
+      <Card s={{ marginBottom: 8 }} ch={<>
+        <div style={{
+          fontSize: 12, color: K.muted, textTransform: "uppercase",
+          letterSpacing: 0.5, fontWeight: 600, marginBottom: 10
+        }}>
+          Cuenta
+        </div>
+        <div style={{ fontSize: 13, color: K.muted, marginBottom: 12 }}>{email}</div>
+        <FInput label="Nueva contraseña" value={nuevaClave} onChange={setNuevaClave} type="password" />
+        <FInput label="Confirmar contraseña" value={confirmarClave} onChange={setConfirmarClave} type="password" />
+        {claveMsg && (
+          <div style={{ fontSize: 12, color: claveMsg.color, fontWeight: 600, marginBottom: 10, textAlign: "center" }}>
+            {claveMsg.texto}
+          </div>
+        )}
+        <Btn label="Cambiar contraseña" onClick={cambiarClave} loading={cambiando} dis={!nuevaClave || !confirmarClave} sm />
       </>} />
 
       {/* Cerrar sesión */}

@@ -16,6 +16,7 @@ export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
   const [organizationId, setOrganizationId] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [passwordRecovery, setPasswordRecovery] = useState(false);
   const inactivityRef = useRef(null);
 
   useEffect(() => {
@@ -23,7 +24,13 @@ export function AuthProvider({ children }) {
       setSession(s);
       setAuthLoading(false);
     });
-    return authService.onAuthStateChange((s) => setSession(s));
+    return authService.onAuthStateChange((event, s) => {
+      // Al abrir el link de "olvidé mi contraseña", Supabase crea sesion y
+      // dispara este evento en vez de SIGNED_IN — se usa para mostrar la
+      // pantalla de "definir nueva contraseña" en vez de la app normal.
+      if (event === "PASSWORD_RECOVERY") setPasswordRecovery(true);
+      setSession(s);
+    });
   }, []);
 
   useEffect(() => {
@@ -45,6 +52,15 @@ export function AuthProvider({ children }) {
 
   const cerrarSesion = useCallback(async () => {
     await authService.signOut();
+  }, []);
+
+  const resetPasswordForEmail = useCallback(async (email) => {
+    await authService.resetPasswordForEmail(email);
+  }, []);
+
+  const updatePassword = useCallback(async (newPassword) => {
+    await authService.updatePassword(newPassword);
+    setPasswordRecovery(false);
   }, []);
 
   // Timeout de inactividad: reinicia con cada toque/click/tecla
@@ -69,11 +85,24 @@ export function AuthProvider({ children }) {
       authLoading,
       organizationId,
       email: session?.user?.email || null,
+      passwordRecovery,
       signIn,
       signUp,
       cerrarSesion,
+      resetPasswordForEmail,
+      updatePassword,
     }),
-    [session, authLoading, organizationId, signIn, signUp, cerrarSesion]
+    [
+      session,
+      authLoading,
+      organizationId,
+      passwordRecovery,
+      signIn,
+      signUp,
+      cerrarSesion,
+      resetPasswordForEmail,
+      updatePassword,
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

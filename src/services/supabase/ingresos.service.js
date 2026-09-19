@@ -33,7 +33,9 @@ function ordersToIngresos(orders) {
       id: "ord_" + o.id,
       _row: "ord:" + o.id,
       fecha: o.order_date,
-      tipo: o.sale_type === "credit_purchase" ? "COMPRA CON SALDO" : "VENTA",
+      // sale_type solo admite 'normal'/'occasional' — COMPRA CON SALDO se
+      // marca en notes (ver createOrder), no en sale_type.
+      tipo: o.notes === "Compra con saldo (cliente especial)" ? "COMPRA CON SALDO" : "VENTA",
       producto: item.products?.name || "",
       cliente: o.customers?.name || "",
       proveedor: item.suppliers?.name || "",
@@ -85,7 +87,7 @@ export async function readAll(organizationId) {
     supabase
       .from("orders")
       .select(
-        "id, order_date, sale_type, order_items ( sale_price, actual_cost, products ( name ), suppliers ( name ) ), payments ( amount ), customers ( name )"
+        "id, order_date, notes, order_items ( sale_price, actual_cost, products ( name ), suppliers ( name ) ), payments ( amount ), customers ( name )"
       )
       .eq("organization_id", organizationId)
       .order("order_date", { ascending: false }),
@@ -141,7 +143,10 @@ async function createOrder(organizationId, item) {
       customer_id: customerId,
       order_number: orderNumber,
       order_date: item.fecha,
-      sale_type: isCompraConSaldo ? "credit_purchase" : "normal",
+      // sale_type solo admite 'normal'/'occasional' (CHECK constraint) — la
+      // distincion de COMPRA CON SALDO queda en notes + customers.credit_enabled.
+      sale_type: "normal",
+      notes: isCompraConSaldo ? "Compra con saldo (cliente especial)" : null,
     })
     .select("id")
     .single();

@@ -7,8 +7,8 @@ import { useAuth } from "../../app/hooks/useAuth";
  * Reemplaza la clave de acceso hardcodeada (Fase M5, cutover).
  */
 function LoginScreen() {
-  const { signIn, signUp } = useAuth();
-  const [modo, setModo] = useState("login"); // "login" | "signup"
+  const { signIn, signUp, resetPasswordForEmail } = useAuth();
+  const [modo, setModo] = useState("login"); // "login" | "signup" | "recover"
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -16,9 +16,10 @@ function LoginScreen() {
   const [entrando, setEntrando] = useState(false);
 
   const accent = getAccentColor();
+  const esRecover = modo === "recover";
 
   const intentar = async () => {
-    if (!email || !password) return;
+    if (!email || (!esRecover && !password)) return;
     setEntrando(true);
     setError("");
     setAviso("");
@@ -28,6 +29,9 @@ function LoginScreen() {
         if (!data.session) {
           setAviso("Cuenta creada — revisa tu correo para confirmarla antes de entrar.");
         }
+      } else if (modo === "recover") {
+        await resetPasswordForEmail(email);
+        setAviso("Listo — revisa tu correo para el link de recuperación.");
       } else {
         await signIn(email, password);
       }
@@ -132,28 +136,51 @@ function LoginScreen() {
               WebkitAppearance: "none",
             }}
           />
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => {
-              setPassword(e.target.value);
-              setError("");
-            }}
-            onKeyDown={(e) => e.key === "Enter" && intentar()}
-            placeholder="Contraseña"
-            style={{
-              width: "100%",
-              background: K.card3,
-              border: `1px solid ${error ? K.red + "88" : K.border}`,
-              borderRadius: DS.r.md,
-              color: K.text,
-              padding: "15px 18px",
-              fontSize: 15,
-              outline: "none",
-              boxSizing: "border-box",
-              WebkitAppearance: "none",
-            }}
-          />
+          {!esRecover && (
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setError("");
+              }}
+              onKeyDown={(e) => e.key === "Enter" && intentar()}
+              placeholder="Contraseña"
+              style={{
+                width: "100%",
+                background: K.card3,
+                border: `1px solid ${error ? K.red + "88" : K.border}`,
+                borderRadius: DS.r.md,
+                color: K.text,
+                padding: "15px 18px",
+                fontSize: 15,
+                outline: "none",
+                boxSizing: "border-box",
+                WebkitAppearance: "none",
+              }}
+            />
+          )}
+          {modo === "login" && (
+            <button
+              onClick={() => {
+                setModo("recover");
+                setError("");
+                setAviso("");
+              }}
+              style={{
+                background: "none",
+                border: "none",
+                color: K.muted,
+                fontSize: 11,
+                marginTop: 8,
+                cursor: "pointer",
+                display: "block",
+                marginLeft: "auto",
+              }}
+            >
+              ¿Olvidaste tu contraseña?
+            </button>
+          )}
         </div>
 
         {error && (
@@ -190,30 +217,37 @@ function LoginScreen() {
 
         <button
           onClick={intentar}
-          disabled={!email || !password || entrando}
+          disabled={!email || (!esRecover && !password) || entrando}
           style={{
             width: "100%",
             padding: "15px",
-            background: !email || !password || entrando ? K.card3 : accent,
+            background: !email || (!esRecover && !password) || entrando ? K.card3 : accent,
             border: "none",
             borderRadius: DS.r.md,
-            color: !email || !password || entrando ? K.muted : "#000",
+            color: !email || (!esRecover && !password) || entrando ? K.muted : "#000",
             fontSize: 15,
             fontWeight: 600,
-            cursor: !email || !password || entrando ? "not-allowed" : "pointer",
-            opacity: !email || !password || entrando ? 0.5 : 1,
-            boxShadow: !email || !password || entrando ? "none" : `0 4px 20px ${accent}40`,
+            cursor: !email || (!esRecover && !password) || entrando ? "not-allowed" : "pointer",
+            opacity: !email || (!esRecover && !password) || entrando ? 0.5 : 1,
+            boxShadow: !email || (!esRecover && !password) || entrando ? "none" : `0 4px 20px ${accent}40`,
             transition: "all .2s",
             WebkitTapHighlightColor: "transparent",
           }}
         >
-          {entrando ? "..." : modo === "signup" ? "Crear cuenta →" : "Entrar →"}
+          {entrando
+            ? "..."
+            : modo === "signup"
+              ? "Crear cuenta →"
+              : modo === "recover"
+                ? "Enviar link de recuperación →"
+                : "Entrar →"}
         </button>
 
         <button
           onClick={() => {
-            setModo((m) => (m === "signup" ? "login" : "signup"));
+            setModo((m) => (m === "signup" ? "login" : m === "recover" ? "login" : "signup"));
             setError("");
+            setAviso("");
           }}
           style={{
             width: "100%",
@@ -226,7 +260,11 @@ function LoginScreen() {
             textAlign: "center",
           }}
         >
-          {modo === "signup" ? "Ya tengo cuenta — iniciar sesión" : "Primera vez — crear cuenta"}
+          {modo === "signup"
+            ? "Ya tengo cuenta — iniciar sesión"
+            : modo === "recover"
+              ? "Volver a iniciar sesión"
+              : "Primera vez — crear cuenta"}
         </button>
 
         <div style={{ textAlign: "center", fontSize: 11, color: K.muted, marginTop: 16, lineHeight: 1.6 }}>

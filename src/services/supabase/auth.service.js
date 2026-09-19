@@ -24,8 +24,28 @@ export async function getSession() {
 }
 
 export function onAuthStateChange(callback) {
-  const { data } = supabase.auth.onAuthStateChange((_event, session) => callback(session));
+  const { data } = supabase.auth.onAuthStateChange((event, session) => callback(event, session));
   return () => data.subscription.unsubscribe();
+}
+
+/**
+ * Envia el correo de "olvidé mi contraseña". El link lleva de vuelta a esta
+ * misma app (redirectTo = origin actual, sirve igual en local y en
+ * produccion) — Supabase abre la sesion en modo recovery y dispara el
+ * evento PASSWORD_RECOVERY (ver AuthProvider), que muestra la pantalla de
+ * "definir nueva contraseña" en vez de la app normal.
+ */
+export async function resetPasswordForEmail(email) {
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin,
+  });
+  if (error) throw error;
+}
+
+/** Cambia la contraseña de la sesion activa (recovery o ya logueado). */
+export async function updatePassword(newPassword) {
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
+  if (error) throw error;
 }
 
 /**
