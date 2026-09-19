@@ -20,9 +20,17 @@ export async function findOrCreateByName(table, organizationId, name, extra = {}
   if (findError) throw findError;
   if (existing && existing.length > 0) return existing[0].id;
 
+  // customers tiene UNIQUE (organization_id, document_number) — un "" fijo
+  // para todos los clientes sin documento choca en el segundo cliente nuevo
+  // (bug real visto en produccion 2026-09-19). Se genera un placeholder unico.
+  const uniqueExtra =
+    table === "customers" && !extra.document_number
+      ? { ...extra, document_number: `SIN-DOC-${crypto.randomUUID()}` }
+      : extra;
+
   const { data: created, error: createError } = await supabase
     .from(table)
-    .insert({ organization_id: organizationId, name: cleanName, ...extra })
+    .insert({ organization_id: organizationId, name: cleanName, ...uniqueExtra })
     .select("id")
     .single();
   if (createError) throw createError;
