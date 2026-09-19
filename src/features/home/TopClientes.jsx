@@ -25,15 +25,15 @@ function TopClientes({ top5, deudaPorNombre }) {
         {top5.map(([nombre, stats], i) => {
           const debeMucho = (deudaPorNombre[nombre] || 0) > 1000000;
           return (
-            <div key={nombre} style={{ flexShrink: 0, scrollSnapAlign: "start", width: 88, background: K.light, borderRadius: DS.r.lg, padding: 10, display: "flex", flexDirection: "column", justifyContent: "space-between", minHeight: 88, boxShadow: "0 8px 20px rgba(0,0,0,.25)" }}>
+            <div key={nombre} style={{ flexShrink: 0, scrollSnapAlign: "start", width: 88, background: K.cardGrad, border: `1px solid ${K.border}`, borderRadius: DS.r.lg, padding: 10, display: "flex", flexDirection: "column", justifyContent: "space-between", minHeight: 88, boxShadow: DS.shadow.sm }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
                 <div style={{ width: 18, height: 18, borderRadius: "50%", background: MEDALS[i], display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, color: "#000" }}>{i + 1}</div>
                 {debeMucho && <span style={{ fontSize: 11 }}>⚠️</span>}
               </div>
               <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: K.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 2 }}>{nombre}</div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: i === 0 ? K.gold : "#17A34A" }}>{fmt(stats.g)}</div>
-                <div style={{ fontSize: 9, color: K.inkMuted }}>{stats.n} vta{stats.n !== 1 ? "s" : ""}</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: K.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 2 }}>{nombre}</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: i === 0 ? K.gold : "#22C55E" }}>{fmt(stats.g)}</div>
+                <div style={{ fontSize: 9, color: K.muted }}>{stats.n} vta{stats.n !== 1 ? "s" : ""}</div>
               </div>
             </div>
           );

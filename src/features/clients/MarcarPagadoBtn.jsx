@@ -3,8 +3,12 @@ import { K, DS } from "../../constants";
 
 /**
  * Confirma y marca como pagadas todas las ventas pendientes del cliente.
+ * Esto siempre salda TODA la deuda del cliente (son "las pendientes", no
+ * una selección parcial) — al terminar, `onBack` vuelve a la lista
+ * principal de Clientes en vez de dejarte en el detalle de alguien que
+ * ya no debe nada.
  */
-function MarcarPagadoBtn({ cliente, ventas, onMarcarPagado }) {
+function MarcarPagadoBtn({ cliente, ventas, onMarcarPagado, onBack }) {
   const [confirmar, setConfirmar] = useState(false);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState(null);
@@ -18,6 +22,7 @@ function MarcarPagadoBtn({ cliente, ventas, onMarcarPagado }) {
     try {
       await onMarcarPagado(pendientes);
       setConfirmar(false);
+      onBack?.();
     } catch (e) {
       setError("Error al actualizar: " + e.message);
     } finally {

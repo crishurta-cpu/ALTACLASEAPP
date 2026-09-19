@@ -99,7 +99,7 @@ export default function App() {
     <AppLayout>
       {tab === "home" && <Home db={db} onRefresh={() => loadData(false)} loading={loading} lastSync={lastSync} />}
       {tab === "clientes" && <div style={{ padding: "0 0 0" }}><div style={{ padding: "16px 16px 0" }}><div style={{ fontSize: 28, fontWeight: 700, letterSpacing: -.5, marginBottom: 16, color: K.text }}>Clientes</div><Clientes db={db} onEditIngreso={setEditIng} onMarcarPagado={marcarPagado} onRegistrarAbono={registrarAbono} /></div></div>}
-      {tab === "historial" && <div style={{ padding: "0 0 0" }}><div style={{ padding: "16px 16px 0" }}><div style={{ fontSize: 28, fontWeight: 700, letterSpacing: -.5, marginBottom: 16, color: K.text }}>Historial</div><Historial db={db} onEditIngreso={setEditIng} onEditGasto={setEditGas} /></div></div>}
+      {tab === "historial" && <div style={{ padding: "0 0 0" }}><div style={{ padding: "16px 16px 0" }}><div style={{ fontSize: 28, fontWeight: 700, letterSpacing: -.5, marginBottom: 16, color: K.text }}>Historial</div><Historial db={db} onEditIngreso={setEditIng} onEditGasto={setEditGas} onMarcarPagado={marcarPagado} /></div></div>}
       {tab === "mas" && <Mas db={db} onEditIngreso={setEditIng} onEditGasto={setEditGas} onAddInv={addInventario} onEditInv={editInventario} onDeleteInv={removeInventario} onAddDeuda={addDeuda} onEditDeuda={editDeuda} onDeleteDeuda={removeDeuda} />}
     </AppLayout>
   );

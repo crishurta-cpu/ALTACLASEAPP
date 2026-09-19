@@ -35,9 +35,10 @@ export const DS = {
   glassBorder: "rgba(255,255,255,.06)",
 };
 
-// Paleta rediseño 2026-09-19: negro/gris oscuro de base + naranja de acento,
-// con tarjetas claras ("light") para secciones de contenido/listas, al estilo
-// de la referencia de wallet fintech que aprobó el usuario.
+// Paleta rediseño 2026-09-19, revisada el mismo día: negro/gris oscuro de
+// base + naranja de acento. Las tarjetas claras de la primera pasada se
+// sintieron con demasiado contraste — se volvió a tarjetas oscuras, con
+// degradados sutiles entre 2 tonos cercanos en vez de un solo color plano.
 export const K = {
   bg: "#0A0A0B",            // negro profundo — fondo de la app
   card: "#141416",          // tarjeta nivel 1
@@ -59,11 +60,12 @@ export const K = {
   mutedLighter: "#9CA3AF",
   text: "#F1F5F9",
   white: "#FFFFFF",
-  // Tarjetas claras (listas, acciones rápidas) sobre el fondo oscuro
-  light: "#F7F6F4",
-  lightBorder: "#E7E5E2",
+  // Degradado sutil para tarjetas de contenido (listas, resúmenes) —
+  // reemplaza el fondo plano K.card donde antes se probó una tarjeta clara.
+  cardGrad: "linear-gradient(160deg, #1C1C1F 0%, #121214 100%)",
+  cardGradRed: "linear-gradient(160deg, #221010 0%, #160909 100%)", // variante para deuda/alertas
+  // Fondo oscuro de la barra de navegación inferior (mas negro que K.card).
   ink: "#17100A",
-  inkMuted: "#6B6B70",
 };
 
 export const CCAT = {

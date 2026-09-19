@@ -280,6 +280,19 @@ export function DataProvider({ children }) {
     [reloadIngresos, flash, organizationId]
   );
 
+  // Edita los datos del cliente (nombre, documento, teléfono, dirección,
+  // ciudad, notas, crédito). Recarga ingresos+resumen porque `db.ingresos`
+  // guarda el nombre del cliente ya "aplanado" en cada fila — si se
+  // renombra, hay que refrescar para que se vea el nombre nuevo.
+  const editCliente = useCallback(
+    async (customerId, data) => {
+      await customersService.update(organizationId, customerId, data);
+      await reloadIngresos();
+      flash("✓ Cliente actualizado");
+    },
+    [reloadIngresos, flash, organizationId]
+  );
+
   const clientes = useMemo(
     () => [
       ...new Set(
@@ -322,6 +335,7 @@ export function DataProvider({ children }) {
       removeDeuda,
       marcarPagado,
       registrarAbono,
+      editCliente,
     }),
     [
       db,
@@ -347,6 +361,7 @@ export function DataProvider({ children }) {
       removeDeuda,
       marcarPagado,
       registrarAbono,
+      editCliente,
     ]
   );
 
