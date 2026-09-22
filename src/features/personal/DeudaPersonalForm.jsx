@@ -28,7 +28,10 @@ import FInput from "../../shared/ui/FInput";
  * - Muestra el nuevo saldo en tiempo real antes de guardar.
  * - Click en backdrop cierra el modal.
  * - Confirmación de borrado en 2 pasos (botón → ConfirmDelete).
- * - Fecha por defecto: `new Date().toLocaleDateString("es-CO")`.
+ * - Fecha por defecto: `new Date().toISOString()` — las columnas de fecha en
+ *   Supabase son `timestamptz`, no aceptan el formato D/M/YYYY de
+ *   `toLocaleDateString("es-CO")` (bug real: Postgres lo rechaza siempre que
+ *   el día es > 12, y en días ≤12 lo malinterpreta día/mes sin avisar).
  */
 function DeudaPersonalForm({ item, saldoBase = 0, onClose, onSave, onDelete }) {
   const base = item ? item.saldo - (item.presto || 0) + (item.pago || 0) : saldoBase;
@@ -57,7 +60,7 @@ function DeudaPersonalForm({ item, saldoBase = 0, onClose, onSave, onDelete }) {
         presto: Number(f.presto) || 0,
         pago: Number(f.pago) || 0,
         saldo: nuevoSaldo,
-        fecha: f.fecha || new Date().toLocaleDateString("es-CO"),
+        fecha: f.fecha || new Date().toISOString(),
       });
       onClose();
     } catch (e) {
