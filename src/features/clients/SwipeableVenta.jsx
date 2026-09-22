@@ -101,7 +101,7 @@ function SwipeableVenta({ v, debe, onEdit, onToggleDebe, isLast, seleccionable, 
             {v.producto}
             {debe && <span style={{ fontSize: 10, background: K.red, color: "#fff", borderRadius: 4, padding: "1px 6px", fontWeight: 700 }}>DEBE</span>}
           </div>
-          <div style={{ fontSize: 13, color: K.muted, marginTop: 3 }}>{v.tipo} · {fDate(v.fecha)}</div>
+          <div style={{ fontSize: 13, color: K.muted, marginTop: 3 }}>{v.tipo}{v.proveedor ? " · " + v.proveedor : ""} · {fDate(v.fecha)}</div>
         </div>
         <div style={{ textAlign: "right", marginLeft: 12, flexShrink: 0 }}>
           <div style={{ fontSize: 15, fontWeight: 700, color: K.gold }}>+{fmt(v.ganancia)}</div>
