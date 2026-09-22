@@ -21,6 +21,10 @@ function SwipeableVenta({ v, debe, onEdit, onToggleDebe, isLast, seleccionable, 
   const [offsetX, setOffsetX] = useState(0);
   const [swiping, setSwiping] = useState(false);
   const THRESHOLD = 72;
+  // En touchscreens reales, el navegador dispara un "click" fantasma justo
+  // despues de touchend — sin esto, ese click volveria a abrir la edicion
+  // (o la seleccion) por segunda vez. Se marca aqui y `onClick` lo descarta.
+  const touchHandledRef = useRef(false);
 
   const onTouchStart = (e) => {
     if (seleccionable) return;
@@ -41,6 +45,7 @@ function SwipeableVenta({ v, debe, onEdit, onToggleDebe, isLast, seleccionable, 
 
   const onTouchEnd = (e) => {
     if (seleccionable) return;
+    touchHandledRef.current = true;
     const dx = e.changedTouches[0].clientX - (startX.current || 0);
     const dy = e.changedTouches[0].clientY - (startY.current || 0);
     const wasSwiping = swiping;
@@ -48,7 +53,7 @@ function SwipeableVenta({ v, debe, onEdit, onToggleDebe, isLast, seleccionable, 
     startY.current = null;
     setSwiping(false);
     setOffsetX(0);
-    if (!wasSwiping && Math.abs(dx) < 8 && Math.abs(dy) < 8) {
+    if (!wasSwiping && Math.abs(dx) < 10 && Math.abs(dy) < 10) {
       onEdit(v);
       return;
     }
@@ -56,8 +61,16 @@ function SwipeableVenta({ v, debe, onEdit, onToggleDebe, isLast, seleccionable, 
     if (dx > THRESHOLD) onToggleDebe(v, "SI");
   };
 
+  // Cubre mouse/trackpad (donde nunca dispara touchstart/touchend, por
+  // ejemplo probando la app desde una laptop) sin duplicar la acción en un
+  // celular real, donde touchend ya la ejecutó y esto solo ve el click fantasma.
   const onClick = () => {
+    if (touchHandledRef.current) {
+      touchHandledRef.current = false;
+      return;
+    }
     if (seleccionable) onToggleSeleccion(v);
+    else onEdit(v);
   };
 
   const actionColor = offsetX < -THRESHOLD ? K.green : K.red;
