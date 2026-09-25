@@ -88,6 +88,7 @@ function ClienteDetail({
             )}
           </div>
         )}
+        {data?.debe && <ReporteClienteBtn cliente={cliente} ventasDeudoras={ventasDeudoras} abonos={abonos} totalDeuda={data?.saldo ?? null} dentroTarjeta />}
       </div>
       {data?.debe && (
         <>
@@ -109,9 +110,12 @@ function ClienteDetail({
         </div>
       )}
       <ClienteStats totalVentas={tv} ganancia={ganF} />
-      <ClienteHistorial ventasFiltradas={ventasFiltradas} pagH={pagH} setPagH={setPagH} onEditIngreso={onEditIngreso} onMarcarPagado={onMarcarPagado} onEliminarIngresos={onEliminarIngresos} />
-      <DeudaFactura cliente={cliente} ventasDeudoras={ventasDeudoras} abonos={abonos} totalDeuda={data?.saldo ?? null} />
-      <ReporteClienteBtn cliente={cliente} ventasDeudoras={ventasDeudoras} abonos={abonos} totalDeuda={data?.saldo ?? null} />
+      {/* Detalle de deuda + historial en 2 columnas (pantallas anchas/horizontal);
+          en celular vertical se apilan igual que antes. */}
+      <div className={ventasDeudoras.length > 0 ? "ac-desktop-2col" : undefined}>
+        <DeudaFactura cliente={cliente} ventasDeudoras={ventasDeudoras} abonos={abonos} totalDeuda={data?.saldo ?? null} />
+        <ClienteHistorial ventasFiltradas={ventasFiltradas} pagH={pagH} setPagH={setPagH} onEditIngreso={onEditIngreso} onMarcarPagado={onMarcarPagado} onEliminarIngresos={onEliminarIngresos} />
+      </div>
       {editando && (
         <EditClienteForm
           customer={editando}

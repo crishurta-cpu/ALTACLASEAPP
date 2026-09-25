@@ -39,12 +39,6 @@ function DeudaFactura({ cliente, ventasDeudoras, abonos = 0, totalDeuda = null }
           );
         })}
       </div>
-      {abonos > 0 && (
-        <div style={{ display: "flex", justifyContent: "space-between", padding: "7px 10px", background: `${K.green}12`, borderRadius: 8, marginBottom: 8 }}>
-          <span style={{ fontSize: 12, color: K.green }}>Abonos realizados</span>
-          <span style={{ fontSize: 12, fontWeight: 700, color: K.green }}>- {fmt2(abonos)}</span>
-        </div>
-      )}
       <div style={{ background: K.card2, borderRadius: DS.r.sm, padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <span style={{ fontSize: 13, fontWeight: 700, color: K.text }}>Total deuda</span>
         <span style={{ fontSize: 17, fontWeight: 700, color: K.red }}>{fmt2(totalNeto)}</span>

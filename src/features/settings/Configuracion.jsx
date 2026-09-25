@@ -4,6 +4,7 @@ import Card from "../../shared/ui/Card";
 import Btn from "../../shared/ui/Btn";
 import FInput from "../../shared/ui/FInput";
 import AccentPicker from "./AccentPicker";
+import ThemeEditor from "./ThemeEditor";
 import CambiarClaveScreen from "./CambiarClaveScreen";
 import { useAuth } from "../../app/hooks/useAuth";
 import * as organizationService from "../../services/supabase/organization.service";
@@ -89,6 +90,9 @@ function Configuracion() {
         </div>
         <AccentPicker />
       </>} />
+
+      {/* Colores de la app */}
+      <Card s={{ marginBottom: 8 }} ch={<ThemeEditor />} />
 
       {/* Sesión */}
       <Card s={{ marginBottom: 8 }} ch={<>

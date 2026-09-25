@@ -14,8 +14,50 @@ export const ACCENTS = [
   { id: "white", label: "Blanco", color: "#F1F5F9" },
 ];
 
+export const THEME_KEY = "altaclase_theme";
+export const THEME_DEFAULTS = {
+  bg: "#0A0A0B", card: "#141416", card2: "#1B1B1E", card3: "#222225",
+  text: "#F1F5F9", muted: "#6B7280", green: "#10B981", red: "#EF4444",
+};
+export const THEME_PRESETS = [
+  { id: "default", label: "Negro clásico", colors: {} },
+  { id: "graphite", label: "Grafito", colors: { bg: "#111318", card: "#1A1D24", card2: "#222630", card3: "#2A2F3B" } },
+  { id: "midnight", label: "Azul medianoche", colors: { bg: "#070B14", card: "#0F1626", card2: "#152036", card3: "#1B2A45" } },
+  { id: "forest", label: "Verde bosque", colors: { bg: "#08100C", card: "#0F1A14", card2: "#15251C", card3: "#1B3024" } },
+  { id: "wine", label: "Vino", colors: { bg: "#0F080A", card: "#1A0F12", card2: "#25151A", card3: "#301B22" } },
+];
+
+// Cache en memoria: K.* se lee cientos de veces por render, no se puede
+// parsear localStorage en cada acceso.
+let themeCache = null;
+const readTheme = () => {
+  if (themeCache) return themeCache;
+  try {
+    themeCache = JSON.parse(localStorage.getItem(THEME_KEY)) || {};
+  } catch {
+    themeCache = {};
+  }
+  return themeCache;
+};
+export const getThemeOverrides = () => ({ ...readTheme() });
+export const setThemeOverrides = (next) => {
+  themeCache = { ...next };
+  try { localStorage.setItem(THEME_KEY, JSON.stringify(themeCache)); } catch { /* sin storage */ }
+  window.dispatchEvent(new Event("accentchange"));
+};
+const tv = (k) => readTheme()[k] || THEME_DEFAULTS[k];
+
+// Mezcla dos colores hex (t=0 → a, t=1 → b) para derivar degradados del tema.
+const mixHex = (a, b, t) => {
+  const p = (h, i) => parseInt(h.slice(1 + i * 2, 3 + i * 2), 16);
+  const c = (i) => Math.round(p(a, i) + (p(b, i) - p(a, i)) * t).toString(16).padStart(2, "0");
+  return `#${c(0)}${c(1)}${c(2)}`;
+};
+
 export const getAccentColor = () => {
   if (typeof window === "undefined" || !window.localStorage) return "#FF7A1A";
+  const custom = readTheme().accent;
+  if (custom) return custom;
   const saved = localStorage.getItem(ACCENT_KEY);
   const found = ACCENTS.find(a => a.id === saved);
   return found ? found.color : "#FF7A1A";
@@ -40,15 +82,15 @@ export const DS = {
 // sintieron con demasiado contraste — se volvió a tarjetas oscuras, con
 // degradados sutiles entre 2 tonos cercanos en vez de un solo color plano.
 export const K = {
-  bg: "#0A0A0B",            // negro profundo — fondo de la app
-  card: "#141416",          // tarjeta nivel 1
-  card2: "#1B1B1E",         // tarjeta nivel 2
-  card3: "#222225",         // input y elementos interactivos
+  get bg() { return tv("bg"); },
+  get card() { return tv("card"); },
+  get card2() { return tv("card2"); },
+  get card3() { return tv("card3"); },
   card4: "#2B2B2F",         // hover y activos
   get gold() { return getAccentColor(); },
-  green: "#10B981",
+  get green() { return tv("green"); },
   grafico: "#6b7280",
-  red: "#EF4444",
+  get red() { return tv("red"); },
   blue: "#3B82F6",
   yellow: "#F59E0B",
   purple: "#8B5CF6",
@@ -56,14 +98,14 @@ export const K = {
   teal: "#06B6D4",
   border: "rgba(255,255,255,.07)",
   borderStrong: "rgba(255,255,255,.12)",
-  muted: "#6B7280",
+  get muted() { return tv("muted"); },
   mutedLighter: "#9CA3AF",
-  text: "#F1F5F9",
+  get text() { return tv("text"); },
   white: "#FFFFFF",
   // Degradado sutil para tarjetas de contenido (listas, resúmenes) —
   // reemplaza el fondo plano K.card donde antes se probó una tarjeta clara.
-  cardGrad: "linear-gradient(160deg, #1C1C1F 0%, #121214 100%)",
-  cardGradRed: "linear-gradient(160deg, #221010 0%, #160909 100%)", // variante para deuda/alertas
+  get cardGrad() { return `linear-gradient(160deg, ${mixHex(tv("card"), "#ffffff", 0.03)} 0%, ${mixHex(tv("card"), tv("bg"), 0.5)} 100%)`; },
+  get cardGradRed() { return `linear-gradient(160deg, ${mixHex(tv("card"), "#EF4444", 0.12)} 0%, ${mixHex(tv("bg"), "#EF4444", 0.06)} 100%)`; },
   // Fondo oscuro de la barra de navegación inferior (mas negro que K.card).
   ink: "#17100A",
 };

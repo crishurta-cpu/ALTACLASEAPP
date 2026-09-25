@@ -4,7 +4,7 @@ import { K, DS } from "../../constants";
 /**
  * Genera y copia al portapapeles el reporte de deuda para WhatsApp.
  */
-function ReporteClienteBtn({ cliente, ventasDeudoras = [], abonos = 0, totalDeuda = null }) {
+function ReporteClienteBtn({ cliente, ventasDeudoras = [], abonos = 0, totalDeuda = null, dentroTarjeta = false }) {
   const [copiado, setCopiado] = useState(false);
   const fmt2 = (n) => "$" + Number(n || 0).toLocaleString("es-CO");
 
@@ -33,7 +33,6 @@ function ReporteClienteBtn({ cliente, ventasDeudoras = [], abonos = 0, totalDeud
       lineas.push(`• ${fStr} - ${v.producto} — ${fmt2(v.precioVenta)}`);
     });
     lineas.push(``);
-    if (abonos > 0) lineas.push(`✅ Abonos aplicados: ${fmt2(abonos)}`, ``);
     lineas.push(`*Total de deuda: ${fmt2(totalNeto)} COP*`);
     lineas.push(``, `────────────────────────`, ``);
     lineas.push(`📌 *INFORMACIÓN PARA PAGOS:*`, ``);
@@ -71,7 +70,7 @@ CALI - COLOMBIA`);
   };
 
   return (
-    <button onClick={generar} style={{ width: "100%", background: copiado ? `${K.green}15` : K.card2, border: `1.5px solid ${copiado ? K.green : K.border}`, borderRadius: DS.r.md, padding: "14px 16px", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, WebkitTapHighlightColor: "transparent", transition: "all .2s" }}>
+    <button onClick={generar} style={{ width: "100%", background: copiado ? `${K.green}15` : dentroTarjeta ? "rgba(255,255,255,.05)" : K.card2, border: `1.5px solid ${copiado ? K.green : K.border}`, borderRadius: DS.r.md, padding: "14px 16px", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: dentroTarjeta ? 0 : 10, marginTop: dentroTarjeta ? 12 : 0, WebkitTapHighlightColor: "transparent", transition: "all .2s" }}>
       <div style={{ textAlign: "left" }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: copiado ? K.green : K.text }}>{copiado ? "✓ Copiado para WhatsApp" : "📋 GENERAR REPORTE DE DEUDA"}</div>
         <div style={{ fontSize: 10, color: K.muted, marginTop: 2 }}>Incluye datos de pago</div>
